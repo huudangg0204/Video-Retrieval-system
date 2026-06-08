@@ -1,0 +1,34 @@
+# ── Core ML ──────────────────────────────────────────────────────────────────
+# Cài torch + torchvision TRƯỚC theo hướng dẫn https://pytorch.org/get-started/locally/
+# CPU:  pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+# CUDA: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+torch>=2.1.0
+torchvision>=0.16.0
+
+# ── Vision / CLIP ─────────────────────────────────────────────────────────────
+open-clip-torch>=2.24.0
+timm>=0.9.0
+opencv-python>=4.8.0
+
+# ── Transformers (BLIP reranker) ──────────────────────────────────────────────
+transformers>=4.40.0
+Pillow>=10.0.0
+
+# ── Vector search ─────────────────────────────────────────────────────────────
+faiss-cpu>=1.7.4          # hoặc faiss-gpu nếu có CUDA
+
+# ── Data ──────────────────────────────────────────────────────────────────────
+numpy>=1.24.0
+pandas>=2.0.0
+
+# ── Web server (sever.py) ─────────────────────────────────────────────────────
+flask>=3.0.0
+flask-cors>=4.0.0
+gunicorn>=21.0.0          # production server (Linux/Mac); dùng waitress trên Windows
+
+# ── Desktop GUI (eva02_retrieval-ui_trake.py) ─────────────────────────────────
+customtkinter>=5.2.0
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+requests>=2.31.0
+tqdm>=4.66.0
