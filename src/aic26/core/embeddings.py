@@ -1,0 +1,284 @@
+"""
+Embedding index management for AIC-26.
+
+Handles loading pre-computed embeddings, pairing with keyframes,
+and providing text/image encoding capabilities.
+
+Migrated from: core/embeddings.py
+"""
+from __future__ import annotations
+
+import os
+from typing import List, Optional, Tuple
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+from PIL import Image
+
+from loguru import logger
+
+from aic26.config import settings
+from aic26.utils.frame_utils import parse_frame_number_from_filename
+from aic26.core.models import ModelRegistry
+
+
+class EmbeddingIndex:
+    """
+    Loads and manages pre-computed EVA-02 embeddings.
+    
+    Provides:
+    - Text and image encoding using EVA-02 CLIP
+    - Similarity computation (cosine)
+    - Top-k and threshold-based retrieval
+    
+    Usage:
+        index = EmbeddingIndex(models, embedding_dir, keyframes_dir)
+        text_emb = index.encode_text("a red car")
+        sims = index.cosine_similarity(text_emb, index.embeddings)
+    """
+    
+    def __init__(
+        self,
+        models: ModelRegistry,
+        embedding_dir: str,
+        keyframes_dir: str,
+    ) -> None:
+        """
+        Initialize the embedding index.
+        
+        Args:
+            models: ModelRegistry with loaded EVA-02 model
+            embedding_dir: Directory containing .npy embedding files
+            keyframes_dir: Directory containing keyframe images
+        """
+        self.models = models
+        self.embedding_dir = embedding_dir
+        self.keyframes_dir = keyframes_dir
+        
+        logger.info("Loading embeddings...")
+        self.embeddings, self.image_paths, self.video_names = self._load_all()
+        
+        n_images = len(self.image_paths)
+        n_videos = len(set(self.video_names))
+        logger.info(
+            f"Loaded {n_images} images from {n_videos} videos. "
+            f"Embedding shape: {self.embeddings.shape}"
+        )
+    
+    # ── Encoders ──────────────────────────────────────────────────
+    
+    def encode_text(self, text: str) -> np.ndarray:
+        """
+        Encode text to L2-normalized embedding vector.
+        
+        Args:
+            text: Text string to encode
+            
+        Returns:
+            Float32 array of shape (1, embedding_dim)
+        """
+        with torch.no_grad():
+            tokens = self.models.tokenizer([text]).to(self.models.device)
+            features = self.models.clip_model.encode_text(tokens)
+            features = F.normalize(features, dim=-1)
+        return features.cpu().numpy().astype(np.float32)
+    
+    def encode_image(self, image_path: str) -> np.ndarray:
+        """
+        Encode image to L2-normalized embedding vector.
+        
+        Args:
+            image_path: Path to the image file
+            
+        Returns:
+            Float32 array of shape (1, embedding_dim)
+        """
+        try:
+            img = Image.open(image_path).convert("RGB")
+            img_tensor = self.models.preprocess_val(img).unsqueeze(0).to(self.models.device)
+            
+            with torch.no_grad():
+                features = self.models.clip_model.encode_image(img_tensor)
+                features = F.normalize(features, dim=-1)
+            
+            return features.cpu().numpy().astype(np.float32)
+        except Exception as e:
+            logger.error(f"Failed to encode image {image_path}: {e}")
+            raise
+    
+    def get_embedding(self, image_path: str) -> Optional[np.ndarray]:
+        """
+        Retrieve pre-computed embedding for an image path.
+        
+        Uses in-memory index for O(1) lookup.
+        Falls back to loading from disk if not in memory.
+        
+        Args:
+            image_path: Path to the image file
+            
+        Returns:
+            Float32 array of shape (1, embedding_dim) or None
+        """
+        try:
+            # Fast path: lookup in memory
+            if image_path in self._path_to_idx:
+                idx = self._path_to_idx[image_path]
+                return self.embeddings[idx : idx + 1].astype(np.float32)
+            
+            # Fallback: parse and load from disk
+            video_name = os.path.basename(os.path.dirname(image_path))
+            frame_str = os.path.splitext(os.path.basename(image_path))[0]
+            frame_idx = parse_frame_number_from_filename(frame_str)
+            
+            if frame_idx is None:
+                logger.warning(f"Cannot parse frame number from: {image_path}")
+                return None
+            
+            emb_path = os.path.join(self.embedding_dir, f"{video_name}.npy")
+            if not os.path.exists(emb_path):
+                logger.warning(f"Embedding file not found: {emb_path}")
+                return None
+            
+            embs = np.load(emb_path)
+            if frame_idx >= len(embs):
+                logger.warning(
+                    f"Frame index {frame_idx} out of bounds for {video_name} "
+                    f"({len(embs)} embeddings)"
+                )
+                return None
+            
+            return embs[frame_idx : frame_idx + 1].astype(np.float32)
+            
+        except Exception as e:
+            logger.error(f"Error getting embedding for {image_path}: {e}")
+            return None
+    
+    # ── Similarity ────────────────────────────────────────────────
+    
+    @staticmethod
+    def cosine_similarity(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+        """
+        Compute cosine similarity between two sets of vectors.
+        
+        Args:
+            a: Array of shape (M, D)
+            b: Array of shape (N, D)
+            
+        Returns:
+            Similarity matrix of shape (M, N)
+        """
+        a_norm = a / (np.linalg.norm(a, axis=1, keepdims=True) + 1e-9)
+        b_norm = b / (np.linalg.norm(b, axis=1, keepdims=True) + 1e-9)
+        return np.dot(a_norm, b_norm.T)
+    
+    def topk_indices(
+        self,
+        sims: np.ndarray,
+        top_k: int,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Get indices and scores of top-k most similar items.
+        
+        Args:
+            sims: 1-D similarity array
+            top_k: Number of top results to return
+            
+        Returns:
+            Tuple of (indices, scores) arrays
+        """
+        idx = np.argsort(sims)[::-1][:top_k]
+        return idx, sims[idx]
+    
+    def threshold_indices(
+        self,
+        sims: np.ndarray,
+        score: float,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Get all indices with similarity above threshold.
+        
+        Args:
+            sims: 1-D similarity array
+            score: Minimum similarity threshold
+            
+        Returns:
+            Tuple of (indices, scores) arrays, sorted descending
+        """
+        idx = np.where(sims >= score)[0]
+        scores = sims[idx]
+        if len(scores) == 0:
+            return np.array([], dtype=int), np.array([], dtype=np.float32)
+        order = np.argsort(scores)[::-1]
+        return idx[order], scores[order]
+    
+    # ── Private ───────────────────────────────────────────────────
+    
+    def _load_all(self) -> Tuple[np.ndarray, List[str], List[str]]:
+        """
+        Load all .npy embedding files and pair with keyframe paths.
+        
+        Returns:
+            Tuple of (embeddings_array, image_paths_list, video_names_list)
+        """
+        if not os.path.exists(self.embedding_dir):
+            logger.warning(f"Embedding directory not found: {self.embedding_dir}")
+            return np.array([]), [], []
+        
+        all_embs: List[np.ndarray] = []
+        all_paths: List[str] = []
+        all_vids: List[str] = []
+        
+        npy_files = sorted(
+            f for f in os.listdir(self.embedding_dir) if f.endswith(".npy")
+        )
+        
+        if not npy_files:
+            logger.warning(f"No .npy files found in {self.embedding_dir}")
+            return np.array([]), [], []
+        
+        for npy in npy_files:
+            video_name = os.path.splitext(npy)[0]
+            emb_path = os.path.join(self.embedding_dir, npy)
+            
+            try:
+                embs = np.load(emb_path)
+            except Exception as e:
+                logger.error(f"Failed to load {emb_path}: {e}")
+                continue
+            
+            vid_folder = os.path.join(self.keyframes_dir, video_name)
+            if not os.path.exists(vid_folder):
+                logger.warning(f"Keyframe folder missing: {vid_folder}")
+                continue
+            
+            frames = sorted(
+                f for f in os.listdir(vid_folder)
+                if f.lower().endswith(('.jpg', '.jpeg', '.png'))
+            )
+            
+            n_frames = len(frames)
+            n_embs = len(embs)
+            
+            if n_frames != n_embs:
+                logger.warning(
+                    f"Mismatch for {video_name}: "
+                    f"{n_embs} embeddings vs {n_frames} keyframes. "
+                    f"Using min({n_embs}, {n_frames})."
+                )
+            
+            n = min(n_frames, n_embs)
+            for i in range(n):
+                all_paths.append(os.path.join(vid_folder, frames[i]))
+                all_vids.append(video_name)
+            all_embs.append(embs[:n])
+        
+        if not all_embs:
+            return np.array([]), [], []
+        
+        combined = np.concatenate(all_embs, axis=0).astype(np.float32)
+        
+        # Build reverse lookup for fast path
+        self._path_to_idx = {p: i for i, p in enumerate(all_paths)}
+        
+        return combined, all_paths, all_vids

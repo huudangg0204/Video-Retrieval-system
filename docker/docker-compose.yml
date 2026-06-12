@@ -1,0 +1,91 @@
+# ============================================================
+# AIC-26 Docker Compose Configuration
+# ============================================================
+
+version: '3.8'
+
+services:
+  # ── API Server ──────────────────────────────────────────
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: aic26:latest
+    container_name: aic26-api
+    ports:
+      - "${PORT:-5000}:5000"
+    volumes:
+      - ../data:/app/data
+      - ../src:/app/src
+    environment:
+      - HOST=0.0.0.0
+      - PORT=5000
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-change-me-in-production}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - aic26-network
+
+  # ── API Server with GPU ─────────────────────────────────
+  api-gpu:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.gpu
+    image: aic26:gpu
+    container_name: aic26-api-gpu
+    ports:
+      - "${PORT:-5000}:5000"
+    volumes:
+      - ../data:/app/data
+      - ../src:/app/src
+    environment:
+      - HOST=0.0.0.0
+      - PORT=5000
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    profiles:
+      - gpu
+    networks:
+      - aic26-network
+
+  # ── Pipeline Runner ─────────────────────────────────────
+  pipeline:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.gpu
+    image: aic26:gpu
+    container_name: aic26-pipeline
+    volumes:
+      - ../data:/app/data
+      - ../videos:/app/videos:ro
+    environment:
+      - LOG_LEVEL=INFO
+    command: ["python", "-m", "aic26.cli.main", "pipeline", "run-all", "-v", "/app/videos"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    profiles:
+      - pipeline
+    networks:
+      - aic26-network
+
+networks:
+  aic26-network:
+    driver: bridge
