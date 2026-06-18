@@ -18,7 +18,7 @@ from flask_cors import CORS
 
 from aic26.config import settings
 from aic26.api.middleware.error_handler import register_error_handlers
-from aic26.api.routes import search, trake, export, video, system
+from aic26.api.routes import search, trake, export, video, system, ingest
 
 
 def create_app(config=None) -> Flask:
@@ -63,6 +63,7 @@ def create_app(config=None) -> Flask:
     app.register_blueprint(export.bp, url_prefix='/api')
     app.register_blueprint(video.bp, url_prefix='/api')
     app.register_blueprint(system.bp, url_prefix='/api')
+    app.register_blueprint(ingest.bp, url_prefix='/api')
     
     # ── Error handlers ─────────────────────────────────────────
     register_error_handlers(app)

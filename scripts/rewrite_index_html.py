@@ -1,0 +1,679 @@
+"""Rewrite index.html with premium dark UI + Ingest panel."""
+import sys
+
+NEW_HTML = r"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>AIC-26 — Video Retrieval System</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+      --border: #2e3354; --accent: #6366f1; --accent-glow: rgba(99,102,241,0.25);
+      --success: #22c55e; --warn: #f59e0b; --danger: #ef4444;
+      --text: #e2e8f0; --muted: #94a3b8; --radius: 12px;
+    }
+    body { background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; margin:0; padding:24px; }
+    .container { max-width:1280px; margin:0 auto; }
+    h1 {
+      font-size:26px; font-weight:700; margin:0 0 24px; letter-spacing:-0.5px;
+      background:linear-gradient(135deg,#818cf8,#c084fc);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    }
+    .card {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); padding:24px; margin-bottom:20px;
+      box-shadow:0 4px 24px rgba(0,0,0,0.4);
+    }
+    .card h2 { font-size:16px; font-weight:600; margin:0 0 16px; display:flex; align-items:center; gap:8px; }
+    .badge {
+      font-size:11px; font-weight:500; padding:2px 8px; border-radius:99px;
+      background:var(--accent-glow); color:#a5b4fc; border:1px solid rgba(99,102,241,0.3);
+    }
+    input,textarea,select {
+      width:100%; padding:10px 14px; border-radius:8px; border:1px solid var(--border);
+      background:var(--surface2); color:var(--text); font-size:14px; font-family:inherit;
+      margin-top:6px; outline:none; transition:border-color 0.2s;
+    }
+    input:focus,textarea:focus,select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+    button {
+      padding:10px 20px; border-radius:8px; border:none; background:var(--accent);
+      color:white; cursor:pointer; margin-top:6px; font-weight:600; font-size:14px;
+      font-family:inherit; transition:all 0.2s; letter-spacing:0.2px;
+    }
+    button:hover { background:#4f52e0; transform:translateY(-1px); }
+    button:active { transform:translateY(0); }
+    .btn-light { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+    .btn-light:hover { background:var(--border); }
+    .btn-sm { padding:6px 14px; font-size:13px; margin-top:0; }
+    .btn-danger { background:var(--danger); }
+    .btn-danger:hover { background:#dc2626; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+    .col { flex:1; min-width:160px; }
+    .results img { max-width:240px; display:block; margin-top:8px; border-radius:8px; border:1px solid var(--border); }
+    .small { font-size:13px; color:var(--muted); }
+    pre { white-space:pre-wrap; color:var(--muted); background:var(--surface2); padding:10px 14px; border-radius:8px; font-size:13px; border:1px solid var(--border); margin:0; }
+    .frames-grid { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+    .frames-grid img { width:150px; height:auto; object-fit:cover; border-radius:8px; border:1px solid var(--border); }
+    .thumb-row { display:flex; flex-wrap:nowrap; gap:12px; overflow-x:auto; padding:6px 0; }
+    .thumb-item { flex:0 0 auto; width:200px; }
+    .thumb-item img { width:100%; height:auto; display:block; border-radius:6px; }
+    summary { cursor:pointer; color:var(--text); }
+
+    /* ── Ingest panel ── */
+    .ingest-dropzone {
+      border:2px dashed var(--border); border-radius:12px; padding:40px 24px;
+      text-align:center; cursor:pointer; transition:all 0.25s; position:relative;
+      background:var(--surface2);
+    }
+    .ingest-dropzone:hover,.ingest-dropzone.drag-over {
+      border-color:var(--accent); background:rgba(99,102,241,0.06);
+      box-shadow:0 0 0 4px var(--accent-glow);
+    }
+    .ingest-dropzone input[type="file"] {
+      position:absolute; inset:0; opacity:0; cursor:pointer;
+      width:100%; height:100%; margin:0; padding:0;
+    }
+    .drop-icon { font-size:42px; margin-bottom:10px; }
+    .drop-title { font-size:16px; font-weight:600; margin-bottom:4px; }
+    .drop-sub { font-size:13px; color:var(--muted); }
+    .drop-filename { margin-top:10px; font-size:13px; color:#a5b4fc; font-weight:500; }
+
+    .ingest-opts { display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:10px; margin:16px 0; }
+    .opt-toggle {
+      display:flex; align-items:center; gap:10px; padding:10px 14px;
+      background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+      cursor:pointer; transition:border-color 0.2s; user-select:none;
+    }
+    .opt-toggle:hover { border-color:var(--accent); }
+    .opt-toggle input[type="checkbox"] { width:16px; height:16px; accent-color:var(--accent); margin:0; cursor:pointer; flex-shrink:0; }
+    .opt-toggle .opt-label { font-size:13px; font-weight:500; }
+    .opt-toggle .opt-desc { font-size:11px; color:var(--muted); margin-top:1px; }
+
+    .progress-wrap { background:var(--surface2); border-radius:99px; height:8px; overflow:hidden; margin:12px 0 4px; border:1px solid var(--border); }
+    .progress-bar { height:100%; border-radius:99px; background:linear-gradient(90deg,#6366f1,#a855f7); transition:width 0.4s ease; box-shadow:0 0 8px rgba(99,102,241,0.5); }
+
+    .status-pill { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:3px 10px; border-radius:99px; text-transform:uppercase; letter-spacing:0.5px; }
+    .status-pill::before { content:''; width:7px; height:7px; border-radius:50%; }
+    .pill-queued  { background:rgba(148,163,184,0.15); color:var(--muted); } .pill-queued::before  { background:var(--muted); }
+    .pill-running { background:rgba(99,102,241,0.15);  color:#a5b4fc; }      .pill-running::before { background:var(--accent); animation:blink 1s infinite; }
+    .pill-done    { background:rgba(34,197,94,0.15);   color:var(--success); } .pill-done::before  { background:var(--success); }
+    .pill-error   { background:rgba(239,68,68,0.15);   color:var(--danger); }  .pill-error::before { background:var(--danger); }
+    .pill-cancelled { background:rgba(245,158,11,0.15); color:var(--warn); } .pill-cancelled::before { background:var(--warn); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .job-card { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-top:12px; }
+    .job-header { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+    .job-filename { font-weight:600; font-size:14px; }
+    .job-meta { font-size:12px; color:var(--muted); margin-top:2px; }
+    .job-message { font-size:13px; color:var(--text); margin-top:8px; }
+    .job-stats { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    .job-stat { font-size:12px; background:var(--bg); padding:3px 10px; border-radius:6px; border:1px solid var(--border); color:var(--muted); }
+    .job-stat b { color:var(--text); }
+
+    .divider { height:1px; background:var(--border); margin:20px 0; }
+    label { font-size:13px; font-weight:500; color:var(--muted); display:block; margin-top:12px; margin-bottom:0; }
+    select option { background:var(--surface2); }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>&#9673; AIC-26 — Video Retrieval System</h1>
+
+    <!-- ─────────────── INGEST PANEL ─────────────── -->
+    <div class="card" id="ingest-card">
+      <h2>&#128229; Data Ingestion <span class="badge">Upload &amp; Index</span></h2>
+
+      <!-- Dropzone -->
+      <div class="ingest-dropzone" id="dropzone">
+        <input type="file" id="ingestFile" accept=".mp4,.avi,.mkv,.mov,.webm,.zip"
+               onchange="onFileSelected(event)">
+        <div class="drop-icon">&#128228;</div>
+        <div class="drop-title">Drop file here or click to browse</div>
+        <div class="drop-sub">Supported: Video files (.mp4, .avi, .mkv, .mov) &nbsp;|&nbsp; Keyframe archive (.zip)</div>
+        <div class="drop-filename" id="dropFilename"></div>
+      </div>
+
+      <!-- Options -->
+      <div class="ingest-opts">
+        <label class="opt-toggle" for="opt_skip_detection">
+          <input type="checkbox" id="opt_skip_detection">
+          <div>
+            <div class="opt-label">Skip Detection</div>
+            <div class="opt-desc">No YOLO object detection</div>
+          </div>
+        </label>
+        <label class="opt-toggle" for="opt_skip_ocr">
+          <input type="checkbox" id="opt_skip_ocr" checked>
+          <div>
+            <div class="opt-label">Skip OCR</div>
+            <div class="opt-desc">No text extraction</div>
+          </div>
+        </label>
+        <label class="opt-toggle" for="opt_no_blip">
+          <input type="checkbox" id="opt_no_blip">
+          <div>
+            <div class="opt-label">Skip BLIP</div>
+            <div class="opt-desc">EVA-02 only (faster)</div>
+          </div>
+        </label>
+        <label class="opt-toggle" for="opt_force_recreate">
+          <input type="checkbox" id="opt_force_recreate">
+          <div>
+            <div class="opt-label">Force Recreate</div>
+            <div class="opt-desc">Delete &amp; rebuild ES index</div>
+          </div>
+        </label>
+      </div>
+
+      <div class="row" style="align-items:flex-end">
+        <div style="width:160px">
+          <label for="opt_batch_size">Batch size</label>
+          <input type="number" id="opt_batch_size" value="40" min="1" max="256">
+        </div>
+        <div style="margin-top:auto">
+          <button id="ingestBtn" onclick="startIngest()" disabled>&#9654; Start Ingestion</button>
+        </div>
+      </div>
+
+      <!-- Active job progress -->
+      <div id="ingestProgress" style="display:none; margin-top:20px;">
+        <div class="divider"></div>
+        <div class="job-card">
+          <div class="job-header">
+            <div>
+              <div class="job-filename" id="pFilename">—</div>
+              <div class="job-meta" id="pMeta">—</div>
+            </div>
+            <div id="pPill" class="status-pill pill-queued">Queued</div>
+          </div>
+          <div class="job-message" id="pMessage">Waiting...</div>
+          <div class="progress-wrap">
+            <div class="progress-bar" id="pBar" style="width:0%"></div>
+          </div>
+          <div class="small" id="pPercent">0%</div>
+          <div class="job-stats" id="pStats"></div>
+        </div>
+      </div>
+
+      <!-- Job history toggle -->
+      <div style="margin-top:16px; display:flex; align-items:center; gap:12px;">
+        <button class="btn-light btn-sm" onclick="toggleHistory()">&#128336; Job History</button>
+        <span class="small" id="historyCount"></span>
+      </div>
+      <div id="ingestHistoryPanel" style="margin-top:12px; display:none;"></div>
+    </div>
+
+    <!-- ─────────────── STATS ─────────────── -->
+    <div class="card">
+      <h2>&#128202; System Stats</h2>
+      <pre id="statsBox">{{ stats }}</pre>
+      <button class="btn-light btn-sm" onclick="refreshStats()" style="margin-top:12px;">&#8635; Refresh</button>
+    </div>
+
+    <!-- ─────────────── TEXT SEARCH ─────────────── -->
+    <div class="card" id="text-search-card">
+      <h2>&#128269; Text Search</h2>
+      <div class="row">
+        <div class="col">
+          <input id="queryInput" placeholder="Describe what you're looking for...">
+        </div>
+        <div style="width:120px">
+          <input id="topkInput" placeholder="Top-K (100)">
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="col">
+          <input id="objectInput" placeholder="Filter objects (comma separated, e.g. car, person)">
+        </div>
+        <div style="width:180px">
+          <input id="thresholdInput" placeholder="Threshold (e.g. 0.5)">
+        </div>
+        <div style="margin-top:auto">
+          <button onclick="searchText()">Search</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="col">
+          <input type="file" id="textSearchImage" accept="image/*">
+          <div class="small" style="margin-top:4px">Optional: upload image to rerank results</div>
+        </div>
+      </div>
+      <div id="textResults" class="results"></div>
+      <div style="margin-top:16px">
+        <div class="row">
+          <div class="col"><input id="exportName" placeholder="CSV filename (no .csv)"></div>
+          <div class="col"><input id="exportConst" placeholder="Optional const value"></div>
+          <div style="margin-top:auto"><button class="btn-light" onclick="exportResults()">Export Results</button></div>
+        </div>
+        <div id="exportMsg" class="small" style="margin-top:6px"></div>
+      </div>
+      <div style="margin-top:16px">
+        <div class="row">
+          <div style="width:180px"><select id="groupSortBy"><option value="frame">Sort by frame</option><option value="similarity">Sort by similarity</option></select></div>
+          <div style="width:180px"><input id="groupTopPerVideo" placeholder="Top per video (e.g. 20)"></div>
+          <div style="margin-top:auto"><button class="btn-light" onclick="groupByVideoText()">Group by Video</button></div>
+        </div>
+        <div id="groupedResults" class="results" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- ─────────────── IMAGE SEARCH ─────────────── -->
+    <div class="card">
+      <h2>&#128444; Image Search</h2>
+      <div class="row">
+        <div class="col"><input type="file" id="uploadFile" accept="image/*"></div>
+        <div style="width:120px"><input id="imgTopk" placeholder="Top-K (100)"></div>
+        <div style="margin-top:auto"><button onclick="uploadAndSearch()">Upload &amp; Search</button></div>
+      </div>
+      <div id="imageResults" class="results"></div>
+      <div style="margin-top:16px">
+        <div class="row">
+          <div style="width:180px"><select id="groupSortByImg"><option value="frame">Sort by frame</option><option value="similarity">Sort by similarity</option></select></div>
+          <div style="width:180px"><input id="groupTopPerVideoImg" placeholder="Top per video (e.g. 20)"></div>
+          <div style="margin-top:auto"><button class="btn-light" onclick="groupByVideoImage()">Group by Video</button></div>
+        </div>
+        <div id="groupedImageResults" class="results" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- ─────────────── TRAKE ─────────────── -->
+    <div class="card">
+      <h2>&#128260; TRAKE — Temporal Retrieval</h2>
+      <textarea id="eventsBox" rows="4" placeholder="E1: person walking on street&#10;E2: car driving fast&#10;E3: crowd gathering"></textarea>
+      <div class="row" style="margin-top:10px">
+        <div class="col"><input id="trakeTopk" placeholder="Top-K per event (200)"></div>
+        <div class="col"><input id="trakeCandidates" placeholder="Candidates (200)"></div>
+        <div class="col">
+          <select id="trakeOption" style="margin-top:6px">
+            <option value="Closest">Closest</option>
+            <option value="Highest">Highest</option>
+            <option value="All">All</option>
+          </select>
+        </div>
+        <div style="margin-top:auto"><button onclick="runTrake()">Run TRAKE</button></div>
+      </div>
+      <div style="margin-top:12px">
+        <div class="row">
+          <div class="col"><input id="trakeExportName" placeholder="CSV filename (no .csv)"></div>
+          <div style="margin-top:auto"><button class="btn-light" onclick="exportTrake()">Export TRAKE</button></div>
+        </div>
+        <div id="trakeExportMsg" class="small" style="margin-top:6px"></div>
+      </div>
+      <div id="trakeResults" class="results"></div>
+    </div>
+
+    <!-- ─────────────── VIDEO FRAMES ─────────────── -->
+    <div class="card">
+      <h2>&#127916; Video Frame Viewer</h2>
+      <div class="row">
+        <div class="col"><input id="videoNameInput" placeholder="Video folder name (e.g. L01_V001)"></div>
+        <div style="margin-top:auto"><button onclick="showFrames()">Show Frames</button></div>
+      </div>
+      <div id="framesView" class="frames-grid"></div>
+      <div class="divider"></div>
+      <div class="row">
+        <div class="col"><input id="videoNameRangeInput" placeholder="Video name"></div>
+        <div class="col"><input id="frameIdInput" placeholder="Frame ID"></div>
+        <div class="col"><input id="rangeInput" placeholder="Range (frames)"></div>
+        <div style="margin-top:auto"><button onclick="showFramesRange()">Show Range</button></div>
+      </div>
+      <div id="framesRangeView" class="frames-grid" style="margin-top:12px"></div>
+    </div>
+
+    <!-- ─────────────── SUBMISSION ─────────────── -->
+    <div class="card">
+      <h2>&#128196; Make Submission</h2>
+      <div class="row">
+        <div class="col"><input id="subExportName" placeholder="CSV filename"></div>
+        <div class="col"><input id="subVideoName" placeholder="Video name"></div>
+        <div class="col"><input id="subFrameId" placeholder="Frame ID"></div>
+        <div class="col"><input id="subGap" placeholder="GAP_KEYFRAME"></div>
+        <div class="col"><input id="subConst" placeholder="Const value (optional)"></div>
+        <div style="margin-top:auto"><button onclick="makeSubmission()">Export Submission</button></div>
+      </div>
+      <div id="subMsg" class="small" style="margin-top:8px"></div>
+    </div>
+
+  </div><!-- /container -->
+
+  <script>
+    window.lastResults = [];
+    let _activeJobId = null;
+    let _pollTimer = null;
+    let _selectedFile = null;
+
+    // ── Helpers ──────────────────────────────────────────────────
+    function imgTagForPath(path, alt="") {
+      const url = "/api/image?path=" + encodeURIComponent(path.replace(/\\/g, "/"));
+      return `<img src="${url}" alt="${alt}" loading="lazy">`;
+    }
+
+    function pill(status) {
+      const labels = { queued:"Queued", running:"Running…", done:"Done", error:"Error", cancelled:"Cancelled" };
+      return `<span class="status-pill pill-${status}">${labels[status]||status}</span>`;
+    }
+
+    function fmtDuration(s) {
+      if (!s) return "";
+      return s < 60 ? `${s.toFixed(1)}s` : `${(s/60).toFixed(1)}min`;
+    }
+
+    async function refreshStats() {
+      try {
+        const r = await fetch("/api/stats");
+        const d = await r.json();
+        document.getElementById("statsBox").textContent = JSON.stringify(d, null, 2);
+      } catch(e) {}
+    }
+
+    // ── Dropzone drag events ──────────────────────────────────────
+    const dz = document.getElementById("dropzone");
+    dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("drag-over"); });
+    dz.addEventListener("dragleave", () => dz.classList.remove("drag-over"));
+    dz.addEventListener("drop", e => {
+      e.preventDefault();
+      dz.classList.remove("drag-over");
+      const f = e.dataTransfer.files[0];
+      if (f) setFile(f);
+    });
+
+    function onFileSelected(e) { setFile(e.target.files[0]); }
+
+    function setFile(f) {
+      _selectedFile = f;
+      document.getElementById("dropFilename").textContent = f ? `Selected: ${f.name} (${(f.size/1024/1024).toFixed(1)} MB)` : "";
+      document.getElementById("ingestBtn").disabled = !f;
+    }
+
+    // ── Start ingestion ───────────────────────────────────────────
+    async function startIngest() {
+      if (!_selectedFile) return;
+
+      const fd = new FormData();
+      fd.append("file", _selectedFile);
+      fd.append("skip_detection", document.getElementById("opt_skip_detection").checked);
+      fd.append("skip_ocr",       document.getElementById("opt_skip_ocr").checked);
+      fd.append("no_blip",        document.getElementById("opt_no_blip").checked);
+      fd.append("force_recreate", document.getElementById("opt_force_recreate").checked);
+      fd.append("batch_size",     document.getElementById("opt_batch_size").value || 40);
+
+      document.getElementById("ingestBtn").disabled = true;
+      document.getElementById("ingestBtn").textContent = "⏳ Uploading…";
+
+      try {
+        const r = await fetch("/api/ingest/upload", { method:"POST", body:fd });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "Upload failed");
+
+        _activeJobId = d.job_id;
+        showProgress(d);
+        pollJob(d.job_id);
+
+      } catch(e) {
+        alert("Ingest error: " + e.message);
+        document.getElementById("ingestBtn").disabled = false;
+        document.getElementById("ingestBtn").textContent = "▶ Start Ingestion";
+      }
+    }
+
+    // ── Show progress panel ───────────────────────────────────────
+    function showProgress(job) {
+      document.getElementById("ingestProgress").style.display = "block";
+      updateJobUI(job);
+    }
+
+    function updateJobUI(job) {
+      document.getElementById("pFilename").textContent = job.filename || job.job_id;
+      document.getElementById("pMeta").textContent = `Mode: ${job.mode || "?"} | Job: ${job.job_id}`;
+      document.getElementById("pPill").outerHTML = `<div id="pPill">${pill(job.status)}</div>`;
+      document.getElementById("pMessage").textContent = job.message || "";
+
+      const pct = job.progress || 0;
+      document.getElementById("pBar").style.width = pct + "%";
+      document.getElementById("pPercent").textContent = pct + "%";
+
+      if (job.stats) {
+        const s = job.stats;
+        const dur = s.duration_seconds ? ` | ${fmtDuration(s.duration_seconds)}` : "";
+        document.getElementById("pStats").innerHTML = `
+          <span class="job-stat">&#127916; Videos <b>${s.videos_found}</b></span>
+          <span class="job-stat">&#128444; Frames <b>${s.keyframes_found}</b></span>
+          <span class="job-stat">&#129302; Embedded <b>${s.embeddings_extracted}</b></span>
+          <span class="job-stat">&#128200; Indexed <b>${s.es_indexed}</b></span>
+          ${s.es_failed ? `<span class="job-stat" style="color:var(--danger)">Failed <b>${s.es_failed}</b></span>` : ""}
+          <span class="job-stat">&#8987; ${fmtDuration(s.duration_seconds)}</span>
+        `;
+      }
+    }
+
+    // ── Poll for job completion ───────────────────────────────────
+    function pollJob(jobId) {
+      if (_pollTimer) clearInterval(_pollTimer);
+      _pollTimer = setInterval(async () => {
+        try {
+          const r = await fetch(`/api/ingest/status/${jobId}`);
+          const job = await r.json();
+          updateJobUI(job);
+
+          if (["done","error","cancelled"].includes(job.status)) {
+            clearInterval(_pollTimer);
+            _pollTimer = null;
+            document.getElementById("ingestBtn").disabled = false;
+            document.getElementById("ingestBtn").textContent = "▶ Start Ingestion";
+            if (job.status === "done") {
+              refreshStats();
+              loadHistory();
+            }
+          }
+        } catch(e) {}
+      }, 2000);
+    }
+
+    // ── Job history ───────────────────────────────────────────────
+    let _historyVisible = false;
+
+    function toggleHistory() {
+      _historyVisible = !_historyVisible;
+      const panel = document.getElementById("ingestHistoryPanel");
+      if (_historyVisible) { panel.style.display="block"; loadHistory(); }
+      else { panel.style.display="none"; }
+    }
+
+    async function loadHistory() {
+      try {
+        const r = await fetch("/api/ingest/jobs");
+        const jobs = await r.json();
+        document.getElementById("historyCount").textContent = `${jobs.length} job(s)`;
+        if (!_historyVisible) return;
+        const panel = document.getElementById("ingestHistoryPanel");
+        if (!jobs.length) { panel.innerHTML = '<div class="small">No jobs yet.</div>'; return; }
+        panel.innerHTML = jobs.map(j => `
+          <div class="job-card">
+            <div class="job-header">
+              <div>
+                <div class="job-filename">${j.filename}</div>
+                <div class="job-meta">Mode: ${j.mode} | ID: ${j.job_id}</div>
+              </div>
+              ${pill(j.status)}
+            </div>
+            <div class="job-message">${j.message || ""}</div>
+            ${j.stats ? `<div class="job-stats">
+              <span class="job-stat">&#127916; <b>${j.stats.videos_found}</b> videos</span>
+              <span class="job-stat">&#128444; <b>${j.stats.keyframes_found}</b> frames</span>
+              <span class="job-stat">&#128200; <b>${j.stats.es_indexed}</b> indexed</span>
+              <span class="job-stat">&#8987; ${fmtDuration(j.stats.duration_seconds)}</span>
+            </div>` : ""}
+          </div>
+        `).join("");
+      } catch(e) {}
+    }
+
+    // ── Text Search ───────────────────────────────────────────────
+    async function searchText() {
+      const q = document.getElementById("queryInput").value.trim();
+      if (!q) { alert("Please enter a query"); return; }
+      const topk = document.getElementById("topkInput").value || 100;
+      const obj = document.getElementById("objectInput").value.trim();
+      const threshold = parseFloat(document.getElementById("thresholdInput").value) || 0.5;
+      const imageInput = document.getElementById("textSearchImage");
+      document.getElementById("textResults").innerHTML = "<div class='small'>Searching…</div>";
+      let res;
+      if (imageInput.files && imageInput.files[0]) {
+        const fd = new FormData();
+        fd.append("file", imageInput.files[0]);
+        fd.append("query", q); fd.append("top_k", topk);
+        fd.append("objects", obj); fd.append("threshold", threshold);
+        res = await fetch("/api/search_text_with_image", { method:"POST", body:fd });
+      } else {
+        res = await fetch("/api/search_text", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ query:q, top_k:parseInt(topk), objects:obj, threshold })
+        });
+      }
+      const data = await res.json();
+      window.lastResults = data.results || [];
+      let html = `<div class="small">Time: ${data.elapsed?.toFixed(2)}s | Results: ${window.lastResults.length}</div>`;
+      for (const r of window.lastResults) {
+        html += `<div style="margin-top:12px">
+          <b>${r.video_name}</b> | Frame ${r.frame_idx} | ${r.time_str||"?"} | Score ${r.similarity?.toFixed(3)}
+          | <a href="${r.watch_url}" target="_blank" style="color:#a5b4fc">${r.watch_url}</a><br>
+          ${imgTagForPath(r.image_path)}
+        </div>`;
+      }
+      document.getElementById("textResults").innerHTML = html;
+    }
+
+    async function uploadAndSearch() {
+      const input = document.getElementById("uploadFile");
+      if (!input.files.length) { alert("Choose a file first"); return; }
+      const fd = new FormData();
+      fd.append("file", input.files[0]);
+      fd.append("top_k", document.getElementById("imgTopk").value || 100);
+      document.getElementById("imageResults").innerHTML = "<div class='small'>Uploading…</div>";
+      const res = await fetch("/api/upload_image", { method:"POST", body:fd });
+      const data = await res.json();
+      window.lastResults = data.results || [];
+      let html = `<div class="small">Time: ${data.elapsed?.toFixed(2)}s | Results: ${window.lastResults.length}</div>`;
+      for (const r of window.lastResults)
+        html += `<div style="margin-top:12px"><b>${r.video_name}</b> | Frame ${r.frame_idx} | Score ${r.similarity?.toFixed(3)}<br>${imgTagForPath(r.image_path)}</div>`;
+      document.getElementById("imageResults").innerHTML = html;
+    }
+
+    async function runTrake() {
+      const events = document.getElementById("eventsBox").value.trim().split("\n").filter(x=>x);
+      if (!events.length) { alert("Enter events"); return; }
+      const topk = document.getElementById("trakeTopk").value || 200;
+      const candidates = document.getElementById("trakeCandidates").value || 200;
+      const option = document.getElementById("trakeOption").value;
+      document.getElementById("trakeResults").innerHTML = "<div class='small'>Running…</div>";
+      const res = await fetch("/api/trake", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ events, top_k:parseInt(topk), candidates:parseInt(candidates), option })
+      });
+      const data = await res.json();
+      if (!data.result?.length) { document.getElementById("trakeResults").innerHTML="<div class='small'>No sequence found.</div>"; return; }
+      let html="";
+      for (const c of data.result) {
+        html += `<div class="small">Video: ${c.video_name} | <a href="${c.watch_url}" target="_blank" style="color:#a5b4fc">${c.watch_url}</a></div>`;
+        for (const d of c.details)
+          html += `<div style="margin-top:12px"><b>Event:</b> ${d.event} | Frame ${d.frame} | Score ${d.sim?.toFixed(3)}<br>${imgTagForPath(d.path)}</div>`;
+        html += "<hr style='border-color:var(--border);margin:16px 0'>";
+      }
+      document.getElementById("trakeResults").innerHTML = html;
+      window.lastResults = [];
+      for (const c of data.result)
+        window.lastResults.push(...c.details.map(d=>({ image_path:d.path, video_name:c.video_name, frame_idx:d.frame, similarity:d.sim, watch_url:d.watch_url, event:events.length })));
+    }
+
+    async function exportTrake() {
+      if (!window.lastResults.length) { alert("No TRAKE results"); return; }
+      const name = document.getElementById("trakeExportName").value || `trake_${Date.now()}`;
+      const res = await fetch("/api/export_trake_results", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({results:window.lastResults,name}) });
+      const data = await res.json();
+      document.getElementById("trakeExportMsg").textContent = data.status==="ok" ? `Exported: ${data.csv_path}` : `Failed: ${data.msg}`;
+    }
+
+    async function exportResults() {
+      if (!window.lastResults.length) { alert("No results"); return; }
+      const name = document.getElementById("exportName").value || `exported_${Date.now()}`;
+      const constVal = document.getElementById("exportConst").value;
+      const res = await fetch("/api/export_results", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({results:window.lastResults,name,const_value:constVal}) });
+      const data = await res.json();
+      document.getElementById("exportMsg").textContent = data.status==="ok" ? `Exported: ${data.csv_path}` : "Error";
+    }
+
+    async function showFrames() {
+      const vid = document.getElementById("videoNameInput").value.trim();
+      if (!vid) { alert("Enter video name"); return; }
+      const res = await fetch("/api/get_frames/" + encodeURIComponent(vid));
+      const data = await res.json();
+      document.getElementById("framesView").innerHTML = data.map(f=>imgTagForPath(f.image_path)).join("");
+    }
+
+    async function showFramesRange() {
+      const vid = document.getElementById("videoNameRangeInput").value.trim();
+      const frameId = document.getElementById("frameIdInput").value.trim();
+      const range = document.getElementById("rangeInput").value.trim();
+      if (!vid||isNaN(frameId)||isNaN(range)) { alert("Fill all fields"); return; }
+      const res = await fetch(`/api/get_frames_range/${encodeURIComponent(vid)}/${frameId}/${range}`);
+      const data = await res.json();
+      document.getElementById("framesRangeView").innerHTML = data.map(f=>imgTagForPath(f.image_path)).join("");
+    }
+
+    async function groupByVideoGeneric(targetId,sortId,topId) {
+      const results = window.lastResults||[];
+      if (!results.length) { alert("Run a search first"); return; }
+      const sort_by = document.getElementById(sortId).value||"frame";
+      const topInput = document.getElementById(topId).value.trim();
+      const top_per_video = topInput ? parseInt(topInput) : null;
+      document.getElementById(targetId).innerHTML = "<div class='small'>Grouping…</div>";
+      const res = await fetch("/api/group_by_video", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({results,sort_by,top_per_video}) });
+      const data = await res.json();
+      const entries = Object.entries(data);
+      if (!entries.length) { document.getElementById(targetId).innerHTML="<div class='small'>No grouped items.</div>"; return; }
+      let html="";
+      for (const [vid,items] of entries) {
+        html+=`<details open><summary><b>${vid}</b> <span class="small">(${items.length})</span></summary><div class="thumb-row">`;
+        for (const r of items) {
+          const fvid = r.frame_idx_video??r.frame_idx??"?";
+          const sim = typeof r.similarity==="number" ? r.similarity.toFixed(3) : "–";
+          html+=`<div class="thumb-item"><div class="small">Frame ${fvid} • ${r.time_str||"?"} • ${sim}</div>${imgTagForPath(r.image_path)}</div>`;
+        }
+        html+=`</div></details><hr style="border-color:var(--border);margin:10px 0">`;
+      }
+      document.getElementById(targetId).innerHTML=html;
+    }
+
+    function groupByVideoText() { return groupByVideoGeneric("groupedResults","groupSortBy","groupTopPerVideo"); }
+    function groupByVideoImage() { return groupByVideoGeneric("groupedImageResults","groupSortByImg","groupTopPerVideoImg"); }
+
+    async function makeSubmission() {
+      const name = document.getElementById("subExportName").value.trim()||`submission_${Date.now()}`;
+      const videoName = document.getElementById("subVideoName").value.trim();
+      const frameIdStr = document.getElementById("subFrameId").value.trim();
+      const gapStr = document.getElementById("subGap").value.trim();
+      const constValStr = document.getElementById("subConst").value.trim();
+      if (!videoName||!frameIdStr||!gapStr) { alert("Fill video_name, frame_id and GAP_KEYFRAME"); return; }
+      const frameId=parseInt(frameIdStr), GAP_KEYFRAME=parseInt(gapStr);
+      if (isNaN(frameId)||isNaN(GAP_KEYFRAME)) { alert("Invalid numbers"); return; }
+      const res = await fetch("/api/export_submission", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({video_name:videoName,frame_id:frameId,gap:GAP_KEYFRAME,const_value:constValStr||null,name}) });
+      const data = await res.json();
+      document.getElementById("subMsg").textContent = data.status==="ok" ? `Exported: ${data.csv_path}` : `Failed: ${data.msg}`;
+    }
+
+    // Init
+    refreshStats();
+  </script>
+</body>
+</html>
+"""
+
+with open("src/aic26/api/templates/index.html", "w", encoding="utf-8", newline="\n") as f:
+    f.write(NEW_HTML)
+print(f"Written {len(NEW_HTML)} chars")
