@@ -61,10 +61,10 @@ def cli(ctx: click.Context, verbose: bool, config: str | None) -> None:
 def pipeline_group():
     """
     Data processing pipeline commands.
-    
+
     Run steps of the data preparation pipeline:
     extract keyframes, detect objects, OCR, extract embeddings,
-    and build the FAISS index.
+    and index into Elasticsearch.
     """
     pass
 
@@ -252,40 +252,117 @@ def extract_caption_embeddings(
     click.echo(f"   Folders processed: {stats['folders_processed']}/{stats['folders_total']}")
     click.echo(f"   Captions total:    {stats['captions_total']}")
 
-@pipeline_group.command(name="build-index")
+@pipeline_group.command(name="init-es-index")
 @click.option(
-    "--input", "-i",
-    required=True,
+    "--force", "-f",
+    is_flag=True,
+    help="Delete existing index and recreate from scratch (WARNING: destructive)",
+)
+def init_es_index(force: bool) -> None:
+    """Create or reset the Elasticsearch keyframes index."""
+    from aic26.core.elasticsearch_client import ElasticsearchClient
+
+    es = ElasticsearchClient()
+    if not es.ping():
+        click.echo(f"\u274c Cannot reach Elasticsearch at {settings.es_scheme}://{settings.es_host}:{settings.es_port}")
+        click.echo("   Make sure Elasticsearch is running (docker compose up elasticsearch).")
+        return
+
+    if force:
+        click.confirm(
+            f"\u26a0\ufe0f  This will DELETE index '{settings.es_index_keyframes}' and all data. Continue?",
+            abort=True,
+        )
+
+    es.ensure_keyframes_index(force_recreate=force)
+    stats = es.get_stats()
+    click.echo(f"\n\u2705 Elasticsearch index ready!")
+    click.echo(f"   Index:      {stats['index_keyframes']}")
+    click.echo(f"   Documents:  {stats['total_keyframes']}")
+    click.echo(f"   Host:       {settings.es_scheme}://{settings.es_host}:{settings.es_port}")
+
+
+@pipeline_group.command(name="index-to-es")
+@click.option(
+    "--embedding-dir", "-e",
     type=click.Path(exists=True),
-    help="Input directory containing .npy embedding files",
+    default=None,
+    help="Directory with .npy EVA-02 embedding files (default: settings.embedding_dir)",
 )
 @click.option(
-    "--output", "-o",
-    type=click.Path(),
-    help="Output path for FAISS database",
+    "--keyframes-dir", "-k",
+    type=click.Path(exists=True),
+    default=None,
+    help="Directory with keyframe images (default: settings.keyframes_dir)",
 )
 @click.option(
-    "--index-type",
-    type=click.Choice(["flat_ip", "flat_l2"]),
-    default="flat_ip",
-    help="Type of FAISS index",
+    "--batch-size", "-b",
+    type=int,
+    default=200,
+    help="Documents per bulk request",
 )
-def build_index(input: str, output: str | None, index_type: str) -> None:
-    """Build FAISS index from embeddings."""
-    from aic26.pipeline.indexer import IndexBuilder
-    
-    builder = IndexBuilder(settings)
-    stats = builder.build(
-        embedding_dir=input,
-        output_path=output,
-        index_type=index_type,
+@click.option(
+    "--force-recreate", "-f",
+    is_flag=True,
+    help="Delete and recreate the ES index before indexing",
+)
+@click.option(
+    "--no-blip",
+    is_flag=True,
+    help="Skip BLIP-ITM dual embedding (faster, single embedding mode)",
+)
+def index_to_es(
+    embedding_dir: str | None,
+    keyframes_dir: str | None,
+    batch_size: int,
+    force_recreate: bool,
+    no_blip: bool,
+) -> None:
+    """Bulk-index pre-computed embeddings into Elasticsearch."""
+    from aic26.core.elasticsearch_client import ElasticsearchClient
+    from aic26.core.models import ModelRegistry
+    from aic26.pipeline.indexer import ElasticsearchIndexer
+
+    es = ElasticsearchClient()
+    if not es.ping():
+        click.echo(f"\u274c Cannot reach Elasticsearch at {settings.es_host}:{settings.es_port}")
+        return
+
+    click.echo(f"\u23f3 Loading models...")
+    models = ModelRegistry()
+
+    indexer = ElasticsearchIndexer(
+        es_client=es,
+        models=models,
+        embedding_dir=embedding_dir,
+        keyframes_dir=keyframes_dir,
     )
-    
-    click.echo(f"\n✅ FAISS index built successfully!")
-    click.echo(f"   Embeddings: {stats['embeddings_loaded']}")
-    click.echo(f"   Dimension:  {stats['dimension']}")
-    click.echo(f"   Index type: {stats['index_type']}")
-    click.echo(f"   Output:     {stats['output_path']}")
+
+    click.echo(f"\u23f3 Indexing into Elasticsearch (force_recreate={force_recreate})...")
+    stats = indexer.build_index(
+        batch_size=batch_size,
+        force_recreate=force_recreate,
+        encode_blip=not no_blip,
+    )
+
+    click.echo(f"\n\u2705 Elasticsearch indexing complete!")
+    click.echo(f"   Videos:   {stats.total_videos}")
+    click.echo(f"   Frames:   {stats.total_frames}")
+    click.echo(f"   Indexed:  {stats.indexed_success}")
+    click.echo(f"   Failed:   {stats.indexed_failed}")
+    click.echo(f"   BLIP enc: {stats.blip_encoded}")
+
+
+@pipeline_group.command(name="build-index")
+@click.option("--input", "-i", required=True, type=click.Path(exists=True),
+              help="Input directory containing .npy embedding files")
+@click.option("--output", "-o", type=click.Path(), help="Output path for FAISS database")
+@click.option("--index-type", type=click.Choice(["flat_ip", "flat_l2"]),
+              default="flat_ip", help="Type of FAISS index")
+def build_index(input: str, output: str | None, index_type: str) -> None:
+    """[DEPRECATED] Build FAISS index. Use 'index-to-es' instead."""
+    click.echo("\u26a0\ufe0f  build-index is DEPRECATED.")
+    click.echo("   Use: aic26 pipeline index-to-es")
 
 
 @pipeline_group.command(name="run-all")
@@ -392,33 +469,13 @@ def serve_group():
 def serve_api(host: str | None, port: int | None, debug: bool | None) -> None:
     """Start the REST API server."""
     from loguru import logger
+    from aic26.api.main import create_app
     
     host = host or settings.host
     port = port or settings.port
     debug = debug if debug is not None else settings.debug
     
     logger.info(f"Starting API server on {host}:{port}")
-    logger.warning("API server will be fully migrated in Phase 4")
-    logger.info("For now, use the original sever.py script")
-    
-    click.echo(f"⚠️  API server coming in Phase 4.")
-    click.echo(f"   Would start on http://{host}:{port}")
-    click.echo(f"   For now: python sever.py")
-
-
-@serve_group.command(name="api")
-@click.option("--host", "-h", default=None, help="Host address")
-@click.option("--port", "-p", type=int, default=None, help="Port number")
-@click.option("--debug/--no-debug", default=None, help="Enable debug mode")
-def serve_api(host: str | None, port: int | None, debug: bool | None) -> None:
-    """Start the REST API server."""
-    from aic26.api.server import create_app
-    
-    host = host or settings.host
-    port = port or settings.port
-    debug = debug if debug is not None else settings.debug
-    
-    logger.info(f"Starting API server on http://{host}:{port}")
     
     app = create_app(settings)
     app.run(host=host, port=port, debug=debug)
@@ -459,6 +516,43 @@ def serve_filter(objects_dir: str | None, keyframes_dir: str | None) -> None:
     root.mainloop()
 
 
+# ── Elasticsearch commands ─────────────────────────────────────────────
+
+@cli.command(name="check-es")
+def check_es() -> None:
+    """Check Elasticsearch connection and index status."""
+    from aic26.core.elasticsearch_client import ElasticsearchClient
+
+    click.echo("=" * 60)
+    click.echo("Elasticsearch Status")
+    click.echo("=" * 60)
+
+    es = ElasticsearchClient()
+    url = f"{settings.es_scheme}://{settings.es_host}:{settings.es_port}"
+
+    if not es.ping():
+        click.echo(f"\n\u274c Cannot connect to Elasticsearch at {url}")
+        click.echo("   Make sure Elasticsearch is running:")
+        click.echo("   docker compose -f docker/docker-compose.yml up elasticsearch -d")
+        return
+
+    click.echo(f"\n\u2705 Connected to {url}")
+
+    info = es.get_info()
+    click.echo(f"   Cluster: {info.get('cluster_name', 'N/A')}")
+    click.echo(f"   Version: {info.get('version', {}).get('number', 'N/A')}")
+
+    stats = es.get_stats()
+    click.echo(f"\n[INDEX] {stats['index_keyframes']}")
+    click.echo(f"   Total keyframes: {stats['total_keyframes']}")
+    click.echo(f"   Total videos:    {stats['total_videos']}")
+    click.echo(f"\n[SETTINGS]")
+    click.echo(f"   use_dual_embedding: {settings.use_dual_embedding}")
+    click.echo(f"   eva02_weight: {settings.eva02_search_weight}")
+    click.echo(f"   blip_weight:  {settings.blip2_search_weight}")
+
+
+
 # ── Utility commands ───────────────────────────────────────────────────
 
 @cli.command(name="config")
@@ -477,6 +571,7 @@ def show_config(show: bool) -> None:
 def check_system() -> None:
     """Check system requirements and dependencies."""
     import sys
+    from pathlib import Path
     from importlib.metadata import version
     
     click.echo("=" * 60)
@@ -500,12 +595,26 @@ def check_system() -> None:
         click.echo(f"  {icon} {dir_name}: {dir_path}")
     
     click.echo(f"\nDependencies:")
-    for pkg in ["torch", "flask", "faiss", "numpy", "pandas"]:
+    for pkg in ["torch", "flask", "elasticsearch", "numpy", "pandas"]:
         try:
             ver = version(pkg)
             click.echo(f"  ✅ {pkg}: {ver}")
         except Exception:
             click.echo(f"  ❌ {pkg}: NOT INSTALLED")
+
+    click.echo(f"\nElasticsearch:")
+    try:
+        from aic26.core.elasticsearch_client import ElasticsearchClient
+        es = ElasticsearchClient()
+        if es.ping():
+            es_stats = es.get_stats()
+            click.echo(f"  ✅ Connected to {settings.es_host}:{settings.es_port}")
+            click.echo(f"  ✅ Index '{settings.es_index_keyframes}': {es_stats['total_keyframes']} documents")
+        else:
+            click.echo(f"  ⚠️  Not reachable at {settings.es_host}:{settings.es_port}")
+            click.echo(f"     Run: docker compose -f docker/docker-compose.yml up elasticsearch -d")
+    except Exception as e:
+        click.echo(f"  ❌ ES check failed: {e}")
 
 @cli.command(name="download")
 @click.option(

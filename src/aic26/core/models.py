@@ -115,3 +115,62 @@ class ModelRegistry:
                 "gpu_count": torch.cuda.device_count(),
             })
         return info
+
+    # ── BLIP Dual Embedding Helpers ───────────────────────────────────
+
+    def encode_image_blip(self, image: "Image.Image") -> "torch.Tensor":
+        """
+        Encode a PIL image using BLIP-ITM as a 768-dim embedding vector.
+
+        Reuses the already-loaded blip_processor + blip_model.
+        This is the BLIP side of the dual-embedding (Option C Lite).
+
+        Args:
+            image: A PIL.Image in RGB mode.
+
+        Returns:
+            Float32 tensor of shape (1, 768), L2-normalised.
+        """
+        from PIL import Image as _PIL
+        inputs = self.blip_processor(
+            images=image,
+            return_tensors="pt",
+        ).to(self.device)
+
+        with torch.no_grad():
+            # vision_outputs returns last_hidden_state; CLS token = index 0
+            vision_out = self.blip_model.vision_model(**inputs)
+            feat = vision_out.last_hidden_state[:, 0, :]   # (1, 768)
+            feat = F.normalize(feat, dim=-1)
+
+        return feat  # shape (1, 768)
+
+    def encode_text_blip(self, text: str) -> "torch.Tensor":
+        """
+        Encode a text string using BLIP's text encoder → 768-dim vector.
+
+        Used to produce the BLIP text embedding for dual kNN search.
+
+        Args:
+            text: Query string.
+
+        Returns:
+            Float32 tensor of shape (1, 768), L2-normalised.
+        """
+        inputs = self.blip_processor(
+            text=text,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=77,
+        ).to(self.device)
+
+        with torch.no_grad():
+            text_out = self.blip_model.text_encoder(
+                input_ids=inputs["input_ids"],
+                attention_mask=inputs["attention_mask"],
+            )
+            feat = text_out.last_hidden_state[:, 0, :]  # CLS token
+            feat = F.normalize(feat, dim=-1)
+
+        return feat  # shape (1, 768)

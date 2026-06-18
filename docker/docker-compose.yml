@@ -5,6 +5,52 @@
 version: '3.8'
 
 services:
+  # ── Elasticsearch ────────────────────────────────────────
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: aic26-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false       # Disable auth for local dev
+      - xpack.ml.enabled=false
+      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -v '\"status\":\"red\"'"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - aic26-network
+
+  # ── Kibana (optional, for debugging) ────────────────────
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.0
+    container_name: aic26-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    profiles:
+      - kibana
+    networks:
+      - aic26-network
+
   # ── API Server ──────────────────────────────────────────
   api:
     build:
@@ -22,13 +68,20 @@ services:
       - PORT=5000
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-change-me-in-production}
+      - ES_HOST=elasticsearch
+      - ES_PORT=9200
+      - ES_SCHEME=http
+      - ES_INDEX_KEYFRAMES=${ES_INDEX_KEYFRAMES:-aic26_keyframes}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
     networks:
       - aic26-network
 
@@ -48,6 +101,11 @@ services:
       - HOST=0.0.0.0
       - PORT=5000
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ES_HOST=elasticsearch
+      - ES_PORT=9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
     deploy:
       resources:
         reservations:
@@ -73,7 +131,12 @@ services:
       - ../videos:/app/videos:ro
     environment:
       - LOG_LEVEL=INFO
+      - ES_HOST=elasticsearch
+      - ES_PORT=9200
     command: ["python", "-m", "aic26.cli.main", "pipeline", "run-all", "-v", "/app/videos"]
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
     deploy:
       resources:
         reservations:
@@ -85,6 +148,10 @@ services:
       - pipeline
     networks:
       - aic26-network
+
+volumes:
+  es_data:
+    driver: local
 
 networks:
   aic26-network:

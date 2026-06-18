@@ -5,6 +5,7 @@ This is the single entry point imported by the API server and GUI.
 Delegates all logic to the core sub-modules.
 
 Migrated from: eva02_retrieval_trake.py
+Updated: Elasticsearch backend (replaces FAISS + NumPy)
 """
 from __future__ import annotations
 
@@ -19,8 +20,9 @@ from aic26.config import settings
 from aic26.config.constants import EVA02_EMBEDDING_DIM
 
 from aic26.core.models import ModelRegistry
-from aic26.core.embeddings import EmbeddingIndex
-from aic26.core.database import VectorDatabase
+from aic26.core.embeddings import EmbeddingEncoder
+from aic26.core.elasticsearch_client import ElasticsearchClient
+from aic26.core.database import QueryHistoryStore
 from aic26.core.search import SearchEngine
 from aic26.core.rerank import Reranker
 from aic26.core.trake import TrakeEngine
@@ -41,57 +43,59 @@ sys.stdout.reconfigure(encoding='utf-8')
 class EVA02ImageRetrieval:
     """
     Public API surface for the EVA-02 keyframe retrieval system.
-    
+
     Instantiate once; all heavy models are loaded in __init__.
+    Uses Elasticsearch as the vector database and search engine.
     All search/export methods preserve compatibility with the API and GUI.
-    
+
     Usage:
         retriever = EVA02ImageRetrieval()
         results = retriever.search_text("a red car", top_k=10)
         solutions = retriever.trake_highest(["event1", "event2"])
     """
-    
+
     def __init__(
         self,
-        embedding_dir: Optional[str] = None,
-        keyframes_dir: Optional[str] = None,
-        db_path: Optional[str] = None,
+        embedding_dir: Optional[str] = None,    # kept for signature compat
+        keyframes_dir: Optional[str] = None,    # kept for signature compat
+        db_path: Optional[str] = None,          # kept for signature compat
     ) -> None:
         """
         Initialize the retrieval system.
-        
+
         Args:
-            embedding_dir: Directory containing .npy embedding files
-            keyframes_dir: Directory containing keyframe images
-            db_path: Path to the FAISS database pickle file
+            embedding_dir: Legacy arg — kept for signature compat. Unused.
+            keyframes_dir: Legacy arg — kept for signature compat. Unused.
+            db_path: Legacy arg — kept for signature compat. Unused.
         """
-        self.embedding_dir = embedding_dir or str(settings.embedding_dir)
-        self.keyframes_dir = keyframes_dir or str(settings.keyframes_dir)
-        
-        logger.info("Initializing EVA-02 Retrieval System...")
-        
-        # Load models once
+        logger.info("Initializing EVA-02 Retrieval System (Elasticsearch backend)...")
+
+        # Load AI models once
         logger.info("Loading AI models...")
         self._models = ModelRegistry()
-        
-        # Build embedding index
-        logger.info("Loading embedding index...")
-        self._index = EmbeddingIndex(
-            self._models,
-            self.embedding_dir,
-            self.keyframes_dir,
-        )
-        
-        # Persistent query store
-        logger.info("Loading vector database...")
-        self._db = VectorDatabase(db_path or str(settings.db_path))
-        
+
+        # Thin embedding encoder (no in-memory index)
+        self._encoder = EmbeddingEncoder(self._models)
+
+        # Elasticsearch client
+        logger.info("Connecting to Elasticsearch...")
+        self._es = ElasticsearchClient()
+        if not self._es.ping():
+            logger.warning(
+                "Elasticsearch is not reachable at "
+                f"{settings.es_scheme}://{settings.es_host}:{settings.es_port}. "
+                "Search will fail until ES is available."
+            )
+
+        # Query history store
+        self._db = QueryHistoryStore(self._es)
+
         # Sub-engines
-        self._searcher = SearchEngine(self._models, self._index, self._db)
+        self._searcher = SearchEngine(self._models, self._es)
         self._reranker = Reranker(self._models)
         self._trake = TrakeEngine(self._searcher, self._reranker)
         self._exporter = Exporter()
-        
+
         logger.info("Retrieval system ready.")
     
     # ── Search ────────────────────────────────────────────────────────
@@ -192,12 +196,47 @@ class EVA02ImageRetrieval:
     
     def encode_image(self, image_path: str) -> 'np.ndarray':
         """Encode an image to EVA-02 embedding vector."""
-        return self._index.encode_image(image_path)
-    
+        return self._encoder.encode_image_eva02(image_path)
+
     def get_embedding(self, image_path: str) -> Optional['np.ndarray']:
-        """Get pre-computed embedding for an image path."""
-        return self._index.get_embedding(image_path)
-    
+        """Get pre-computed embedding for an image path (ES mode: noop)."""
+        logger.debug("get_embedding() is a no-op in Elasticsearch mode")
+        return None
+
+    # ── ES-specific helpers ────────────────────────────────────────────────
+
+    @property
+    def es_client(self) -> ElasticsearchClient:
+        """Direct access to the ElasticsearchClient."""
+        return self._es
+
+    def search_ocr(
+        self,
+        text: str,
+        top_k: int = settings.default_top_k,
+    ) -> List[Dict[str, Any]]:
+        """
+        Full-text search on OCR text indexed in Elasticsearch.
+
+        Args:
+            text: OCR text query (e.g., 'STOP SIGN', 'BUS STOP').
+            top_k: Number of results.
+
+        Returns:
+            List of result dicts.
+        """
+        return self._searcher.search_ocr(text, top_k)
+
+    def init_elasticsearch_index(self, force_recreate: bool = False) -> None:
+        """
+        Create or reset the Elasticsearch keyframes index.
+
+        Args:
+            force_recreate: Delete existing index first.
+        """
+        self._es.ensure_keyframes_index(force_recreate=force_recreate)
+        logger.info(f"ES index ready: {settings.es_index_keyframes}")
+
     # ── TRAKE ─────────────────────────────────────────────────────────
     
     def trake_closest(
@@ -361,15 +400,17 @@ class EVA02ImageRetrieval:
     # ── Convenience ───────────────────────────────────────────────────
     
     def get_stats(self) -> Dict[str, Any]:
-        """Get system statistics."""
-        import numpy as np
-        embs = self._index.embeddings
+        """Get system statistics from Elasticsearch."""
+        es_stats = self._es.get_stats()
         return {
-            "total_images": len(self._index.image_paths),
-            "total_videos": len(set(self._index.video_names)),
-            "embedding_shape": tuple(embs.shape) if isinstance(embs, np.ndarray) else None,
+            "total_images": es_stats.get("total_keyframes", 0),
+            "total_videos": es_stats.get("total_videos", 0),
+            "embedding_shape": None,  # stored in ES, not in-memory
             "embedding_dim": EVA02_EMBEDDING_DIM,
             "database_queries": len(self._db.get_all_queries()),
+            "es_index": es_stats.get("index_keyframes", ""),
+            "es_connected": self._es.ping(),
+            "use_dual_embedding": settings.use_dual_embedding,
         }
     
     def get_stored_queries(self) -> List[str]:

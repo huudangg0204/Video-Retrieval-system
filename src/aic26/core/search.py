@@ -1,82 +1,78 @@
 """
 Search engine for AIC-26 video retrieval.
 
-Provides text, image, and threshold-based search over the embedding index.
-Includes object detection filtering and timing enrichment.
+Provides text, image, and OCR search over Elasticsearch kNN index.
+Replaces the legacy NumPy cosine similarity approach.
 
-Migrated from: core/search.py
+Architecture (from MemoriEase 3.0):
+    Query → Encode (EVA-02 + BLIP-ITM) → ES kNN (weighted average) → Results
+
+Usage:
+    engine = SearchEngine(models, es_client)
+    results = engine.search_text("a red car driving on highway", top_k=20)
 """
 from __future__ import annotations
 
 import os
-from typing import Dict, List, Optional, Tuple
-
-from loguru import logger
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-
-from PIL import Image
-
 import torch
+import torch.nn.functional as F
+from PIL import Image
+from loguru import logger
 
 from aic26.config import settings
-from aic26.config.constants import COCO_CATEGORIES
-
-from aic26.utils.frame_utils import parse_frame_number_from_filename
-from aic26.utils.media_utils import (
-    frame_to_timestr,
-    load_fps_from_map,
-    load_frame_idx_from_map,
-    load_media_info,
-)
-from aic26.utils.file_utils import safe_basename
-
-from aic26.core.embeddings import EmbeddingIndex
+from aic26.core.elasticsearch_client import ElasticsearchClient
+from aic26.core.embeddings import EmbeddingEncoder
 from aic26.core.models import ModelRegistry
-from aic26.core.database import VectorDatabase
+from aic26.utils.file_utils import safe_basename
+from aic26.utils.media_utils import load_media_info
 
 
 class SearchEngine:
     """
-    Text and image search over pre-built embeddings.
-    
+    Text and image search over Elasticsearch kNN index.
+
     Supports:
-    - Text-to-image search
+    - Dual-embedding text search (EVA-02 + BLIP-ITM weighted average)
     - Image-to-image search
-    - Threshold-based search (all above score)
-    - Object detection filtering
+    - Threshold-based search (all above cosine score)
+    - Object detection filtering (via ES term filter)
+    - OCR full-text search
     - Timing metadata enrichment
-    
+
     Usage:
-        engine = SearchEngine(models, index, db)
-        results = engine.search_text("a red car", top_k=10)
+        engine = SearchEngine(models, es_client)
+        results = engine.search_text("sunset over mountains", top_k=50)
     """
-    
+
     def __init__(
         self,
         models: ModelRegistry,
-        index: EmbeddingIndex,
-        vector_db: VectorDatabase,
+        es_client: ElasticsearchClient,
+        vector_db: Optional[Any] = None,   # kept for API compat, unused
     ) -> None:
         """
-        Initialize the search engine.
-        
         Args:
-            models: ModelRegistry with loaded models
-            index: EmbeddingIndex with pre-computed embeddings
-            vector_db: VectorDatabase for storing query history
+            models: Loaded ModelRegistry.
+            es_client: Connected ElasticsearchClient.
+            vector_db: Deprecated — pass None. Kept for backward compat.
         """
         self.models = models
-        self.index = index
-        self.vector_db = vector_db
-        
-        logger.debug(
-            f"SearchEngine initialized. "
-            f"Index size: {len(self.index.embeddings)} embeddings"
-        )
-    
-    # ── Public search API ─────────────────────────────────────────
-    
+        self.es = es_client
+        self._encoder = EmbeddingEncoder(models)
+
+        if vector_db is not None:
+            logger.warning(
+                "SearchEngine: vector_db argument is deprecated in ES mode. "
+                "Query history is now managed by ElasticsearchClient."
+            )
+
+        logger.debug("SearchEngine initialized (Elasticsearch backend).")
+
+    # ── Public search API ─────────────────────────────────────────────────
+
     def search_text(
         self,
         query: str,
@@ -86,62 +82,51 @@ class SearchEngine:
         threshold: float = settings.default_obj_threshold,
     ) -> List[Dict[str, Any]]:
         """
-        Search keyframes by text description.
-        
+        Search keyframes by text query using dual-embedding kNN.
+
         Args:
-            query: Text description to search for
-            top_k: Number of top results to return
-            save_to_db: Whether to save results to database
-            objects: Comma-separated object names for filtering
-            threshold: Object detection confidence threshold
-                       >= 0: keep frames with ANY of the objects
-                       < 0:  keep frames with NONE of the objects
-            
+            query: Natural-language description.
+            top_k: Number of results.
+            save_to_db: Save query to ES query history.
+            objects: Comma-separated object names to filter.
+                     Prefix with '-' to exclude (e.g. '-person').
+            threshold: Object filter confidence threshold (unused — ES filters
+                       are based on pre-indexed detected_objects labels).
+
         Returns:
-            List of result dicts with keys:
-            - image_path, video_name, similarity, frame_idx
-            - watch_url (if media info available)
-            - fps, frame_idx_video, time_str (if mapping available)
+            List of result dicts with image_path, video_name, similarity, etc.
         """
-        if len(self.index.embeddings) == 0:
-            logger.error("No embeddings loaded. Cannot search.")
-            return []
-        
-        logger.debug(f"Searching: '{query[:80]}...' (top_k={top_k})")
-        
-        # Encode query and compute similarities
-        text_emb = self.index.encode_text(query)
-        sims = self.index.cosine_similarity(text_emb, self.index.embeddings)[0]
-        idx, scores = self.index.topk_indices(sims, top_k)
-        
-        # Build results
-        results, sel_embs = self._build_results(idx, scores)
-        
-        # Apply object filter if specified
-        if objects:
-            n_before = len(results)
-            results, sel_embs = self._apply_object_filter(
-                results, sel_embs, objects, threshold
+        logger.debug(f"Text search: '{query[:80]}' (top_k={top_k})")
+
+        object_filter, exclude_objects = _parse_object_filter(objects)
+
+        if settings.use_dual_embedding:
+            eva02_vec, blip_vec = self._encoder.encode_text_dual(query)
+            hits = self.es.knn_search_dual(
+                eva02_vec,
+                blip_vec,
+                top_k=top_k,
+                object_filter=object_filter or None,
+                exclude_objects=exclude_objects,
             )
-            logger.debug(
-                f"Object filter '{objects}': {n_before} → {len(results)} results"
+        else:
+            eva02_vec = self._encoder.encode_text_eva02(query)
+            hits = self.es.knn_search_eva02(
+                eva02_vec,
+                top_k=top_k,
+                object_filter=object_filter or None,
+                exclude_objects=exclude_objects,
             )
-        
-        # Enrich with timing metadata
-        for res in results:
-            self._enrich_with_timing(res)
-        
-        # Save to database
+
+        results = _hits_to_results(hits)
+
         if save_to_db and results:
-            self.vector_db.add_query_results(
-                query,
-                results,
-                np.asarray(sel_embs, dtype=np.float32),
-            )
-        
-        logger.info(f"Found {len(results)} results for query: '{query[:60]}...'")
+            frame_ids = [f"{r['video_name']}__{r['frame_idx']}" for r in results]
+            self.es.save_query(query, "text", frame_ids)
+
+        logger.info(f"Text search '{query[:60]}': {len(results)} results")
         return results
-    
+
     def search_text_all(
         self,
         query: str,
@@ -149,40 +134,36 @@ class SearchEngine:
         save_to_db: bool = True,
     ) -> List[Dict[str, Any]]:
         """
-        Return all keyframes with similarity above threshold.
-        
+        Return all keyframes with cosine similarity above `score`.
+
+        Uses single EVA-02 embedding with min_score filter.
+
         Args:
-            query: Text description to search for
-            score: Minimum similarity score (0.0 to 1.0)
-            save_to_db: Whether to save results to database
-            
+            query: Text description.
+            score: Minimum similarity threshold (0.0–1.0).
+            save_to_db: Save query to ES history.
+
         Returns:
-            List of all matching result dicts
+            All matching result dicts.
         """
-        if len(self.index.embeddings) == 0:
-            logger.error("No embeddings loaded")
-            return []
-        
-        text_emb = self.index.encode_text(query)
-        sims = self.index.cosine_similarity(text_emb, self.index.embeddings)[0]
-        idx, scores = self.index.threshold_indices(sims, score)
-        
-        if len(scores) == 0:
-            logger.info(f"No results above threshold {score}")
-            return []
-        
-        results, sel_embs = self._build_results(idx, scores)
-        
+        eva02_vec = self._encoder.encode_text_eva02(query)
+
+        # Fetch a large pool and filter by min_score
+        hits = self.es.knn_search_eva02(
+            eva02_vec,
+            top_k=10000,
+            min_score=score,
+        )
+
+        results = _hits_to_results(hits)
+
         if save_to_db and results:
-            self.vector_db.add_query_results(
-                query,
-                results,
-                np.asarray(sel_embs, dtype=np.float32),
-            )
-        
-        logger.info(f"Found {len(results)} results above score {score}")
+            frame_ids = [f"{r['video_name']}__{r['frame_idx']}" for r in results]
+            self.es.save_query(query, "text_all", frame_ids)
+
+        logger.info(f"Text-all search (score>={score}): {len(results)} results")
         return results
-    
+
     def search_image(
         self,
         image_path: str,
@@ -190,63 +171,87 @@ class SearchEngine:
         save_to_db: bool = True,
     ) -> List[Dict[str, Any]]:
         """
-        Search keyframes by image similarity.
-        
+        Search keyframes by image similarity (image-to-image).
+
+        Uses dual-embedding if enabled.
+
         Args:
-            image_path: Path to the query image
-            top_k: Number of results to return
-            save_to_db: Whether to save results to database
-            
+            image_path: Path to the query image.
+            top_k: Number of results.
+            save_to_db: Save query to ES history.
+
         Returns:
-            List of result dicts sorted by visual similarity
+            List of result dicts sorted by similarity.
         """
-        if len(self.index.embeddings) == 0:
-            logger.error("No embeddings loaded")
-            return []
-        
-        img_emb = self.index.encode_image(image_path)
-        sims = self.index.cosine_similarity(img_emb, self.index.embeddings)[0]
-        idx, scores = self.index.topk_indices(sims, top_k)
-        
-        query_tag = f"[IMAGE] {safe_basename(image_path)}"
-        results, sel_embs = self._build_results(idx, scores)
-        
+        logger.debug(f"Image search: {image_path} (top_k={top_k})")
+
+        if settings.use_dual_embedding:
+            eva02_vec, blip_vec = self._encoder.encode_image_dual(image_path)
+            hits = self.es.knn_search_dual(eva02_vec, blip_vec, top_k=top_k)
+        else:
+            eva02_vec = self._encoder.encode_image_eva02(image_path)
+            hits = self.es.knn_search_eva02(eva02_vec, top_k=top_k)
+
+        results = _hits_to_results(hits)
+
         if save_to_db and results:
-            self.vector_db.add_query_results(query_tag, results, sel_embs)
-        
-        logger.info(f"Image search found {len(results)} results")
+            tag = f"[IMAGE] {safe_basename(image_path)}"
+            frame_ids = [f"{r['video_name']}__{r['frame_idx']}" for r in results]
+            self.es.save_query(tag, "image", frame_ids)
+
+        logger.info(f"Image search: {len(results)} results")
         return results
-    
+
+    def search_ocr(
+        self,
+        text: str,
+        top_k: int = settings.default_top_k,
+    ) -> List[Dict[str, Any]]:
+        """
+        Full-text search on OCR text extracted from keyframes.
+
+        Args:
+            text: OCR query string (e.g., "EXIT", "BUS STOP").
+            top_k: Number of results.
+
+        Returns:
+            List of result dicts.
+        """
+        hits = self.es.text_search_ocr(text, top_k=top_k)
+        results = _hits_to_results(hits, score_field="_score")
+        logger.info(f"OCR search '{text}': {len(results)} results")
+        return results
+
     def get_frames_of_video(self, video_name: str) -> List[Dict[str, Any]]:
         """
-        Get all keyframe information for a video.
-        
+        Get all keyframe metadata for a video from ES.
+
         Args:
-            video_name: Name of the video
-            
+            video_name: Name of the video.
+
         Returns:
-            List of frame dicts with image_path, video_name, frame_idx
+            List of frame dicts (no similarity scores).
         """
-        folder = os.path.join(self.index.keyframes_dir, video_name)
-        if not os.path.exists(folder):
-            logger.warning(f"Keyframe folder not found: {folder}")
-            return []
-        
-        frames = sorted(
-            f for f in os.listdir(folder)
-            if f.lower().endswith(('.jpg', '.jpeg', '.png'))
+        resp = self.es._es.search(
+            index=self.es.index_keyframes,
+            body={
+                "query": {"term": {"video_name": video_name}},
+                "size": 10000,
+                "sort": [{"frame_number": {"order": "asc"}}],
+                "_source": {"excludes": ["eva02_embedding", "blip_embedding"]},
+            },
         )
-        
-        return [
-            {
-                "image_path": os.path.join(folder, f),
-                "video_name": video_name,
-                "frame_idx": os.path.splitext(f)[0],
+        results = []
+        for hit in resp["hits"]["hits"]:
+            src = hit["_source"]
+            results.append({
+                "image_path": src.get("image_path", ""),
+                "video_name": src.get("video_name", ""),
+                "frame_idx": src.get("frame_idx", ""),
                 "similarity": None,
-            }
-            for f in frames
-        ]
-    
+            })
+        return results
+
     def detect_objects(
         self,
         image_path: str,
@@ -254,145 +259,99 @@ class SearchEngine:
     ) -> List[str]:
         """
         Detect objects in an image using Faster R-CNN.
-        
+
         Args:
-            image_path: Path to the image
-            threshold: Detection confidence threshold
-            
+            image_path: Path to image.
+            threshold: Confidence threshold.
+
         Returns:
-            List of detected COCO category names (lowercase)
+            List of detected COCO category names.
         """
+        from aic26.config.constants import COCO_CATEGORIES
         try:
             img = Image.open(image_path).convert("RGB")
         except Exception as e:
             logger.error(f"Cannot open image {image_path}: {e}")
             return []
-        
+
         tensor_img = self.models.detection_transform(img).to(self.models.device)
-        
         with torch.no_grad():
             preds = self.models.detector([tensor_img])
-        
+
         pred_scores = preds[0].get("scores", [])
         pred_labels = preds[0].get("labels", [])
-        
-        detected = [
+
+        return [
             COCO_CATEGORIES[label].lower()
             for score, label in zip(pred_scores, pred_labels)
             if score >= threshold
         ]
-        
-        return detected
-    
-    # ── Private helpers ───────────────────────────────────────────
-    
-    def _build_results(
-        self,
-        indices: np.ndarray,
-        scores: np.ndarray,
-    ) -> Tuple[List[Dict[str, Any]], np.ndarray]:
-        """
-        Convert FAISS indices + scores to result dicts.
-        
-        Args:
-            indices: Array of indices into the embedding index
-            scores: Array of similarity scores
-            
-        Returns:
-            Tuple of (results_list, selected_embeddings_array)
-        """
-        results: List[Dict[str, Any]] = []
-        sel_embs: List[np.ndarray] = []
-        _media_cache: Dict[str, dict] = {}
-        
-        for i, idx in enumerate(indices):
-            img_path = self.index.image_paths[idx].replace(os.sep, "/")
-            video_name = self.index.video_names[idx]
-            frame_str = os.path.splitext(os.path.basename(img_path))[0]
-            
-            # Cache media info per video
-            if video_name not in _media_cache:
-                _media_cache[video_name] = load_media_info(video_name)
-            media_info = _media_cache[video_name]
-            
-            results.append({
-                "image_path": img_path,
-                "video_name": video_name,
-                "similarity": float(scores[i]),
-                "frame_idx": frame_str,
-                "watch_url": media_info.get("watch_url", ""),
-            })
-            sel_embs.append(self.index.embeddings[idx])
-        
-        emb_arr = np.asarray(sel_embs, dtype=np.float32) if sel_embs else np.array([])
-        return results, emb_arr
-    
-    def _apply_object_filter(
-        self,
-        results: List[Dict[str, Any]],
-        sel_embs: np.ndarray,
-        objects: str,
-        threshold: float,
-    ) -> Tuple[List[Dict[str, Any]], np.ndarray]:
-        """
-        Filter results by detected objects.
-        
-        Args:
-            results: Search results to filter
-            sel_embs: Corresponding embeddings
-            objects: Comma-separated object names
-            threshold: >= 0: keep if ANY object found
-                      < 0:  keep if NONE found
-            
-        Returns:
-            Filtered (results, embeddings) tuple
-        """
-        desired = [o.strip().lower() for o in objects.split(",") if o.strip()]
-        filtered_res: List[Dict[str, Any]] = []
-        filtered_emb: List[np.ndarray] = []
-        
-        for res, emb in zip(results, sel_embs):
-            detected = self.detect_objects(res["image_path"], abs(threshold))
-            
-            if threshold >= 0:
-                keep = any(obj in detected for obj in desired)
-            else:
-                keep = all(obj not in detected for obj in desired)
-            
-            if keep:
-                filtered_res.append(res)
-                filtered_emb.append(emb)
-        
-        emb_arr = np.asarray(filtered_emb, dtype=np.float32) if filtered_emb else np.array([])
-        return filtered_res, emb_arr
-    
-    def _enrich_with_timing(self, res: Dict[str, Any]) -> None:
-        """
-        Add FPS, frame index, and time string to a result dict.
-        
-        Modifies the dict in-place.
-        
-        Args:
-            res: Result dict to enrich
-        """
-        video_name = res.get("video_name", "")
-        
-        fps = load_fps_from_map(video_name)
-        if not fps:
-            return
-        
-        res["fps"] = fps
-        
-        frame_str = res.get("frame_idx", "")
-        try:
-            n = int(frame_str)
-        except (TypeError, ValueError):
-            n = parse_frame_number_from_filename(str(frame_str))
-        
-        if n is None:
-            return
-        
-        frame_idx_video = load_frame_idx_from_map(video_name, n)
-        if frame_idx_video is not None:
-            res["frame_idx_video"] = frame_idx_video
-            res["time_str"] = frame_to_timestr(frame_idx_video, fps)
+
+
+# ── Private helpers ───────────────────────────────────────────────────────────
+
+def _hits_to_results(
+    hits: List[Dict[str, Any]],
+    score_field: str = "_score",
+) -> List[Dict[str, Any]]:
+    """
+    Convert Elasticsearch hit dicts to the standard result format.
+
+    Args:
+        hits: List of ES hit dicts.
+        score_field: Key to use as similarity score.
+
+    Returns:
+        List of result dicts with image_path, video_name, similarity, etc.
+    """
+    results = []
+    _media_cache: Dict[str, dict] = {}
+
+    for hit in hits:
+        src = hit.get("_source", {})
+        video_name = src.get("video_name", "")
+
+        if video_name not in _media_cache:
+            _media_cache[video_name] = load_media_info(video_name)
+        media_info = _media_cache[video_name]
+
+        results.append({
+            "image_path": src.get("image_path", ""),
+            "video_name": video_name,
+            "frame_idx": src.get("frame_idx", ""),
+            "similarity": float(hit.get(score_field, 0.0)),
+            "fps": src.get("fps"),
+            "frame_idx_video": src.get("frame_idx_video"),
+            "time_str": src.get("time_str", ""),
+            "watch_url": media_info.get("watch_url", src.get("watch_url", "")),
+            "detected_objects": src.get("detected_objects", []),
+            "ocr_text": src.get("ocr_text", ""),
+        })
+
+    return results
+
+
+def _parse_object_filter(objects: str) -> Tuple[List[str], bool]:
+    """
+    Parse object filter string into (object_list, exclude_flag).
+
+    Negative threshold in old API → now encoded as prefix '-' on any item.
+
+    Args:
+        objects: e.g. "person,bicycle" or "-person" to exclude.
+
+    Returns:
+        (list_of_objects, exclude_objects_flag)
+    """
+    if not objects:
+        return [], False
+
+    parts = [o.strip().lower() for o in objects.split(",") if o.strip()]
+    if not parts:
+        return [], False
+
+    # If ALL parts start with '-', treat as exclusion filter
+    if all(p.startswith("-") for p in parts):
+        return [p.lstrip("-") for p in parts], True
+
+    return [p.lstrip("-") for p in parts], False

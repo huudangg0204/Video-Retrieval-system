@@ -165,6 +165,84 @@ class Settings(BaseSettings):
         description="Default number of candidate solutions for TRAKE",
     )
     
+    # ── Elasticsearch ──────────────────────────────────────────────────
+    es_host: str = Field(
+        default="localhost",
+        description="Elasticsearch host",
+    )
+
+    es_port: int = Field(
+        default=9200,
+        ge=1,
+        le=65535,
+        description="Elasticsearch port",
+    )
+
+    es_scheme: str = Field(
+        default="http",
+        description="Elasticsearch scheme: 'http' or 'https'",
+    )
+
+    es_username: Optional[str] = Field(
+        default=None,
+        description="Elasticsearch username (if security enabled)",
+    )
+
+    es_password: Optional[str] = Field(
+        default=None,
+        description="Elasticsearch password (if security enabled)",
+    )
+
+    es_index_keyframes: str = Field(
+        default="aic26_keyframes",
+        description="Elasticsearch index name for keyframe documents",
+    )
+
+    es_index_queries: str = Field(
+        default="aic26_queries",
+        description="Elasticsearch index name for query history",
+    )
+
+    es_eva02_dim: int = Field(
+        default=768,
+        ge=1,
+        description="EVA-02 CLIP embedding dimension",
+    )
+
+    es_blip_dim: int = Field(
+        default=768,
+        ge=1,
+        description="BLIP-ITM embedding dimension",
+    )
+
+    es_knn_num_candidates: int = Field(
+        default=1000,
+        ge=10,
+        description="HNSW num_candidates for approximate kNN search",
+    )
+
+    # Weighted average for dual-embedding search (Option C Lite)
+    # score = eva02_weight * sim_eva02 + blip2_weight * sim_blip
+    eva02_search_weight: float = Field(
+        default=0.6,
+        ge=0.0,
+        le=1.0,
+        description="Weight for EVA-02 similarity in dual-embedding search",
+    )
+
+    blip2_search_weight: float = Field(
+        default=0.4,
+        ge=0.0,
+        le=1.0,
+        description="Weight for BLIP-ITM similarity in dual-embedding search",
+    )
+
+    # Use dual embedding during search (Option C) vs single (Option A)
+    use_dual_embedding: bool = Field(
+        default=True,
+        description="Use both EVA-02 and BLIP embeddings for search (Option C Lite)",
+    )
+
     # ── Server configuration ───────────────────────────────────────────
     host: str = Field(
         default="0.0.0.0",
