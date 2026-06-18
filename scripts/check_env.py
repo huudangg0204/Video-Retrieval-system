@@ -161,5 +161,5 @@ if __name__ == "__main__":
     check_elasticsearch()
     check_paths()
     print("\n" + "=" * 52)
-    print("  Done. Fix any ✗ items before running the server.")
+    print("  Done. Fix any [XX] items before running the server.")
     print("=" * 52 + "\n")
