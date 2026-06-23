@@ -53,7 +53,7 @@ class EmbeddingExtractor:
             config = global_settings
         
         self.config = config
-        self.device = torch.device("cpu")
+        self.device = torch.device(self.config.device if torch.cuda.is_available() else "cpu")
         
         # Load model
         logger.info(f"Loading EVA-02 model on {self.device}...")

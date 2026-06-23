@@ -3,7 +3,7 @@
 # For CUDA-enabled deployments
 # ============================================================
 
-FROM nvidia/cuda:12.1-runtime-ubuntu22.04
+FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3.10-dev \
     build-essential \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
@@ -26,15 +26,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1 \
     && update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
 
-# Install Python dependencies
-COPY pyproject.toml .
+# Cài đặt PyTorch cu121 trước (tối ưu cache)
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir . && \
-    pip install --no-cache-dir faiss-gpu
+    pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+# Install Python dependencies
+COPY pyproject.toml README.md ./
+
+# Cài đặt các package cốt lõi và OCR
+RUN pip install --no-cache-dir . && \
+    pip install --no-cache-dir faiss-gpu && \
+    pip install --no-cache-dir paddlepaddle-gpu==2.6.2 paddleocr paddlex && \
+    pip install --no-cache-dir easyocr onnxruntime-gpu paddle2onnx && \
+    pip install --no-cache-dir "numpy<2.0.0"
 
 # Copy application
 COPY src/ ./src/
-COPY configs/ ./configs/
+COPY scripts/ ./scripts/
+
+# Cài đặt code thực tế của project để đè lên package rỗng và liên kết với thư mục /app/src
+RUN pip install --no-cache-dir --no-deps -e .
 
 # Create user and directories
 RUN useradd --create-home --shell /bin/bash aic26 && \

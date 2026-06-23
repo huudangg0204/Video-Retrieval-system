@@ -96,6 +96,37 @@ class PipelineOrchestrator:
         logger.info("AIC-26 Data Pipeline Starting")
         logger.info("=" * 60)
         
+        # ── Step 0: Video Format Conversion ──────────────────────────
+        logger.info("Step 0/5: Checking and converting video formats...")
+        step_start = time.time()
+        
+        try:
+            from aic26.utils.video_converter import convert_video_for_pipeline
+            from tqdm import tqdm
+            video_path = Path(video_dir)
+            if video_path.exists():
+                videos = [
+                    f for f in video_path.iterdir() 
+                    if f.is_file() and f.suffix.lower() in ['.mp4', '.avi', '.mkv', '.mov', '.webm', '.av1', '.ts']
+                ]
+                
+                success_count = 0
+                for v in tqdm(videos, desc="Checking/Converting videos", unit="video"):
+                    if v.name.endswith('_converted.mp4'):
+                        continue
+                    try:
+                        convert_video_for_pipeline(v)
+                        success_count += 1
+                    except Exception as e:
+                        logger.error(f"Error converting {v.name}: {e}")
+                        
+                self.steps_completed.append("video_conversion")
+                duration = time.time() - step_start
+                logger.info(f"✅ Video checking/conversion complete ({success_count}/{len(videos)} checked, {duration:.1f}s)")
+        except Exception as e:
+            logger.error(f"❌ Video conversion failed: {e}")
+            self.steps_failed.append("video_conversion")
+            
         # ── Step 1: Keyframe Extraction ──────────────────────────
         logger.info("Step 1/5: Extracting keyframes from videos...")
         step_start = time.time()

@@ -92,6 +92,11 @@ class Settings(BaseSettings):
     )
     
     # ── Model configuration ─────────────────────────────────────────────
+    device: str = Field(
+        default="cuda",
+        description="Device to use for models (cpu, cuda, cuda:0, etc.)",
+    )
+    
     eva02_model_name: str = Field(
         default="hf-hub:timm/eva02_large_patch14_clip_224.merged2b_s4b_b131k",
         description="EVA-02 CLIP model identifier from HuggingFace/TIMM",

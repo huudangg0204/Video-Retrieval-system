@@ -248,7 +248,6 @@ class ObjectDetector:
             conf=0.1,
             max_det=300,
             iou=0.7,
-            nms_time_limit=10.0,
             device=self.device,
         )
         

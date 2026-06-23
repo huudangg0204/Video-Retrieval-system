@@ -11,7 +11,7 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
@@ -21,9 +21,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-COPY pyproject.toml .
-RUN pip install --no-cache-dir --user --upgrade pip && \
-    pip install --no-cache-dir --user .
+COPY pyproject.toml README.md ./
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir .
 
 # ── Stage 2: Production ────────────────────────────────────
 FROM python:3.10-slim
@@ -32,7 +34,7 @@ WORKDIR /app
 
 # Install runtime system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
@@ -42,13 +44,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages from builder
-COPY --from=builder /root/.local /root/.local
-ENV PATH=/root/.local/bin:$PATH
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy application code
 COPY src/ ./src/
-COPY configs/ ./configs/
-COPY docker/.env.example .env
+COPY pyproject.toml README.md ./
+COPY .env.example .env
+
+# Cài đặt code thực tế của project để đè lên package rỗng và liên kết với thư mục /app/src
+RUN pip install --no-cache-dir --no-deps -e .
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash aic26 && \

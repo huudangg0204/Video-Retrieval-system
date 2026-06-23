@@ -500,12 +500,23 @@ def check_system() -> None:
         click.echo(f"  {icon} {dir_name}: {dir_path}")
     
     click.echo(f"\nDependencies:")
-    for pkg in ["torch", "flask", "faiss", "numpy", "pandas"]:
+    for pkg in ["torch", "flask", "numpy", "pandas"]:
         try:
             ver = version(pkg)
             click.echo(f"  ✅ {pkg}: {ver}")
         except Exception:
             click.echo(f"  ❌ {pkg}: NOT INSTALLED")
+    
+    # Check faiss (can be faiss-gpu or faiss-cpu)
+    try:
+        ver = version("faiss-gpu")
+        click.echo(f"  ✅ faiss (gpu): {ver}")
+    except Exception:
+        try:
+            ver = version("faiss-cpu")
+            click.echo(f"  ✅ faiss (cpu): {ver}")
+        except Exception:
+            click.echo(f"  ❌ faiss: NOT INSTALLED")
 
 @cli.command(name="download")
 @click.option(

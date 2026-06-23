@@ -368,16 +368,41 @@ TRAKE (Temporal Retrieval and Alignment of Key Events) tìm các chuỗi keyfram
 
 ---
 
-## Docker
+## Docker (Đồng Bộ Đa Nền Tảng)
+
+Dự án hỗ trợ Docker GPU để đảm bảo sự đồng bộ tuyệt đối trên tất cả các thiết bị trong team (Windows & Linux) sử dụng card đồ họa NVIDIA.
+
+### Yêu Cầu Hệ Thống
+
+**Đối với Windows 10/11:**
+1. Cài đặt **NVIDIA Driver** mới nhất cho Windows.
+2. Cài đặt **Docker Desktop** và bật tính năng **WSL 2 based engine**. (GPU sẽ tự động được passthrough vào container).
+
+**Đối với Linux (Ubuntu/Debian):**
+1. Cài đặt **NVIDIA Driver**.
+2. Cài đặt **Docker Engine** và **Docker Compose**.
+3. Cài đặt [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) (`nvidia-docker2`).
+
+### Cách Chạy Toàn Bộ Pipeline
+
+Khi có video mới thả vào thư mục `data/videos`, bạn chỉ cần chạy một lệnh duy nhất từ thư mục gốc của dự án:
 
 ```bash
-# Build CPU
-docker compose -f docker/docker-compose.yml up
-
-# Build GPU
-docker build -f docker/Dockerfile.gpu -t aic26:gpu .
-docker run --gpus all -p 5000:5000 aic26:gpu
+docker compose -f docker/docker-compose.yml --profile pipeline up --build
 ```
+
+Lệnh này sẽ tự động:
+1. Chạy module dọn dẹp và chuẩn hóa định dạng video (từ AV1, MKV,... sang MP4 H.264).
+2. Chạy toàn bộ 5 bước của Pipeline AIC-26 (trích xuất keyframe, detection, OCR, EVA-02 embedding, xây dựng FAISS Index) hoàn toàn bằng GPU.
+
+### Khởi Chạy API Server
+
+Để chạy REST API server phục vụ truy xuất web/desktop (sử dụng GPU):
+
+```bash
+docker compose -f docker/docker-compose.yml --profile gpu up --build -d
+```
+API sẽ hoạt động tại `http://localhost:5000/api`.
 
 ---
 

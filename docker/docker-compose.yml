@@ -48,13 +48,9 @@ services:
       - HOST=0.0.0.0
       - PORT=5000
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    runtime: nvidia
     restart: unless-stopped
     profiles:
       - gpu
@@ -73,14 +69,11 @@ services:
       - ../videos:/app/videos:ro
     environment:
       - LOG_LEVEL=INFO
-    command: ["python", "-m", "aic26.cli.main", "pipeline", "run-all", "-v", "/app/videos"]
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    command: >
+      bash -c "python scripts/convert_videos.py /app/videos && python -m aic26.cli.main pipeline run-all -v /app/videos"
+    runtime: nvidia
     profiles:
       - pipeline
     networks:
