@@ -171,11 +171,11 @@ def extract_embeddings(input: str, output: str | None, batch_size: int) -> None:
     click.echo(f"   Images total:      {stats['images_total']}")
 
 
-@pipeline_group.command(name="extract-ocr")
+@pipeline_group.command(name="ocr")
 @click.option(
     "--input", "-i",
-    required=True,
-    type=click.Path(exists=True),
+    required=False,
+    type=click.Path(),
     help="Input directory containing keyframe folders",
 )
 @click.option(
@@ -194,21 +194,39 @@ def extract_embeddings(input: str, output: str | None, batch_size: int) -> None:
     default=0.35,
     help="Minimum confidence threshold",
 )
+@click.option(
+    "--workers", "-w",
+    type=int,
+    default=None,
+    help="Number of worker processes",
+)
+@click.option(
+    "--parallel-mode",
+    type=click.Choice(["image", "folder"]),
+    default="image",
+    help="Parallel processing mode (image or folder)",
+)
 def extract_ocr(
-    input: str,
+    input: str | None,
     output: str | None,
     annotate: bool,
     min_conf: float,
+    workers: int | None,
+    parallel_mode: str,
 ) -> None:
     """Extract text from keyframes using OCR."""
     from aic26.pipeline.ocr import OCRExtractor
     
+    input_dir = input or str(settings.keyframes_dir)
+    
     ocr = OCRExtractor(settings)
     df = ocr.process(
-        input_dir=input,
+        input_dir=input_dir,
         output_csv=output,
         annotate=annotate,
         min_conf=min_conf,
+        num_workers=workers or settings.max_workers,
+        parallel_mode=parallel_mode,
     )
     
     click.echo(f"\n✅ OCR extraction complete!")

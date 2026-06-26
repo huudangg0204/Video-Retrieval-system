@@ -151,6 +151,69 @@
       padding: 8px;
       border-radius: 6px;
     }
+
+    /* ── OCR Search styles ──────────────────── */
+    .ocr-badge {
+      display: inline-block;
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      color: #166534;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 6px;
+    }
+    .ocr-text-block {
+      background: #fafafa;
+      border-left: 3px solid #22c55e;
+      padding: 4px 10px;
+      margin: 4px 0 6px;
+      font-size: 13px;
+      color: #333;
+      border-radius: 0 6px 6px 0;
+      word-break: break-word;
+    }
+    .ocr-conf {
+      font-size: 11px;
+      color: #6b7280;
+    }
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      margin-bottom: 16px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .tab-btn {
+      padding: 8px 18px;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: #6b7280;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: -2px;
+      border-radius: 0;
+      transition: color .2s, border-color .2s;
+    }
+    .tab-btn:hover { color: #2563eb; background: none; }
+    .tab-btn.active {
+      color: #2563eb;
+      border-bottom-color: #2563eb;
+      background: none;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    select {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background: #fff;
+      font-size: 15px;
+      color: #222;
+      margin-top: 8px;
+    }
   </style>
 </head>
 
@@ -161,6 +224,10 @@
     <div class="card">
       <h2>Stats</h2>
       <div class="small" id="statsBox">{{ stats }}</div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="btn-light" style="padding:6px 12px;font-size:13px" onclick="buildFaissIndex()">⚙️ Build FAISS Index</button>
+        <span class="small" id="faissStatus"></span>
+      </div>
     </div>
 
     <div class="card" id="text-search-card">
@@ -219,6 +286,93 @@
         <div id="groupedResults" class="results" style="margin-top:12px"></div>
       </div>
     </div>
+
+    <!-- ══ OCR SEARCH CARD ══════════════════════════════════════════ -->
+    <div class="card">
+      <h2>🔤 OCR Search <span class="ocr-badge" id="ocrIndexBadge">loading…</span></h2>
+
+      <!-- Tab bar -->
+      <div class="tab-bar">
+        <button class="tab-btn active" id="tabOcrOnly" onclick="switchOcrTab('only')">OCR Text Only</button>
+        <button class="tab-btn" id="tabOcrCombined" onclick="switchOcrTab('combined')">OCR + Embedding</button>
+      </div>
+
+      <!-- Panel: OCR only -->
+      <div class="tab-panel active" id="panelOcrOnly">
+        <div class="row">
+          <div class="col">
+            <input id="ocrQuery" placeholder="Nhập văn bản cần tìm (vd: TRIỀU CƯỜNG, HTV9)…" />
+          </div>
+          <div style="width:120px">
+            <input id="ocrTopk" placeholder="Top-K (100)" />
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px;align-items:center">
+          <div style="width:180px">
+            <select id="ocrMode">
+              <option value="substring">Substring (chứa)</option>
+              <option value="regex">Regex</option>
+              <option value="exact">Exact match</option>
+            </select>
+          </div>
+          <div style="width:200px;display:flex;align-items:center;gap:8px;margin-top:8px">
+            <label style="font-size:13px">
+              <input type="checkbox" id="ocrNormAccents" checked /> Bỏ dấu khi tìm
+            </label>
+          </div>
+          <div style="width:180px">
+            <input id="ocrVideoFilter" placeholder="Lọc video (vd: K11)" />
+          </div>
+          <div style="width:120px">
+            <button onclick="searchOcr()">🔍 Tìm OCR</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel: OCR + Embedding combined -->
+      <div class="tab-panel" id="panelOcrCombined">
+        <div class="row">
+          <div class="col">
+            <input id="ocrCombinedOcrQuery" placeholder="OCR query: văn bản trong ảnh (vd: TRIỀU CƯỜNG)" />
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div class="col">
+            <input id="ocrCombinedEmbQuery" placeholder="Embedding query: mô tả cảnh (vd: flooded street)" />
+          </div>
+          <div style="width:120px">
+            <input id="ocrCombinedTopk" placeholder="Top-K (50)" />
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px;align-items:center">
+          <div style="width:180px">
+            <select id="ocrCombinedMode">
+              <option value="substring">Substring</option>
+              <option value="regex">Regex</option>
+            </select>
+          </div>
+          <div style="width:200px;display:flex;align-items:center;gap:8px;margin-top:8px">
+            <label style="font-size:13px">
+              <input type="checkbox" id="ocrCombinedNorm" checked /> Bỏ dấu
+            </label>
+          </div>
+          <div style="width:180px">
+            <button onclick="searchOcrCombined()">🔍 OCR + Embedding</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="ocrResults" class="results" style="margin-top:14px"></div>
+
+      <!-- Export -->
+      <div style="margin-top:14px">
+        <input id="ocrExportName" placeholder="CSV name (no .csv)" />
+        <input id="ocrExportConst" placeholder="Optional const value" />
+        <button class="btn-light" onclick="exportOcrResults()">Export OCR Results</button>
+        <div id="ocrExportMsg" class="small" style="margin-top:6px"></div>
+      </div>
+    </div>
+    <!-- ══ END OCR SEARCH CARD ═════════════════════════════════════ -->
 
     <div class="card">
       <h2>Image Search (Upload)</h2>
@@ -346,6 +500,183 @@
 
   <script>
     window.lastResults = [];
+    window.lastOcrResults = [];
+
+    // ── OCR tab switcher ───────────────────────────────────────────
+    function switchOcrTab(tab) {
+      ['only','combined'].forEach(t => {
+        document.getElementById('tabOcr' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
+        document.getElementById('panelOcr' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
+      });
+    }
+
+    // ── Load OCR index stats on page load ──────────────────────────
+    async function loadOcrStats() {
+      try {
+        const res = await fetch('/api/ocr_stats');
+        const data = await res.json();
+        const badge = document.getElementById('ocrIndexBadge');
+        if (data.total_frames > 0) {
+          badge.textContent = `${data.total_frames.toLocaleString()} frames • ${data.total_videos} videos`;
+          badge.style.background = '#f0fdf4';
+        } else {
+          badge.textContent = 'No OCR data';
+          badge.style.background = '#fef9c3';
+          badge.style.borderColor = '#fde047';
+          badge.style.color = '#854d0e';
+        }
+      } catch (e) {
+        document.getElementById('ocrIndexBadge').textContent = 'unavailable';
+      }
+    }
+    loadOcrStats();
+
+    // ── Render OCR result list ─────────────────────────────────────
+    function renderOcrResults(results, elapsed, targetId) {
+      const el = document.getElementById(targetId);
+      if (!results || !results.length) {
+        el.innerHTML = "<div class='small'>Không tìm thấy kết quả.</div>";
+        return;
+      }
+      let html = `<div class="small">⏱ ${elapsed?.toFixed(2)}s | ${results.length} kết quả</div>`;
+      for (const r of results) {
+        const time  = r.time_str || '?';
+        const frame = r.frame_idx_video ?? r.frame_idx ?? '?';
+        const conf  = r.conf_mean != null ? (r.conf_mean * 100).toFixed(1) + '%' : '';
+        const sim   = typeof r.similarity === 'number' ? ` | Score ${r.similarity.toFixed(3)}` : '';
+        const watchLink = r.watch_url ? `<a href="${r.watch_url}" target="_blank" style="font-size:12px">▶ Watch</a>` : '';
+        html += `
+          <div style="margin-top:14px;display:flex;gap:14px;align-items:flex-start">
+            <div style="flex:0 0 auto">${imgTagForPath(r.image_path)}</div>
+            <div style="flex:1;min-width:0">
+              <div class="small" style="margin-bottom:4px">
+                <b>${r.video_name}</b> | Frame <b>${frame}</b> | ${time}${sim}
+                ${watchLink}
+              </div>
+              <div class="ocr-text-block">${r.ocr_text || ''}</div>
+              ${conf ? `<span class="ocr-conf">Avg conf: ${conf}</span>` : ''}
+            </div>
+          </div>`;
+      }
+      el.innerHTML = html;
+    }
+
+    // ── OCR-only search ───────────────────────────────────────────
+    async function searchOcr() {
+      const q = document.getElementById('ocrQuery').value.trim();
+      if (!q) { alert('Nhập từ khóa OCR'); return; }
+      const topk   = parseInt(document.getElementById('ocrTopk').value) || 100;
+      const mode   = document.getElementById('ocrMode').value;
+      const normAcc = document.getElementById('ocrNormAccents').checked;
+      const vidFilter = document.getElementById('ocrVideoFilter').value.trim();
+
+      document.getElementById('ocrResults').innerHTML = "<div class='small'>Đang tìm…</div>";
+      try {
+        const res = await fetch('/api/search_ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: q,
+            top_k: topk,
+            mode,
+            normalize_accents: normAcc,
+            video_filter: vidFilter || undefined
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) { document.getElementById('ocrResults').innerHTML = `<div class='small' style='color:red'>Lỗi: ${data.error}</div>`; return; }
+        window.lastOcrResults = data.results || [];
+        renderOcrResults(window.lastOcrResults, data.elapsed, 'ocrResults');
+      } catch (e) {
+        document.getElementById('ocrResults').innerHTML = `<div class='small' style='color:red'>Network error: ${e.message}</div>`;
+      }
+    }
+
+    // ── OCR + Embedding combined search ──────────────────────────
+    async function searchOcrCombined() {
+      const ocrQ = document.getElementById('ocrCombinedOcrQuery').value.trim();
+      const embQ = document.getElementById('ocrCombinedEmbQuery').value.trim();
+      if (!ocrQ && !embQ) { alert('Nhập ít nhất một query'); return; }
+      const topk   = parseInt(document.getElementById('ocrCombinedTopk').value) || 50;
+      const mode   = document.getElementById('ocrCombinedMode').value;
+      const normAcc = document.getElementById('ocrCombinedNorm').checked;
+
+      document.getElementById('ocrResults').innerHTML = "<div class='small'>Đang tìm kết hợp…</div>";
+      try {
+        const res = await fetch('/api/search_ocr_combined', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ocr_query: ocrQ,
+            embedding_query: embQ,
+            top_k: topk,
+            mode,
+            normalize_accents: normAcc
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) { document.getElementById('ocrResults').innerHTML = `<div class='small' style='color:red'>Lỗi: ${data.error}</div>`; return; }
+        window.lastOcrResults = data.results || [];
+        const label = data.ocr_hits != null ? ` (OCR hits: ${data.ocr_hits})` : '';
+        renderOcrResults(window.lastOcrResults, data.elapsed, 'ocrResults');
+        document.getElementById('ocrResults').innerHTML =
+          `<div class="small">⏱ ${data.elapsed?.toFixed(2)}s | ${data.count} kết quả${label}</div>` +
+          document.getElementById('ocrResults').innerHTML.replace(/^<div[^>]*>.*?<\/div>/, '');
+      } catch (e) {
+        document.getElementById('ocrResults').innerHTML = `<div class='small' style='color:red'>Network error: ${e.message}</div>`;
+      }
+    }
+
+    // ── Export OCR results ────────────────────────────────────────
+    async function exportOcrResults() {
+      if (!window.lastOcrResults.length) { alert('Chưa có kết quả OCR để export'); return; }
+      const name = document.getElementById('ocrExportName').value.trim() || `ocr_${Date.now()}`;
+      const constVal = document.getElementById('ocrExportConst').value.trim();
+      const res = await fetch('/api/export_results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ results: window.lastOcrResults, name, const_value: constVal || null })
+      });
+      const data = await res.json();
+      document.getElementById('ocrExportMsg').innerText =
+        data.status === 'ok' ? `✅ Exported: ${data.csv_path}` : `❌ Error: ${data.msg || 'unknown'}`;
+    }
+
+    // ── FAISS Index Builder ────────────────────────────────────────
+    let _faissPollTimer = null;
+    async function buildFaissIndex() {
+      const btn = document.querySelector('button[onclick="buildFaissIndex()"]');
+      const status = document.getElementById('faissStatus');
+      btn.disabled = true;
+      status.textContent = '⏳ Starting build...';
+      try {
+        const res = await fetch('/api/build_faiss_index', { method: 'POST' });
+        const data = await res.json();
+        if (res.status === 409) { status.textContent = '⚠️ ' + data.message; btn.disabled = false; return; }
+        _pollFaissStatus(btn, status);
+      } catch (e) {
+        status.textContent = '❌ ' + e.message; btn.disabled = false;
+      }
+    }
+    function _pollFaissStatus(btn, status) {
+      if (_faissPollTimer) clearInterval(_faissPollTimer);
+      _faissPollTimer = setInterval(async () => {
+        try {
+          const res = await fetch('/api/build_faiss_index/status');
+          const data = await res.json();
+          if (data.status === 'running') {
+            status.textContent = '⏳ ' + data.message;
+          } else if (data.status === 'done') {
+            status.textContent = '✅ ' + data.message;
+            clearInterval(_faissPollTimer); btn.disabled = false;
+          } else if (data.status === 'error') {
+            status.textContent = '❌ ' + data.message;
+            clearInterval(_faissPollTimer); btn.disabled = false;
+          }
+        } catch (e) { /* network blip — keep polling */ }
+      }, 2000);
+    }
+
     function imgTagForPath(path, alt = "") {
   const fixedPath = path.replace(/\\/g, "/");  // ← THÊM DÒNG NÀY
   const url = "/api/image?path=" + encodeURIComponent(fixedPath);
@@ -520,8 +851,9 @@
       if (!vid) { alert("Enter video"); return; }
       const res = await fetch("/api/get_frames/" + encodeURIComponent(vid));
       const data = await res.json();
-      let html = "";
-      for (const f of data) {
+      const frames = data.frames || [];
+      let html = frames.length ? "" : "<div class='small'>No frames found.</div>";
+      for (const f of frames) {
         html += imgTagForPath(f.image_path);
       }
       document.getElementById("framesView").innerHTML = html;
@@ -535,8 +867,9 @@
       if (!range || isNaN(range)) { alert("Enter a valid Range"); return; }
       const res = await fetch("/api/get_frames_range/" + encodeURIComponent(vid) + "/" + frameId + "/" + range);
       const data = await res.json();
-      let html = "";
-      for (const f of data) {
+      const frames = data.frames || [];
+      let html = frames.length ? "" : "<div class='small'>No frames found.</div>";
+      for (const f of frames) {
         html += imgTagForPath(f.image_path);
       }
       document.getElementById("framesRangeView").innerHTML = html;

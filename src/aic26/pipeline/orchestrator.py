@@ -143,7 +143,9 @@ class PipelineOrchestrator:
             try:
                 ocr = OCRExtractor(self.config)
                 results['ocr'] = ocr.process(
-                    str(self.config.keyframes_dir),
+                    input_dir=str(self.config.keyframes_dir),
+                    num_workers=self.config.max_workers,
+                    parallel_mode="image"
                 )
                 self.steps_completed.append("ocr_extraction")
                 

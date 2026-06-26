@@ -101,33 +101,21 @@ def create_app(config=None) -> Flask:
 
 def _init_retriever(app: Flask, config) -> None:
     """
-    Initialize the EVA02ImageRetrieval instance.
-    
-    Loaded lazily on first request to speed up startup
-    and avoid loading models during import.
+    Initialize the EVA02ImageRetrieval instance eagerly at startup.
+
+    All models, embeddings, and the FAISS index are loaded immediately so
+    the server is fully ready before handling any request.
     """
-    retriever_instance = None
-    
-    def get_retriever():
-        nonlocal retriever_instance
-        if retriever_instance is None:
-            logger.info("Initializing retrieval engine (first request)...")
-            from aic26.core.retrieval import EVA02ImageRetrieval
-            
-            retriever_instance = EVA02ImageRetrieval(
-                embedding_dir=str(config.embedding_dir),
-                keyframes_dir=str(config.keyframes_dir),
-                db_path=str(config.db_path),
-            )
-            app.config['AIC26_RETRIEVER'] = retriever_instance
-            logger.info("Retrieval engine ready.")
-        return retriever_instance
-    
-    # Store factory for lazy loading
-    app.config['_get_retriever'] = get_retriever
-    
-    # Also store directly if pre-loaded
+    logger.info("Initializing retrieval engine at startup...")
+    from aic26.core.retrieval import EVA02ImageRetrieval
+
+    retriever_instance = EVA02ImageRetrieval(
+        embedding_dir=str(config.embedding_dir),
+        keyframes_dir=str(config.keyframes_dir),
+        db_path=str(config.db_path),
+    )
     app.config['AIC26_RETRIEVER'] = retriever_instance
+    logger.info("Retrieval engine ready.")
 
 
 def get_retriever(app: Flask = None):
