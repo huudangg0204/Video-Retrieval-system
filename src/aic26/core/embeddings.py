@@ -43,28 +43,57 @@ class EmbeddingIndex:
         models: ModelRegistry,
         embedding_dir: str,
         keyframes_dir: str,
+        blip2_dir: str | None = None,
     ) -> None:
         """
         Initialize the embedding index.
-        
+
         Args:
             models: ModelRegistry with loaded EVA-02 model
-            embedding_dir: Directory containing .npy embedding files
+            embedding_dir: Directory containing .npy embedding files (EVA-02)
             keyframes_dir: Directory containing keyframe images
+            blip2_dir: Optional directory with BLIP-2 .npy files. If present
+                       and loadable, self.blip2_embeddings is populated and
+                       self.is_dual becomes True.
         """
         self.models = models
         self.embedding_dir = embedding_dir
         self.keyframes_dir = keyframes_dir
-        
+        self.blip2_dir = blip2_dir
+        self.blip2_embeddings: np.ndarray = np.array([])
+        self.is_dual = False
+
         logger.info("Loading embeddings...")
         self.embeddings, self.image_paths, self.video_names = self._load_all()
-        
+
         n_images = len(self.image_paths)
         n_videos = len(set(self.video_names))
         logger.info(
             f"Loaded {n_images} images from {n_videos} videos. "
             f"Embedding shape: {self.embeddings.shape}"
         )
+
+        if blip2_dir:
+            try:
+                self.blip2_embeddings, _, _ = self._load_all(blip2_dir)
+                if (
+                    self.blip2_embeddings.shape == self.embeddings.shape
+                    and self.blip2_embeddings.size > 0
+                ):
+                    self.is_dual = True
+                    logger.info(
+                        f"Dual stream loaded: BLIP-2 shape={self.blip2_embeddings.shape}"
+                    )
+                else:
+                    logger.warning(
+                        f"BLIP-2 stream shape mismatch "
+                        f"({self.blip2_embeddings.shape} vs {self.embeddings.shape}); "
+                        f"falling back to single-stream search."
+                    )
+                    self.blip2_embeddings = np.array([])
+            except Exception as e:
+                logger.warning(f"Failed to load BLIP-2 stream: {e}")
+                self.blip2_embeddings = np.array([])
     
     # ── Encoders ──────────────────────────────────────────────────
     
@@ -106,7 +135,32 @@ class EmbeddingIndex:
         except Exception as e:
             logger.error(f"Failed to encode image {image_path}: {e}")
             raise
-    
+
+    # ── Dual-stream encoders (BLIP-2 Q-Former) ──────────────────
+
+    def encode_text_blip2(self, text: str, image_path: str | None = None) -> np.ndarray:
+        """Encode a text query through BLIP-2. See ModelRegistry.encode_text_blip2."""
+        return self.models.encode_text_blip2(text, image_path=image_path)
+
+    def encode_image_blip2(self, image_path: str) -> np.ndarray:
+        """Encode an image through BLIP-2. See ModelRegistry.encode_image_blip2."""
+        return self.models.encode_image_blip2(image_path)
+
+    def get_embedding_blip2(self, image_path: str) -> Optional[np.ndarray]:
+        """
+        Retrieve the pre-computed BLIP-2 embedding for an image path, or
+        None if unavailable. Mirrors get_embedding() for the second stream.
+        """
+        if not self.is_dual or self.blip2_embeddings.size == 0:
+            return None
+        try:
+            if image_path in self._path_to_idx:
+                idx = self._path_to_idx[image_path]
+                return self.blip2_embeddings[idx : idx + 1].astype(np.float32)
+        except Exception as e:
+            logger.error(f"Error getting BLIP-2 embedding for {image_path}: {e}")
+        return None
+
     def get_embedding(self, image_path: str) -> Optional[np.ndarray]:
         """
         Retrieve pre-computed embedding for an image path.
@@ -214,71 +268,79 @@ class EmbeddingIndex:
     
     # ── Private ───────────────────────────────────────────────────
     
-    def _load_all(self) -> Tuple[np.ndarray, List[str], List[str]]:
+    def _load_all(self, override_dir: str | None = None) -> Tuple[np.ndarray, List[str], List[str]]:
         """
         Load all .npy embedding files and pair with keyframe paths.
-        
+
+        Args:
+            override_dir: If provided, load from this directory instead of
+                          self.embedding_dir. Used to load the BLIP-2 stream
+                          with the same path-mapping logic.
+
         Returns:
             Tuple of (embeddings_array, image_paths_list, video_names_list)
         """
-        if not os.path.exists(self.embedding_dir):
-            logger.warning(f"Embedding directory not found: {self.embedding_dir}")
+        target_dir = override_dir or self.embedding_dir
+        if not os.path.exists(target_dir):
+            logger.warning(f"Embedding directory not found: {target_dir}")
             return np.array([]), [], []
-        
+
         all_embs: List[np.ndarray] = []
         all_paths: List[str] = []
         all_vids: List[str] = []
-        
+
         npy_files = sorted(
-            f for f in os.listdir(self.embedding_dir) if f.endswith(".npy")
+            f for f in os.listdir(target_dir) if f.endswith(".npy")
         )
-        
+
         if not npy_files:
-            logger.warning(f"No .npy files found in {self.embedding_dir}")
+            logger.warning(f"No .npy files found in {target_dir}")
             return np.array([]), [], []
-        
+
         for npy in npy_files:
             video_name = os.path.splitext(npy)[0]
-            emb_path = os.path.join(self.embedding_dir, npy)
-            
+            emb_path = os.path.join(target_dir, npy)
+
             try:
                 embs = np.load(emb_path)
             except Exception as e:
                 logger.error(f"Failed to load {emb_path}: {e}")
                 continue
-            
+
             vid_folder = os.path.join(self.keyframes_dir, video_name)
             if not os.path.exists(vid_folder):
                 logger.warning(f"Keyframe folder missing: {vid_folder}")
                 continue
-            
+
             frames = sorted(
                 f for f in os.listdir(vid_folder)
                 if f.lower().endswith(('.jpg', '.jpeg', '.png'))
             )
-            
+
             n_frames = len(frames)
             n_embs = len(embs)
-            
+
             if n_frames != n_embs:
                 logger.warning(
                     f"Mismatch for {video_name}: "
                     f"{n_embs} embeddings vs {n_frames} keyframes. "
                     f"Using min({n_embs}, {n_frames})."
                 )
-            
+
             n = min(n_frames, n_embs)
             for i in range(n):
                 all_paths.append(os.path.join(vid_folder, frames[i]))
                 all_vids.append(video_name)
             all_embs.append(embs[:n])
-        
+
         if not all_embs:
             return np.array([]), [], []
-        
+
         combined = np.concatenate(all_embs, axis=0).astype(np.float32)
-        
-        # Build reverse lookup for fast path
-        self._path_to_idx = {p: i for i, p in enumerate(all_paths)}
-        
+
+        # Build reverse lookup for fast path (only when loading the
+        # primary stream, otherwise we'd clobber it with a second copy)
+        if override_dir is None:
+            self._path_to_idx = {p: i for i, p in enumerate(all_paths)}
+
         return combined, all_paths, all_vids

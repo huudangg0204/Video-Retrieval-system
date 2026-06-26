@@ -113,11 +113,13 @@ def _init_retriever(app: Flask, config) -> None:
         if retriever_instance is None:
             logger.info("Initializing retrieval engine (first request)...")
             from aic26.core.retrieval import EVA02ImageRetrieval
-            
+
+            blip2_dir = str(getattr(config, "blip2_embedding_dir", ""))
             retriever_instance = EVA02ImageRetrieval(
                 embedding_dir=str(config.embedding_dir),
                 keyframes_dir=str(config.keyframes_dir),
                 db_path=str(config.db_path),
+                blip2_dir=blip2_dir,
             )
             app.config['AIC26_RETRIEVER'] = retriever_instance
             logger.info("Retrieval engine ready.")

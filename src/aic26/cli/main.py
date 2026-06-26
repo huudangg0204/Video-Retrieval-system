@@ -329,6 +329,102 @@ def run_all_pipeline(
     click.echo(f"{'='*60}")
 
 
+@pipeline_group.command(name="extract-dual-embeddings")
+@click.option(
+    "--input", "-i",
+    required=True,
+    type=click.Path(exists=True),
+    help="Input directory containing keyframe folders",
+)
+@click.option(
+    "--eva02-out",
+    type=click.Path(),
+    default=None,
+    help="Output dir for EVA-02 .npy (default: settings.embedding_dir)",
+)
+@click.option(
+    "--blip2-out",
+    type=click.Path(),
+    default=None,
+    help="Output dir for BLIP-2 .npy (default: settings.blip2_embedding_dir)",
+)
+@click.option(
+    "--batch-size", "-b",
+    type=int,
+    default=8,
+    help="Batch size (smaller than single-stream — BLIP-2 is heavy)",
+)
+def extract_dual_embeddings(
+    input: str,
+    eva02_out: str | None,
+    blip2_out: str | None,
+    batch_size: int,
+) -> None:
+    """Run EVA-02 + BLIP-2 dual embedding extraction over keyframes."""
+    from aic26.pipeline.embedding import EmbeddingExtractor
+
+    extractor = EmbeddingExtractor(settings)
+    stats = extractor.process_images_dual(
+        input_dir=input,
+        eva02_output_dir=eva02_out,
+        blip2_output_dir=blip2_out,
+        batch_size=batch_size,
+    )
+    click.echo(f"\n✅ Dual embedding extraction complete!")
+    click.echo(f"   Folders processed: {stats['folders_processed']}/{stats['folders_total']}")
+    click.echo(f"   Images total:      {stats['images_total']}")
+    click.echo(f"   EVA-02 output:     {eva02_out or settings.embedding_dir}")
+    click.echo(f"   BLIP-2 output:     {blip2_out or settings.blip2_embedding_dir}")
+
+
+@pipeline_group.command(name="build-dual-index")
+@click.option(
+    "--eva02-dir",
+    type=click.Path(exists=True),
+    default=None,
+    help="Dir with EVA-02 .npy (default: settings.embedding_dir)",
+)
+@click.option(
+    "--blip2-dir",
+    type=click.Path(exists=True),
+    default=None,
+    help="Dir with BLIP-2 .npy (default: settings.blip2_embedding_dir)",
+)
+@click.option(
+    "--output", "-o",
+    type=click.Path(),
+    default=None,
+    help="Output pickle path (default: settings.db_path)",
+)
+@click.option(
+    "--index-type",
+    type=click.Choice(["flat_ip", "flat_l2"]),
+    default="flat_ip",
+)
+def build_dual_index(
+    eva02_dir: str | None,
+    blip2_dir: str | None,
+    output: str | None,
+    index_type: str,
+) -> None:
+    """Build a 2-stream FAISS index (EVA-02 + BLIP-2) into one pickle."""
+    from aic26.pipeline.indexer import IndexBuilder
+
+    builder = IndexBuilder(settings)
+    stats = builder.build_dual(
+        eva02_dir=eva02_dir or str(settings.embedding_dir),
+        blip2_dir=blip2_dir or str(settings.blip2_embedding_dir),
+        output_path=output,
+        index_type=index_type,
+    )
+    click.echo(f"\n✅ Dual FAISS index built!")
+    click.echo(f"   Vectors:    {stats['embeddings_loaded']}")
+    click.echo(f"   EVA-02 dim: {stats['eva02_dim']}")
+    click.echo(f"   BLIP-2 dim: {stats['blip2_dim']}")
+    click.echo(f"   Index type: {stats['index_type']}")
+    click.echo(f"   Output:     {stats['output_path']} ({stats['file_size_mb']:.1f} MB)")
+
+
 # ── Search commands ────────────────────────────────────────────────────
 
 @cli.group(name="search")

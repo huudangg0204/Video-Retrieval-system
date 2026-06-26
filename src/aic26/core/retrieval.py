@@ -56,43 +56,57 @@ class EVA02ImageRetrieval:
         embedding_dir: Optional[str] = None,
         keyframes_dir: Optional[str] = None,
         db_path: Optional[str] = None,
+        blip2_dir: Optional[str] = None,
     ) -> None:
         """
         Initialize the retrieval system.
-        
+
         Args:
             embedding_dir: Directory containing .npy embedding files
             keyframes_dir: Directory containing keyframe images
             db_path: Path to the FAISS database pickle file
+            blip2_dir: Optional directory of BLIP-2 .npy files. When provided
+                       and populated, dual-stream weighted search is enabled.
         """
         self.embedding_dir = embedding_dir or str(settings.embedding_dir)
         self.keyframes_dir = keyframes_dir or str(settings.keyframes_dir)
-        
+        self.blip2_dir = blip2_dir or str(settings.blip2_embedding_dir)
+
         logger.info("Initializing EVA-02 Retrieval System...")
-        
+
         # Load models once
         logger.info("Loading AI models...")
         self._models = ModelRegistry()
-        
+
         # Build embedding index
         logger.info("Loading embedding index...")
         self._index = EmbeddingIndex(
             self._models,
             self.embedding_dir,
             self.keyframes_dir,
+            blip2_dir=self.blip2_dir,
         )
-        
+
         # Persistent query store
         logger.info("Loading vector database...")
         self._db = VectorDatabase(db_path or str(settings.db_path))
-        
+
         # Sub-engines
-        self._searcher = SearchEngine(self._models, self._index, self._db)
+        self._searcher = SearchEngine(
+            self._models,
+            self._index,
+            self._db,
+            weight_eva02=settings.eva02_search_weight,
+            weight_blip2=settings.blip2_search_weight,
+            pool_multiplier=settings.dual_search_pool_multiplier,
+        )
         self._reranker = Reranker(self._models)
         self._trake = TrakeEngine(self._searcher, self._reranker)
         self._exporter = Exporter()
-        
-        logger.info("Retrieval system ready.")
+
+        logger.info(
+            f"Retrieval system ready ({'dual' if self._index.is_dual else 'single'} stream)."
+        )
     
     # ── Search ────────────────────────────────────────────────────────
     

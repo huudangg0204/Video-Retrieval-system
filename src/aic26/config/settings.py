@@ -111,6 +111,42 @@ class Settings(BaseSettings):
         default="Salesforce/blip-itm-base-coco",
         description="BLIP Image-Text Matching model identifier",
     )
+
+    blip2_model_name: str = Field(
+        default="Salesforce/blip2-itm-vit-g",
+        description="BLIP-2 (Q-Former) model identifier for dual-embedding pipeline",
+    )
+
+    blip2_embedding_dir: Path = Field(
+        default_factory=lambda: Path("data/blip2_embeddings"),
+        description="Directory containing .npy BLIP-2 embedding files",
+    )
+
+    use_dual_embedding: bool = Field(
+        default=False,
+        description="If true, encode with EVA-02 + BLIP-2 and weighted-blend cosine similarity at search time",
+    )
+
+    eva02_search_weight: float = Field(
+        default=0.6,
+        ge=0.0,
+        le=1.0,
+        description="Weight of EVA-02 cosine similarity in the dual-embedding blend",
+    )
+
+    blip2_search_weight: float = Field(
+        default=0.4,
+        ge=0.0,
+        le=1.0,
+        description="Weight of BLIP-2 cosine similarity in the dual-embedding blend",
+    )
+
+    dual_search_pool_multiplier: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Multiplier applied to top_k when collecting candidates from each stream before blending",
+    )
     
     yolo_model_name: str = Field(
         default="yolov8x-oiv7.pt",
@@ -268,6 +304,7 @@ class Settings(BaseSettings):
             self.media_info_dir,
             self.upload_dir,
             self.detection_dir,
+            self.blip2_embedding_dir,
         ]
         for directory in directories:
             Path(directory).mkdir(parents=True, exist_ok=True)

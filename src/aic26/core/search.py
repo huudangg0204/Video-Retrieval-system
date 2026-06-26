@@ -57,22 +57,33 @@ class SearchEngine:
         models: ModelRegistry,
         index: EmbeddingIndex,
         vector_db: VectorDatabase,
+        weight_eva02: float = 0.6,
+        weight_blip2: float = 0.4,
+        pool_multiplier: int = 5,
     ) -> None:
         """
         Initialize the search engine.
-        
+
         Args:
             models: ModelRegistry with loaded models
             index: EmbeddingIndex with pre-computed embeddings
             vector_db: VectorDatabase for storing query history
+            weight_eva02: Weight of EVA-02 cosine similarity in the dual blend
+            weight_blip2: Weight of BLIP-2 cosine similarity in the dual blend
+            pool_multiplier: top_k * multiplier candidates are pulled from each
+                             stream before weighted blending
         """
         self.models = models
         self.index = index
         self.vector_db = vector_db
-        
+        self.weight_eva02 = float(weight_eva02)
+        self.weight_blip2 = float(weight_blip2)
+        self.pool_multiplier = max(1, int(pool_multiplier))
+
         logger.debug(
             f"SearchEngine initialized. "
             f"Index size: {len(self.index.embeddings)} embeddings"
+            f"{' (dual stream: eva02+blip2)' if index.is_dual else ' (single stream)'}"
         )
     
     # ── Public search API ─────────────────────────────────────────
@@ -106,17 +117,29 @@ class SearchEngine:
         if len(self.index.embeddings) == 0:
             logger.error("No embeddings loaded. Cannot search.")
             return []
-        
+
         logger.debug(f"Searching: '{query[:80]}...' (top_k={top_k})")
-        
+
         # Encode query and compute similarities
         text_emb = self.index.encode_text(query)
-        sims = self.index.cosine_similarity(text_emb, self.index.embeddings)[0]
-        idx, scores = self.index.topk_indices(sims, top_k)
-        
+        if self.index.is_dual and self._blip2_text_query_usable():
+            text_emb_blip = self.index.encode_text_blip2(query)
+            idx, scores = self._dual_topk_indices(text_emb, text_emb_blip, top_k)
+        else:
+            # Single-stream path: BLIP-2 Q-Former is image-only, so text queries
+            # degrade to a constant vector when only an image is supplied. Skip
+            # the dual blend for text queries and trust EVA-02 alone.
+            if self.index.is_dual:
+                logger.debug(
+                    "BLIP-2 text query is degenerate (constant vector); "
+                    "falling back to EVA-02 only."
+                )
+            sims = self.index.cosine_similarity(text_emb, self.index.embeddings)[0]
+            idx, scores = self.index.topk_indices(sims, top_k)
+
         # Build results
         results, sel_embs = self._build_results(idx, scores)
-        
+
         # Apply object filter if specified
         if objects:
             n_before = len(results)
@@ -126,11 +149,11 @@ class SearchEngine:
             logger.debug(
                 f"Object filter '{objects}': {n_before} → {len(results)} results"
             )
-        
+
         # Enrich with timing metadata
         for res in results:
             self._enrich_with_timing(res)
-        
+
         # Save to database
         if save_to_db and results:
             self.vector_db.add_query_results(
@@ -138,7 +161,7 @@ class SearchEngine:
                 results,
                 np.asarray(sel_embs, dtype=np.float32),
             )
-        
+
         logger.info(f"Found {len(results)} results for query: '{query[:60]}...'")
         return results
     
@@ -150,36 +173,47 @@ class SearchEngine:
     ) -> List[Dict[str, Any]]:
         """
         Return all keyframes with similarity above threshold.
-        
+
         Args:
             query: Text description to search for
             score: Minimum similarity score (0.0 to 1.0)
             save_to_db: Whether to save results to database
-            
+
         Returns:
             List of all matching result dicts
         """
         if len(self.index.embeddings) == 0:
             logger.error("No embeddings loaded")
             return []
-        
+
         text_emb = self.index.encode_text(query)
-        sims = self.index.cosine_similarity(text_emb, self.index.embeddings)[0]
+        if self.index.is_dual and self._blip2_text_query_usable():
+            text_emb_blip = self.index.encode_text_blip2(query)
+            sims_eva = self.index.cosine_similarity(text_emb, self.index.embeddings)[0]
+            sims_blip = self.index.cosine_similarity(
+                text_emb_blip, self.index.blip2_embeddings
+            )[0]
+            sims = self.weight_eva02 * sims_eva + self.weight_blip2 * sims_blip
+        else:
+            # Single-stream: BLIP-2 text query is degenerate for this checkpoint
+            # (Q-Former is image-only). Trust EVA-02 alone for text.
+            sims = self.index.cosine_similarity(text_emb, self.index.embeddings)[0]
+
         idx, scores = self.index.threshold_indices(sims, score)
-        
+
         if len(scores) == 0:
             logger.info(f"No results above threshold {score}")
             return []
-        
+
         results, sel_embs = self._build_results(idx, scores)
-        
+
         if save_to_db and results:
             self.vector_db.add_query_results(
                 query,
                 results,
                 np.asarray(sel_embs, dtype=np.float32),
             )
-        
+
         logger.info(f"Found {len(results)} results above score {score}")
         return results
     
@@ -191,29 +225,33 @@ class SearchEngine:
     ) -> List[Dict[str, Any]]:
         """
         Search keyframes by image similarity.
-        
+
         Args:
             image_path: Path to the query image
             top_k: Number of results to return
             save_to_db: Whether to save results to database
-            
+
         Returns:
             List of result dicts sorted by visual similarity
         """
         if len(self.index.embeddings) == 0:
             logger.error("No embeddings loaded")
             return []
-        
+
         img_emb = self.index.encode_image(image_path)
-        sims = self.index.cosine_similarity(img_emb, self.index.embeddings)[0]
-        idx, scores = self.index.topk_indices(sims, top_k)
-        
+        if self.index.is_dual:
+            img_emb_blip = self.index.encode_image_blip2(image_path)
+            idx, scores = self._dual_topk_indices(img_emb, img_emb_blip, top_k)
+        else:
+            sims = self.index.cosine_similarity(img_emb, self.index.embeddings)[0]
+            idx, scores = self.index.topk_indices(sims, top_k)
+
         query_tag = f"[IMAGE] {safe_basename(image_path)}"
         results, sel_embs = self._build_results(idx, scores)
-        
+
         if save_to_db and results:
             self.vector_db.add_query_results(query_tag, results, sel_embs)
-        
+
         logger.info(f"Image search found {len(results)} results")
         return results
     
@@ -285,7 +323,36 @@ class SearchEngine:
         return detected
     
     # ── Private helpers ───────────────────────────────────────────
-    
+
+    def _blip2_text_query_usable(self) -> bool:
+        """
+        Decide whether to use the BLIP-2 stream for text queries.
+
+        BLIP-2 Q-Former in the `Salesforce/blip2-itm-vit-g` checkpoint is
+        image-only — calling `get_qformer_features` with a black image and no
+        text input returns a constant vector regardless of the text query.
+        That makes the weighted blend uninformative: it adds the same constant
+        to every row. We detect this by computing two distinct text queries and
+        checking whether their BLIP-2 embeddings differ. If they are
+        near-identical, the text-query branch is skipped and we trust EVA-02.
+        Image queries are unaffected — Q-Former is correctly conditioned on the
+        real image.
+
+        Cached after the first probe so we don't pay the encode cost twice.
+        """
+        cached = getattr(self, "_blip2_text_ok", None)
+        if cached is not None:
+            return cached
+        try:
+            a = self.index.encode_text_blip2("probe query alpha")
+            b = self.index.encode_text_blip2("probe query beta distinct words")
+            self._blip2_text_ok = bool(
+                float(np.linalg.norm(a - b)) > 1e-3
+            )
+        except Exception:
+            self._blip2_text_ok = False
+        return self._blip2_text_ok
+
     def _build_results(
         self,
         indices: np.ndarray,
@@ -293,28 +360,28 @@ class SearchEngine:
     ) -> Tuple[List[Dict[str, Any]], np.ndarray]:
         """
         Convert FAISS indices + scores to result dicts.
-        
+
         Args:
             indices: Array of indices into the embedding index
             scores: Array of similarity scores
-            
+
         Returns:
             Tuple of (results_list, selected_embeddings_array)
         """
         results: List[Dict[str, Any]] = []
         sel_embs: List[np.ndarray] = []
         _media_cache: Dict[str, dict] = {}
-        
+
         for i, idx in enumerate(indices):
             img_path = self.index.image_paths[idx].replace(os.sep, "/")
             video_name = self.index.video_names[idx]
             frame_str = os.path.splitext(os.path.basename(img_path))[0]
-            
+
             # Cache media info per video
             if video_name not in _media_cache:
                 _media_cache[video_name] = load_media_info(video_name)
             media_info = _media_cache[video_name]
-            
+
             results.append({
                 "image_path": img_path,
                 "video_name": video_name,
@@ -323,9 +390,51 @@ class SearchEngine:
                 "watch_url": media_info.get("watch_url", ""),
             })
             sel_embs.append(self.index.embeddings[idx])
-        
+
         emb_arr = np.asarray(sel_embs, dtype=np.float32) if sel_embs else np.array([])
         return results, emb_arr
+
+    def _dual_topk_indices(
+        self,
+        query_emb_eva: np.ndarray,
+        query_emb_blip: np.ndarray,
+        top_k: int,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Weighted-average top-k over the dual embedding streams.
+
+        Implements the MemoriEase 3.0 (LSC'25) recipe: pull a wider candidate
+        pool (top_k * pool_multiplier) from each stream, then blend the two
+        cosine-similarity vectors using the configured weights and take the
+        final top_k.
+
+        Returns:
+            (indices, blended_scores) — both 1-D arrays of length top_k (or
+            shorter if the index has fewer than top_k items).
+        """
+        n = len(self.index.embeddings)
+        if n == 0:
+            return np.array([], dtype=int), np.array([], dtype=np.float32)
+
+        pool_k = min(n, max(top_k * self.pool_multiplier, top_k))
+
+        sims_eva = self.index.cosine_similarity(query_emb_eva, self.index.embeddings)[0]
+        sims_blip = self.index.cosine_similarity(query_emb_blip, self.index.blip2_embeddings)[0]
+
+        # Per-stream top pool
+        eva_idx, _ = self.index.topk_indices(sims_eva, pool_k)
+        blip_idx, _ = self.index.topk_indices(sims_blip, pool_k)
+
+        # Union of candidate indices
+        cand_idx = np.unique(np.concatenate([eva_idx, blip_idx]))
+        # Blend scores on the candidate set
+        blend = (
+            self.weight_eva02 * sims_eva[cand_idx]
+            + self.weight_blip2 * sims_blip[cand_idx]
+        )
+        # Top-k of the blended set
+        order = np.argsort(blend)[::-1][:top_k]
+        return cand_idx[order], blend[order]
     
     def _apply_object_filter(
         self,

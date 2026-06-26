@@ -114,6 +114,14 @@ class PipelineOrchestrator:
                 for v in tqdm(videos, desc="Checking/Converting videos", unit="video"):
                     if v.name.endswith('_converted.mp4'):
                         continue
+                        
+                    # Bỏ qua nếu đã có file _converted tương ứng
+                    converted_path = v.with_name(f"{v.stem}_converted.mp4")
+                    if converted_path.exists():
+                        logger.info(f"Bỏ qua {v.name} vì đã có {converted_path.name}")
+                        success_count += 1
+                        continue
+
                     try:
                         convert_video_for_pipeline(v)
                         success_count += 1
@@ -190,19 +198,30 @@ class PipelineOrchestrator:
         
         # ── Step 4: Embedding Extraction ─────────────────────────
         if not skip_embeddings:
-            logger.info("Step 4/5: Extracting EVA-02 embeddings...")
+            if self.config.use_dual_embedding:
+                logger.info("Step 4/5: Extracting DUAL (EVA-02 + BLIP-2) embeddings...")
+            else:
+                logger.info("Step 4/5: Extracting EVA-02 embeddings...")
             step_start = time.time()
-            
+
             try:
                 embedder = EmbeddingExtractor(self.config)
-                results['embeddings'] = embedder.process_images(
-                    str(self.config.keyframes_dir),
-                )
+                if self.config.use_dual_embedding:
+                    results['embeddings'] = embedder.process_images_dual(
+                        input_dir=str(self.config.keyframes_dir),
+                        eva02_output_dir=str(self.config.embedding_dir),
+                        blip2_output_dir=str(self.config.blip2_embedding_dir),
+                        batch_size=8,
+                    )
+                else:
+                    results['embeddings'] = embedder.process_images(
+                        str(self.config.keyframes_dir),
+                    )
                 self.steps_completed.append("embedding_extraction")
-                
+
                 duration = time.time() - step_start
                 logger.info(f"✅ Embedding extraction complete ({duration:.1f}s)")
-                
+
             except Exception as e:
                 logger.error(f"❌ Embedding extraction failed: {e}")
                 self.steps_failed.append("embedding_extraction")
@@ -243,19 +262,28 @@ class PipelineOrchestrator:
                 
         # ── Step 5: FAISS Index Building ─────────────────────────
         if not skip_index:
-            logger.info("Step 5/5: Building FAISS index...")
+            if self.config.use_dual_embedding:
+                logger.info("Step 5/5: Building DUAL FAISS index (EVA-02 + BLIP-2)...")
+            else:
+                logger.info("Step 5/5: Building FAISS index...")
             step_start = time.time()
-            
+
             try:
                 builder = IndexBuilder(self.config)
-                results['index'] = builder.build(
-                    str(self.config.embedding_dir),
-                )
+                if self.config.use_dual_embedding:
+                    results['index'] = builder.build_dual(
+                        eva02_dir=str(self.config.embedding_dir),
+                        blip2_dir=str(self.config.blip2_embedding_dir),
+                    )
+                else:
+                    results['index'] = builder.build(
+                        str(self.config.embedding_dir),
+                    )
                 self.steps_completed.append("index_building")
-                
+
                 duration = time.time() - step_start
                 logger.info(f"✅ FAISS index built ({duration:.1f}s)")
-                
+
             except Exception as e:
                 logger.error(f"❌ Index building failed: {e}")
                 self.steps_failed.append("index_building")

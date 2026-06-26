@@ -47,6 +47,174 @@ class IndexBuilder:
         
         self.config = config
     
+    def build_dual(
+        self,
+        eva02_dir: str,
+        blip2_dir: str,
+        output_path: Optional[str] = None,
+        index_type: str = "flat_ip",
+    ) -> dict:
+        """
+        Build a FAISS index pair from two embedding streams (EVA-02 + BLIP-2).
+
+        Both directories are read with the same sorted video_name order so
+        the row order of the two stacked arrays matches. The pickled DB
+        contains both indexes plus the shared image_paths / video_names.
+
+        The new pickle schema is:
+            {
+                "eva02_index": faiss.IndexFlatIP,
+                "blip2_index": faiss.IndexFlatIP,
+                "embeddings":  np.ndarray (eva02, kept for backward compat),
+                "image_paths": list[str],
+                "video_names": list[str],
+                "weight_eva02": float,
+                "weight_blip2": float,
+                "metadata": {...},
+            }
+
+        Single-stream pickle (legacy "faiss_index" key) is still loadable;
+        the loader in core/embeddings.py detects the missing blip2_index
+        and falls back.
+        """
+        eva02_path = Path(eva02_dir)
+        blip2_path = Path(blip2_dir)
+        if not eva02_path.exists():
+            raise FileNotFoundError(f"EVA-02 embedding dir not found: {eva02_path}")
+        if not blip2_path.exists():
+            raise FileNotFoundError(f"BLIP-2 embedding dir not found: {blip2_path}")
+
+        output_path = output_path or str(self.config.db_path)
+        ensure_dir(os.path.dirname(output_path))
+
+        logger.info(f"Loading EVA-02 embeddings from {eva02_path}...")
+        eva02_emb, image_paths, video_names = self._load_with_paths(str(eva02_path))
+        logger.info(f"Loading BLIP-2 embeddings from {blip2_path}...")
+        blip2_emb, _, _ = self._load_with_paths(str(blip2_path), image_paths, video_names)
+
+        if eva02_emb.shape != blip2_emb.shape:
+            raise ValueError(
+                f"Stream shape mismatch: eva02={eva02_emb.shape} blip2={blip2_emb.shape}"
+            )
+
+        d_eva = eva02_emb.shape[1]
+        d_blip = blip2_emb.shape[1]
+        eva02_f32 = eva02_emb.astype(np.float32)
+        blip2_f32 = blip2_emb.astype(np.float32)
+
+        if index_type == "flat_ip":
+            eva02_index = faiss.IndexFlatIP(d_eva)
+            blip2_index = faiss.IndexFlatIP(d_blip)
+        else:
+            eva02_index = faiss.IndexFlatL2(d_eva)
+            blip2_index = faiss.IndexFlatL2(d_blip)
+
+        eva02_index.add(eva02_f32)
+        blip2_index.add(blip2_f32)
+        logger.info(
+            f"FAISS dual index built: eva02={d_eva}-d, blip2={d_blip}-d, "
+            f"n={eva02_index.ntotal}"
+        )
+
+        w_eva = float(getattr(self.config, "eva02_search_weight", 0.6))
+        w_blip = float(getattr(self.config, "blip2_search_weight", 0.4))
+
+        db_data = {
+            "queries": [],
+            # legacy single-stream key — keep so old loaders don't crash
+            "embeddings": eva02_f32,
+            "image_paths": image_paths,
+            "video_names": video_names,
+            "frame_indices": [],
+            "similarities": [],
+            "timestamps": [],
+            "eva02_index": eva02_index,
+            "blip2_index": blip2_index,
+            "weight_eva02": w_eva,
+            "weight_blip2": w_blip,
+            "dual": True,
+            "metadata": {
+                "build_date": np.datetime64("now").astype(str),
+                "num_embeddings": eva02_index.ntotal,
+                "eva02_dim": d_eva,
+                "blip2_dim": d_blip,
+                "index_type": index_type,
+                "weight_eva02": w_eva,
+                "weight_blip2": w_blip,
+            },
+        }
+
+        with open(output_path, "wb") as f:
+            pickle.dump(db_data, f)
+
+        file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
+        logger.info(
+            f"Dual FAISS saved to {output_path} "
+            f"({file_size_mb:.1f} MB, {eva02_index.ntotal} vectors × 2 streams)"
+        )
+        return {
+            "embeddings_loaded": eva02_index.ntotal,
+            "eva02_dim": d_eva,
+            "blip2_dim": d_blip,
+            "index_type": index_type,
+            "output_path": output_path,
+            "file_size_mb": file_size_mb,
+            "dual": True,
+        }
+
+    def _load_with_paths(
+        self,
+        folder_path: str,
+        expected_paths: list[str] | None = None,
+        expected_videos: list[str] | None = None,
+    ) -> tuple:
+        """
+        Load all .npy files in a folder and stack them, optionally validating
+        that the resulting row order matches an expected image_paths / video_names
+        list (used to lockstep the two streams during dual build).
+        """
+        npy_files = sorted(
+            f for f in os.listdir(folder_path) if f.endswith(".npy")
+        )
+        if not npy_files:
+            raise FileNotFoundError(f"No .npy files in {folder_path}")
+
+        all_embs: list = []
+        all_paths: list = []
+        all_vids: list = []
+
+        for npy in npy_files:
+            video_name = os.path.splitext(npy)[0]
+            file_path = os.path.join(folder_path, npy)
+            try:
+                emb = np.load(file_path)
+            except Exception as e:
+                logger.error(f"Failed to load {file_path}: {e}")
+                continue
+            if emb.ndim == 1:
+                emb = emb.reshape(1, -1)
+            n = emb.shape[0]
+            all_embs.append(emb)
+            if expected_paths is None:
+                all_paths.extend([f"{video_name}/{i:06d}.jpg" for i in range(n)])
+                all_vids.extend([video_name] * n)
+
+        combined = np.vstack(all_embs).astype(np.float32)
+
+        if expected_paths is None:
+            return combined, all_paths, all_vids
+
+        # Validation mode: caller provides the canonical paths, we just stack.
+        if len(expected_paths) != combined.shape[0]:
+            raise ValueError(
+                f"Stream length {combined.shape[0]} != expected {len(expected_paths)}"
+            )
+        if len(expected_videos) != combined.shape[0]:
+            raise ValueError(
+                f"Stream video_names {combined.shape[0]} != expected {len(expected_videos)}"
+            )
+        return combined, expected_paths, expected_videos
+
     def build(
         self,
         embedding_dir: Optional[str] = None,
