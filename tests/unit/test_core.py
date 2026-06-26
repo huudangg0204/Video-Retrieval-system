@@ -9,10 +9,10 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
 
-from aic26.src.aic26.config import settings
-from aic26.src.aic26.core.embeddings import EmbeddingIndex
-from aic26.src.aic26.core.export import Exporter
-from aic26.src.aic26.core.rerank import Reranker
+from aic26.config import settings
+from aic26.core.embeddings import EmbeddingIndex
+from aic26.core.export import Exporter
+from aic26.core.rerank import Reranker
 
 
 class TestExporter:

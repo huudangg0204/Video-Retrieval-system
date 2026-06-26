@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Optional
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -147,17 +147,69 @@ class Settings(BaseSettings):
         le=50,
         description="Multiplier applied to top_k when collecting candidates from each stream before blending",
     )
-    
+
     yolo_model_name: str = Field(
         default="yolov8x-oiv7.pt",
         description="YOLOv8 model filename or path",
     )
-    
+
     oid_mapping_csv: str = Field(
         default="oidv7-class-descriptions-boxable.csv",
         description="Open Images V7 class descriptions CSV path",
     )
-    
+
+    # ── Metadata extraction (per docs/specs/metadata-extraction.md) ──────
+    metadata_dir: Path = Field(
+        default_factory=lambda: Path("data/metadata"),
+        description="Directory for per-keyframe metadata JSON sidecars (detections + scene + scene_graph)",
+    )
+
+    scene_graph_model: str = Field(
+        default="Qwen/Qwen2.5-VL-7B-Instruct",
+        description="MLLM model for scene-graph (subject, predicate, object) extraction",
+    )
+
+    scene_graph_max_triples: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Maximum number of (subject, predicate, object) triples per image (SnapSeek §3.5)",
+    )
+
+    scene_graph_max_new_tokens: int = Field(
+        default=512,
+        ge=128,
+        le=2048,
+        description="Max new tokens for scene-graph JSON generation",
+    )
+
+    scene_graph_quantization: str = Field(
+        default="4bit",
+        description="Quantization for scene-graph MLLM: '4bit' (bitsandbytes), '8bit', or 'none'",
+    )
+
+    places365_model_name: str = Field(
+        default="efficientnet_b2_places365",
+        description="Places365 model identifier (lifeXplore §3 Table 1)",
+    )
+
+    places365_weights_path: Optional[Path] = Field(
+        default=None,
+        description="Optional path to Places365 weights file; auto-resolved if None",
+    )
+
+    position_min_bbox_fraction: float = Field(
+        default=0.05,
+        gt=0.0,
+        le=0.5,
+        description="Minimum bbox area as fraction of image to emit a position label (else None)",
+    )
+
+    extract_scene_graph: bool = Field(
+        default=True,
+        description="Run Qwen2.5-VL scene graph during extract-metadata (set false to skip slow step)",
+    )
+
     # ── Search parameters ──────────────────────────────────────────────
     default_top_k: int = Field(
         default=100,
@@ -290,6 +342,23 @@ class Settings(BaseSettings):
         if v_upper not in valid_levels:
             raise ValueError(f"log_level must be one of {valid_levels}")
         return v_upper
+
+    @model_validator(mode="after")
+    def resolve_metadata_dir(self) -> "Settings":
+        """If metadata_dir is relative and data_dir was overridden, anchor metadata_dir under data_dir.
+
+        Mirrors the behavior expected by tests: passing data_dir=temp_dir/data
+        should also relocate metadata_dir to temp_dir/data/metadata when the user
+        has not set METADATA_DIR explicitly. Absolute paths are left untouched.
+        """
+        md = self.metadata_dir
+        if not md.is_absolute():
+            # Only auto-relocate when default value is in use; if user set METADATA_DIR
+            # to a relative path explicitly, honor it relative to cwd.
+            default_md = Path("data/metadata")
+            if md == default_md:
+                self.metadata_dir = self.data_dir / "metadata"
+        return self
     
     # ── Utility methods ────────────────────────────────────────────────
     
@@ -305,6 +374,7 @@ class Settings(BaseSettings):
             self.upload_dir,
             self.detection_dir,
             self.blip2_embedding_dir,
+            self.metadata_dir,
         ]
         for directory in directories:
             Path(directory).mkdir(parents=True, exist_ok=True)

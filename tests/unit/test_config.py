@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 from pathlib import Path
 
-from aic26.src.aic26.config.settings import Settings
+from aic26.config.settings import Settings
 
 
 

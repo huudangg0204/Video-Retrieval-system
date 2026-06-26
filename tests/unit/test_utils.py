@@ -8,9 +8,9 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-from aic26.src.aic26.utils.file_utils import ensure_dir, find_files, get_file_stem, safe_basename
-from aic26.src.aic26.utils.frame_utils import detect_map_columns, parse_frame_int, parse_frame_number_from_filename
-from aic26.src.aic26.utils.media_utils import frame_to_timestr
+from aic26.utils.file_utils import ensure_dir, find_files, get_file_stem, safe_basename
+from aic26.utils.frame_utils import detect_map_columns, parse_frame_int, parse_frame_number_from_filename
+from aic26.utils.media_utils import frame_to_timestr
 
 
 

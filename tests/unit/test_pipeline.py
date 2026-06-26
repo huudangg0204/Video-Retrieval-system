@@ -8,8 +8,8 @@ import numpy as np
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
-from aic26.src.aic26.pipeline.indexer import IndexBuilder
-from aic26.src.aic26.pipeline.keyframe import KeyframeExtractor
+from aic26.pipeline.indexer import IndexBuilder
+from aic26.pipeline.keyframe import KeyframeExtractor
 
 
 

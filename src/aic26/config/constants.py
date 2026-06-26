@@ -64,3 +64,42 @@ API_BURST_LIMIT: Final[int] = 10  # burst requests
 # ── Submission format ───────────────────────────────────────────────────
 SUBMISSION_MAX_ROWS: Final[int] = 20
 SUBMISSION_DEFAULT_GAP: Final[int] = 15
+
+# ── Metadata extraction (per docs/specs/metadata-extraction.md) ─────────
+# Bbox position grid (3×3): row (top/center/bottom) × col (left/center/right).
+# Used by pipeline/position.py to classify each YOLO detection.
+POSITION_GRID_3x3: Final[tuple[str, ...]] = (
+    "top-left", "top", "top-right",
+    "left", "center", "right",
+    "bottom-left", "bottom", "bottom-right",
+)
+# Minimum bbox area as fraction of image area to emit a position label.
+# Below this, position is unreliable (object too small) and returns None.
+POSITION_GRID_THRESHOLD: Final[float] = 0.05
+
+# Scene graph prompt template (SnapSeek 3.0 §3.5, LSC'25).
+# Rules: lowercase noun, base-form predicates, no passive constructions,
+# JSON-only output, top-K most salient triples.
+SCENE_GRAPH_PROMPT: Final[str] = """Analyze this image and list all visible subject-predicate-object triples.
+
+Rules:
+- Use lowercase nouns for subjects and objects (e.g., 'person', 'cup', 'table')
+- Use base-form verbs for predicates (e.g., 'hold', 'sit on', 'next to', 'in front of')
+- Avoid passive constructions
+- Only describe triples you can clearly see
+- Limit to the top 5 most salient triples
+
+Output format (JSON only, no commentary):
+{"triples": [["subject", "predicate", "object"], ...]}"""
+
+# Default Places365 model identifier (lifeXplore §3 Table 1 — EfficientNet-B2).
+PLACES365_DEFAULT_MODEL: Final[str] = "efficientnet_b2_places365"
+
+# Scene graph 3-tuple max triples per image (SnapSeek 3.0 §3.5 "top 5").
+SCENE_GRAPH_MAX_TRIPLES: Final[int] = 5
+
+# Default scene-graph MLLM model identifier (SnapSeek 3.0 §3.5).
+SCENE_GRAPH_DEFAULT_MODEL: Final[str] = "Qwen/Qwen2.5-VL-7B-Instruct"
+
+# Default max new tokens for scene-graph JSON generation.
+SCENE_GRAPH_MAX_NEW_TOKENS: Final[int] = 512

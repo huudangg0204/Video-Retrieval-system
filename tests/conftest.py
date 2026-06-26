@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 import numpy as np
 
-from aic26.src.aic26.config.settings import Settings
+from aic26.config.settings import Settings
 
 
 
