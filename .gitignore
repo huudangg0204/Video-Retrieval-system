@@ -37,6 +37,7 @@ Data
 *.pthbỏ
 *.pkl
 *.onnx
+models/
 
 # Logs
 *.log
