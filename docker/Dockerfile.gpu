@@ -36,8 +36,7 @@ COPY pyproject.toml README.md ./
 # Cài đặt các package cốt lõi và OCR
 RUN pip install --no-cache-dir . && \
     pip install --no-cache-dir faiss-gpu && \
-    pip install --no-cache-dir paddlepaddle-gpu==2.6.2 paddleocr paddlex && \
-    pip install --no-cache-dir easyocr onnxruntime-gpu paddle2onnx && \
+    pip install --no-cache-dir onnxruntime-gpu && \
     pip install --no-cache-dir "numpy<2.0.0"
 
 # Copy application

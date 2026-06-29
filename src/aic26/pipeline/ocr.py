@@ -1,5 +1,5 @@
 """
-OCR text extraction from keyframes using PaddleOCR.
+OCR text extraction from keyframes using EasyOCR.
 
 Extracts text from keyframe images and saves results as CSV
 with checkpoint support for resumable processing.
@@ -27,7 +27,7 @@ from aic26.utils.file_utils import ensure_dir
 
 class OCRExtractor:
     """
-    Extract text from keyframe images using PaddleOCR.
+    Extract text from keyframe images using EasyOCR.
     
     Features:
     - Vietnamese language support
@@ -54,60 +54,9 @@ class OCRExtractor:
         self.config = config
         self._ocr = None
     
-    def _check_paddle_stability(self) -> bool:
-        """Test if PaddleOCR crashes (e.g., SIGABRT/SIGSEGV) on this hardware."""
-        import multiprocessing
-        
-        def _test_worker():
-            try:
-                import logging
-                logging.getLogger("ppocr").setLevel(logging.ERROR)
-                from paddleocr import PaddleOCR
-                import numpy as np
-                ocr = PaddleOCR(lang='vi', use_gpu=True, show_log=False)
-                dummy = np.zeros((100, 100, 3), dtype=np.uint8)
-                ocr.ocr(dummy)
-            except Exception:
-                pass
-                
-        p = multiprocessing.Process(target=_test_worker)
-        p.start()
-        p.join()
-        
-        return p.exitcode == 0
-
     def _load_ocr(self):
-        """Lazy-load OCR model with fallback logic."""
+        """Lazy-load EasyOCR model."""
         if self._ocr is None:
-            # 1. Test PaddleOCR stability
-            paddle_stable = False
-            if os.environ.get("FORCE_EASYOCR") != "1":
-                logger.info("Checking PaddleOCR stability on this hardware...")
-                paddle_stable = self._check_paddle_stability()
-            
-            # 2. Try PaddleOCR if stable
-            if paddle_stable:
-                try:
-                    from paddleocr import PaddleOCR
-                    logger.info("PaddleOCR is stable. Loading PaddleOCR model...")
-                    self._ocr = PaddleOCR(
-                        lang='vi',
-                        use_angle_cls=True,
-                        det_limit_side_len=1280,
-                        rec_batch_num=64,
-                        show_log=False,
-                        use_gpu=True,
-                        ir_optim=False,
-                    )
-                    self.engine = 'paddle'
-                    logger.info("PaddleOCR model ready.")
-                    return
-                except Exception as e:
-                    logger.warning(f"PaddleOCR initialization failed: {e}. Falling back to EasyOCR.")
-            else:
-                logger.warning("PaddleOCR is unstable (SIGABRT/SIGSEGV detected) or FORCE_EASYOCR=1. Falling back to EasyOCR.")
-            
-            # 3. Fallback to EasyOCR
             try:
                 import easyocr
                 logger.info("Loading EasyOCR model...")
@@ -306,53 +255,23 @@ class OCRExtractor:
         """
         items = []
         
-        if getattr(self, 'engine', 'paddle') == 'paddle':
-            bgr = cv2.imread(img_path)
-            if bgr is None:
-                raise FileNotFoundError(f"Cannot read image: {img_path}")
-            
-            rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-            try:
-                res = self._ocr.ocr(rgb, cls=True)
-            except Exception as e:
-                logger.warning(f"PaddleOCR inference error: {e}")
-                return []
-                
-            if res is None or not len(res):
-                return []
-            
-            if isinstance(res[0], list):
-                res = res[0]
-                
-            for r in res:
-                if r is None or len(r) < 2:
-                    continue
-                box, (txt, conf) = r
-                c = float(conf)
-                if c >= min_conf:
-                    items.append({
-                        "text": txt,
-                        "conf": c,
-                        "box": [[float(x), float(y)] for (x, y) in box],
-                    })
-        else:
-            # EasyOCR accepts paths directly
-            res = self._ocr.readtext(img_path)
-            
-            if res is None or len(res) == 0:
-                return []
-            
-            for r in res:
-                if len(r) < 3:
-                    continue
-                box, txt, conf = r
-                c = float(conf)
-                if c >= min_conf:
-                    items.append({
-                        "text": txt,
-                        "conf": c,
-                        "box": [[float(x), float(y)] for (x, y) in box],
-                    })
+        # EasyOCR accepts paths directly
+        res = self._ocr.readtext(img_path)
+        
+        if res is None or len(res) == 0:
+            return []
+        
+        for r in res:
+            if len(r) < 3:
+                continue
+            box, txt, conf = r
+            c = float(conf)
+            if c >= min_conf:
+                items.append({
+                    "text": txt,
+                    "conf": c,
+                    "box": [[float(x), float(y)] for (x, y) in box],
+                })
         
         # Sort by line position for readability
         items.sort(

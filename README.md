@@ -32,17 +32,19 @@ AIC-26 là một hệ thống truy xuất video đa phương thức được xâ
 | **TRAKE Temporal Search** | Xác định các chuỗi sự kiện có thứ tự trong video bằng dynamic programming |
 | **Object Filtering** | Thu hẹp kết quả theo các đối tượng được phát hiện với ngưỡng confidence |
 | **OCR Search** | Lập chỉ mục và tìm kiếm văn bản xuất hiện trong các frame video |
+| **Dual-Embedding Retrieval** | Kết hợp EVA-02 + BLIP-2 Q-Former (weighted blend 0.6/0.4) theo MemoriEase 3.0 §3.2 — xem [docs/dual-embedding.md](docs/dual-embedding.md) |
 
 ### Công Nghệ Sử Dụng
 
 | Thành phần | Công nghệ | Mục đích |
 |---|---|---|
-| Vision-Language Model | EVA-02 CLIP (768-dim) | Embedding text và hình ảnh |
-| Vector Search | FAISS IndexFlatIP | Tìm kiếm tương đồng dưới một giây |
+| Vision-Language Model | EVA-02 CLIP (768-dim) | Embedding text và hình ảnh (stream chính) |
+| Vision-Language Model (phụ) | BLIP-2 Q-Former (768-dim) | Stream thứ hai cho dual-embedding blend |
+| Vector Search | FAISS IndexFlatIP × 2 streams | Tìm kiếm tương đồng dưới một giây |
 | Temporal Reasoning | TRAKE (custom DP) | Truy xuất sự kiện có thứ tự |
 | Object Detection | YOLOv8 (Open Images V7) | Chú thích frame với 600+ lớp đối tượng |
 | Reranking | BLIP ITM | Cải thiện độ chính xác |
-| OCR | PaddleOCR | Trích xuất văn bản tiếng Việt/tiếng Anh |
+| OCR | EasyOCR | Trích xuất văn bản tiếng Việt/tiếng Anh |
 | Keyframe Extraction | DINOv2 + cosine similarity | Phát hiện thay đổi cảnh |
 | API Server | Flask + Flask-CORS | REST endpoints |
 | Desktop GUI | CustomTkinter | Giao diện desktop |
@@ -238,7 +240,7 @@ aic26/
 │   ├── pipeline/        # Xử lý dữ liệu
 │   │   ├── keyframe.py  # Trích xuất keyframe bằng DINOv2
 │   │   ├── detection.py # Object detection bằng YOLOv8
-│   │   ├── ocr.py       # Trích xuất text bằng PaddleOCR
+│   │   ├── ocr.py       # Trích xuất text bằng EasyOCR
 │   │   ├── embedding.py # Trích xuất embedding bằng EVA-02
 │   │   ├── indexer.py   # FAISS index builder
 │   │   └── orchestrator.py # Điều phối pipeline

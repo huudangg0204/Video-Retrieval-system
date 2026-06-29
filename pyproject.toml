@@ -45,6 +45,7 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "loguru>=0.7.0",
     "click>=8.1.0",
+    "easyocr>=1.7.0",
 ]
 
 [project.optional-dependencies]
