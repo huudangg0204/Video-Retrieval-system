@@ -6,6 +6,7 @@ detection results as JSON files with MID/Entity mappings.
 
 Migrated from: obj_detect.py, batch_process_obj_kf.py
 """
+
 from __future__ import annotations
 
 import csv
@@ -27,10 +28,10 @@ from aic26.utils.file_utils import ensure_dir
 class ObjectDetector:
     """
     Detect objects in keyframe images using YOLOv8.
-    
+
     Supports Open Images V7 class mapping and batch processing
     with multi-threading support.
-    
+
     Usage:
         detector = ObjectDetector(settings)
         detector.process("./keyframes", "./detections")
@@ -39,12 +40,13 @@ class ObjectDetector:
     def __init__(self, config: Settings | None = None) -> None:
         """
         Initialize the object detector.
-        
+
         Args:
             config: Settings instance
         """
         if config is None:
             from aic26.config import settings as global_settings
+
             config = global_settings
 
         self.config = config
@@ -65,13 +67,13 @@ class ObjectDetector:
             model_path = self.config.yolo_model_name
 
             self._model = YOLO(model_path)
-            self._model.overrides['verbose'] = False
+            self._model.overrides["verbose"] = False
             logger.info("YOLOv8 model ready.")
 
     def _load_mapping(self) -> tuple[dict[str, str], dict[str, str]]:
         """
         Load Open Images V7 MID ↔ Entity name mappings.
-        
+
         Returns:
             Tuple of (mid_to_entity, entity_to_mid) dictionaries
         """
@@ -85,7 +87,11 @@ class ObjectDetector:
 
         try:
             with open(mapping_path, encoding="utf-8") as f:
+                # First line is the header "LabelName,DisplayName" — skip it.
+                next(f, None)
                 for mid, entity in csv.reader(f):
+                    if not mid or not entity:
+                        continue
                     mid_to_entity[mid] = entity
                     entity_to_mid[entity.lower()] = mid
             logger.debug(f"Loaded {len(mid_to_entity)} class mappings")
@@ -102,12 +108,12 @@ class ObjectDetector:
     ) -> dict:
         """
         Process all video folders in the keyframes directory.
-        
+
         Args:
             input_dir: Directory containing video subfolders with keyframes
             output_dir: Output directory for detection JSONs
             num_workers: Number of parallel workers
-            
+
         Returns:
             Dict with processing statistics
         """
@@ -123,8 +129,7 @@ class ObjectDetector:
 
         # Find video folders
         video_folders = sorted(
-            d for d in os.listdir(input_dir)
-            if os.path.isdir(os.path.join(input_dir, d))
+            d for d in os.listdir(input_dir) if os.path.isdir(os.path.join(input_dir, d))
         )
 
         if not video_folders:
@@ -179,21 +184,20 @@ class ObjectDetector:
     ) -> dict | None:
         """
         Process all images in a single video folder.
-        
+
         Args:
             input_folder: Folder containing keyframe images
             output_folder: Output folder for JSON results
-            
+
         Returns:
             Dict with processing stats
         """
         ensure_dir(output_folder)
 
         # Find image files
-        image_extensions = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff')
+        image_extensions = (".jpg", ".jpeg", ".png", ".bmp", ".tiff")
         image_files = sorted(
-            f for f in os.listdir(input_folder)
-            if f.lower().endswith(image_extensions)
+            f for f in os.listdir(input_folder) if f.lower().endswith(image_extensions)
         )
 
         if not image_files:
@@ -231,10 +235,10 @@ class ObjectDetector:
     def _detect_single(self, image_path: str) -> dict:
         """
         Detect objects in a single image.
-        
+
         Args:
             image_path: Path to the image file
-            
+
         Returns:
             Dict with detection results:
             - detection_scores: List of confidence scores
@@ -243,6 +247,9 @@ class ObjectDetector:
             - detection_boxes: List of [x1, y1, x2, y2] boxes
             - detection_class_labels: List of class indices
         """
+        # Lazy-load YOLO weights on first call so callers don't need to
+        # remember to call _load_model() explicitly.
+        self._load_model()
         results = self._model.predict(
             source=image_path,
             conf=0.1,
@@ -335,12 +342,12 @@ def add_position_to_detections(
     lengths["detection_boxes"] = len(boxes)
     unique_lengths = set(lengths.values())
     if len(unique_lengths) > 1:
-        raise ValueError(
-            f"Detection dict has inconsistent array lengths: {lengths}"
-        )
+        raise ValueError(f"Detection dict has inconsistent array lengths: {lengths}")
 
     positions: list[str | None] = [
-        position_from_bbox(list(bbox), img_w=img_w, img_h=img_h, min_bbox_fraction=min_bbox_fraction)
+        position_from_bbox(
+            list(bbox), img_w=img_w, img_h=img_h, min_bbox_fraction=min_bbox_fraction
+        )
         for bbox in boxes
     ]
     return {**detections, "detection_positions": positions}
