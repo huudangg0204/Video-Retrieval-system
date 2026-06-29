@@ -111,12 +111,31 @@ def _build_real_callables(
             return None
 
     # 2. Places365
-    labels_path = settings.places365_weights_path
-    if labels_path is None:
-        # Default path the downloader writes to (see T10).
-        labels_path = Path("models/places365/categories_places365.txt")
-    classifier = Places365Classifier(
-        labels_path=labels_path,
+    # Resolve weights/labels. `places365_weights_path` from settings is the
+    # directory written by scripts/download_places365.py; if it's None, fall
+    # back to the canonical repo location.
+    weights_dir = settings.places365_weights_path
+    if weights_dir is None:
+        weights_dir = Path("models/places365")
+    weights_dir = Path(weights_dir)
+    if weights_dir.is_file():
+        # Allow pointing at the .pth.tar directly
+        weights_p = weights_dir
+        labels_p = weights_dir.parent / "categories_places365.txt"
+    else:
+        weights_p = weights_dir / "resnet50_places365.pth.tar"
+        labels_p = weights_dir / "categories_places365.txt"
+    if not weights_p.exists():
+        raise FileNotFoundError(
+            f"Places365 weights not found at {weights_p}. Run scripts/download_places365.py first."
+        )
+    if not labels_p.exists():
+        raise FileNotFoundError(
+            f"Places365 labels not found at {labels_p}. Run scripts/download_places365.py first."
+        )
+    classifier = Places365Classifier.from_weights(
+        weights_path=weights_p,
+        labels_path=labels_p,
         device="cuda" if torch.cuda.is_available() else "cpu",
     )
 
