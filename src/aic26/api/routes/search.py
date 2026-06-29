@@ -51,28 +51,32 @@ def search_text():
     """
     payload = request.get_json(force=True, silent=True) or {}
     query = payload.get('query', '')
-    
+
     if not query:
         return jsonify({'error': 'empty query'}), 400
-    
+
     # 🔥 Tự động kiểm tra và chạy pipeline nếu cần
     if not _ensure_embeddings_loaded():
         return jsonify({
             'error': 'No embeddings found and no videos to process. '
                      'Please add videos to data/videos/ first.'
         }), 400
-    
+
     # Reload retriever nếu cần
     retriever = _get_retriever()
     if retriever is None:
         return jsonify({'error': 'retrieval engine not initialized'}), 503
-    
+
     top_k = int(payload.get('top_k', 100) or 100)
     objects = payload.get('objects', '')
     threshold = float(payload.get('threshold', 0.5))
-    
+    caption_weight_raw = payload.get('caption_weight', None)
+    caption_weight = (
+        float(caption_weight_raw) if caption_weight_raw is not None else None
+    )
+
     logger.info(f"Text search: '{query[:80]}...' (top_k={top_k})")
-    
+
     start = time.time()
     results = retriever.search_text(
         query=query,
@@ -80,6 +84,7 @@ def search_text():
         save_to_db=True,
         objects=objects,
         threshold=threshold,
+        caption_weight=caption_weight,
     )
     elapsed = time.time() - start
     
@@ -175,14 +180,19 @@ def upload_and_search():
     query = request.form.get('query', '')
     objects = request.form.get('objects', '')
     threshold = float(request.form.get('threshold', 0.5))
-    
+    caption_weight_raw = request.form.get('caption_weight', None)
+    caption_weight = (
+        float(caption_weight_raw) if caption_weight_raw not in (None, '') else None
+    )
+
     start = time.time()
-    
+
     if query:
         # Combined text + image search
         text_results = retriever.search_text(
             query, top_k=top_k * 2, save_to_db=False,
             objects=objects, threshold=threshold,
+            caption_weight=caption_weight,
         )
         
         if not text_results:
@@ -250,24 +260,29 @@ def search_text_with_image():
     top_k = int(request.form.get('top_k', 100) or 100)
     objects = request.form.get('objects', '')
     threshold = float(request.form.get('threshold', 0.5))
-    
+    caption_weight_raw = request.form.get('caption_weight', None)
+    caption_weight = (
+        float(caption_weight_raw) if caption_weight_raw not in (None, '') else None
+    )
+
     if not query:
         return jsonify({'error': 'empty query'}), 400
-    
+
     # Save uploaded file
     upload_dir = Path(current_app.config['UPLOAD_FOLDER'])
     upload_dir.mkdir(exist_ok=True)
-    
+
     safe_name = Path(f.filename).name
     save_path = upload_dir / f"{int(time.time() * 1000)}_{safe_name}"
     f.save(str(save_path))
-    
+
     start = time.time()
-    
+
     # Text search first
     text_results = retriever.search_text(
         query, top_k=top_k * 2, save_to_db=False,
         objects=objects, threshold=threshold,
+        caption_weight=caption_weight,
     )
     
     if not text_results:

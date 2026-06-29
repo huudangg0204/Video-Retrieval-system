@@ -235,47 +235,6 @@ def extract_ocr(
     click.echo(f"   Output: {output or settings.ocr_output_path}")
 
 
-@pipeline_group.command(name="extract-caption-embeddings")
-@click.option(
-    "--input",
-    "-i",
-    required=True,
-    type=click.Path(exists=True),
-    help="Input directory containing caption JSON folders",
-)
-@click.option(
-    "--output",
-    "-o",
-    type=click.Path(),
-    help="Output directory for .npy embedding files",
-)
-@click.option(
-    "--batch-size",
-    "-b",
-    type=int,
-    default=40,
-    help="Batch size for GPU processing",
-)
-def extract_caption_embeddings(
-    input: str,
-    output: str | None,
-    batch_size: int,
-) -> None:
-    """Extract EVA-02 embeddings from caption JSON files."""
-    from aic26.pipeline.embedding import EmbeddingExtractor
-
-    extractor = EmbeddingExtractor(settings)
-    stats = extractor.process_captions(
-        input_dir=input,
-        output_dir=output,
-        batch_size=batch_size,
-    )
-
-    click.echo("\n✅ Caption embedding extraction complete!")
-    click.echo(f"   Folders processed: {stats['folders_processed']}/{stats['folders_total']}")
-    click.echo(f"   Captions total:    {stats['captions_total']}")
-
-
 @pipeline_group.command(name="build-index")
 @click.option(
     "--input",
@@ -483,6 +442,11 @@ def build_dual_index(
 @click.option("--skip-detections", is_flag=True, help="Skip YOLO object detection pass")
 @click.option("--skip-scene", is_flag=True, help="Skip Places365 scene classification")
 @click.option("--skip-scene-graph", is_flag=True, help="Skip Qwen scene-graph extraction")
+@click.option(
+    "--skip-caption",
+    is_flag=True,
+    help="Skip BLIP/BLIP-2 image captioning (Task 3.2)",
+)
 @click.option("--overwrite", is_flag=True, help="Overwrite existing sidecars")
 def extract_metadata_cmd(
     input: str,
@@ -490,9 +454,10 @@ def extract_metadata_cmd(
     skip_detections: bool,
     skip_scene: bool,
     skip_scene_graph: bool,
+    skip_caption: bool,
     overwrite: bool,
 ) -> None:
-    """Extract per-keyframe metadata (detections + scene + scene graph)."""
+    """Extract per-keyframe metadata (detections + scene + scene graph + caption)."""
     from aic26.pipeline.metadata import MetadataExtractor, build_metadata_callables
 
     in_root = Path(input)
@@ -507,7 +472,7 @@ def extract_metadata_cmd(
             p365_weights = candidate
 
     # Build real callables with graceful degradation
-    detector_fn, scene_fn, scene_graph_fn = build_metadata_callables(
+    detector_fn, scene_fn, scene_graph_fn, caption_fn = build_metadata_callables(
         detection_dir=Path(settings.detection_dir),
         places365_weights_path=p365_weights if not skip_scene else None,
         scene_graph_model_name=(
@@ -516,12 +481,19 @@ def extract_metadata_cmd(
         device=settings.device,
         scene_graph_max_triples=settings.scene_graph_max_triples,
         scene_graph_max_new_tokens=settings.scene_graph_max_new_tokens,
+        caption_model_name=(
+            settings.caption_model_name if not skip_caption else None
+        ),
+        caption_max_new_tokens=settings.caption_max_new_tokens,
+        caption_min_length=settings.caption_min_length,
+        caption_quantization=settings.caption_quantization,
     )
 
     extractor = MetadataExtractor(
         detector_fn=detector_fn,
         scene_fn=scene_fn,
         scene_graph_fn=scene_graph_fn,
+        caption_fn=caption_fn,
     )
 
     stats = extractor.process_all(
@@ -530,6 +502,7 @@ def extract_metadata_cmd(
         skip_detections=skip_detections,
         skip_scene=skip_scene,
         skip_scene_graph=skip_scene_graph,
+        skip_caption=skip_caption,
         overwrite=overwrite,
     )
 
@@ -540,6 +513,11 @@ def extract_metadata_cmd(
     click.echo(f"  Frames:   {stats['frames_processed']}/{stats['frames_total']} processed")
     click.echo(f"  Skipped:  {stats['frames_skipped']} (idempotent re-run)")
     click.echo(f"  Failed:   {stats['frames_failed']}")
+    if caption_fn is not None and not skip_caption:
+        click.echo(
+            f"  Caption model: {settings.caption_model_name} "
+            f"(max_new_tokens={settings.caption_max_new_tokens})"
+        )
     click.echo(f"  Output:   {out_root}")
     click.echo("=" * 60)
 
@@ -605,10 +583,180 @@ def metadata_stats_cmd(input: str) -> None:
             f"  Scene-graph:     {stats.scene_graph_total_triples} triples "
             f"(avg {stats.avg_triples_per_keyframe:.2f}/keyframe)"
         )
+    if stats.sidecars_with_ocr:
+        click.echo(
+            f"  OCR coverage:    {stats.sidecars_with_ocr}/{stats.total_sidecars} sidecars "
+            f"({stats.ocr_total_text_regions} text regions)"
+        )
+    if stats.sidecars_with_caption:
+        avg_chars = stats.caption_total_chars / max(stats.sidecars_with_caption, 1)
+        click.echo(
+            f"  Caption coverage: {stats.sidecars_with_caption}/{stats.total_sidecars} sidecars "
+            f"(avg {avg_chars:.0f} chars)"
+        )
     if stats.scene_distribution:
         click.echo("\n  Top scene categories:")
         for category, count in list(stats.scene_distribution.items())[:10]:
             click.echo(f"    - {category:<25s} {count}")
+    click.echo("=" * 60)
+
+
+@pipeline_group.command(name="merge-ocr")
+@click.option(
+    "--input",
+    "-i",
+    required=True,
+    type=click.Path(exists=True),
+    help="Metadata root directory (default: settings.metadata_dir)",
+)
+@click.option(
+    "--ocr-csv",
+    type=click.Path(),
+    default=None,
+    help="Path to ocr_results.csv (default: settings.ocr_csv_path)",
+)
+@click.option("--video", default=None, help="Process only this video folder (else all)")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Compute stats without writing sidecars back to disk",
+)
+def merge_ocr_cmd(
+    input: str, ocr_csv: str | None, video: str | None, dry_run: bool
+) -> None:
+    """Merge OCR text from data/ocr_results.csv into metadata sidecars.
+
+    Reads each sidecar JSON, looks up the matching row in the OCR CSV
+    by (video, frame stem), writes the `ocr_text` field back. Frames
+    not in the CSV receive `ocr_text: []`. Use --dry-run to preview
+    coverage before writing.
+    """
+    from aic26.pipeline.metadata import apply_ocr_merging, load_ocr_lookup
+
+    metadata_dir = Path(input)
+    csv_path = Path(ocr_csv) if ocr_csv else Path(settings.ocr_csv_path)
+    if not csv_path.exists():
+        click.echo(f"❌ OCR CSV not found: {csv_path}", err=True)
+        sys.exit(1)
+
+    click.echo(f"Loading OCR lookup from {csv_path}...")
+    ocr_lookup = load_ocr_lookup(csv_path)
+    click.echo(f"  Found {len(ocr_lookup)} (video, frame) entries")
+
+    click.echo(
+        f"{'Scanning' if dry_run else 'Merging'} OCR text into "
+        f"{metadata_dir}{f' (video={video})' if video else ''}..."
+    )
+    stats = apply_ocr_merging(
+        metadata_dir=metadata_dir,
+        ocr_lookup=ocr_lookup,
+        video_name=video,
+        overwrite_files=not dry_run,
+    )
+
+    click.echo("\n" + "=" * 60)
+    click.echo(f"OCR Merge {'(DRY RUN)' if dry_run else ''}")
+    click.echo("=" * 60)
+    click.echo(f"  Frames scanned:    {stats['frames_total']}")
+    click.echo(f"  With text:         {stats['frames_with_text']}")
+    click.echo(f"  Empty (no text):   {stats['frames_empty']}")
+    if stats["frames_skipped"]:
+        click.echo(f"  Skipped (already): {stats['frames_skipped']}")
+    if dry_run:
+        click.echo("\n  (No files written — pass without --dry-run to apply.)")
+    click.echo("=" * 60)
+
+
+@pipeline_group.command(name="merge-captions")
+@click.option(
+    "--input",
+    "-i",
+    required=True,
+    type=click.Path(exists=True),
+    help="Metadata root directory (default: settings.metadata_dir)",
+)
+@click.option(
+    "--keyframes-dir",
+    "-k",
+    required=True,
+    type=click.Path(exists=True),
+    help="Keyframes root directory (e.g. data/keyframes)",
+)
+@click.option("--video", default=None, help="Process only this video folder (else all)")
+@click.option(
+    "--model-name",
+    default=None,
+    help="HuggingFace caption model id (default: settings.caption_model_name)",
+)
+@click.option("--device", default=None, help="Torch device (default: settings.device)")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Compute stats without writing sidecars back to disk",
+)
+def merge_captions_cmd(
+    input: str,
+    keyframes_dir: str,
+    video: str | None,
+    model_name: str | None,
+    device: str | None,
+    dry_run: bool,
+) -> None:
+    """Generate BLIP/BLIP-2 captions for existing metadata sidecars (Task 3.2).
+
+    Backfill helper: reads each sidecar, opens the matching keyframe,
+    runs caption generation, writes the ``caption`` field back. Use
+    --dry-run to preview coverage before writing.
+
+    The caption model loads lazily on the first image; expect a ~30s
+    pause on the first call for the default BLIP base (~2 min for
+    BLIP-2 OPT 2.7b). The default model is ``Salesforce/blip-image-
+    captioning-base`` — NOT the BLIP-2 ITM variant used by the dual-
+    embedding pipeline, which cannot caption.
+    """
+    from aic26.pipeline.captioning import build_caption_fn
+    from aic26.pipeline.metadata import apply_caption_merging
+
+    metadata_dir = Path(input)
+    kf_dir = Path(keyframes_dir)
+
+    caption_fn = build_caption_fn(
+        model_name=model_name or settings.caption_model_name,
+        device=device or settings.device,
+        max_new_tokens=settings.caption_max_new_tokens,
+        min_length=settings.caption_min_length,
+        quantization=settings.caption_quantization,
+    )
+    click.echo(
+        f"Caption model: {model_name or settings.caption_model_name} "
+        f"(device={device or settings.device}, "
+        f"max_new_tokens={settings.caption_max_new_tokens})"
+    )
+
+    click.echo(
+        f"{'Scanning' if dry_run else 'Merging'} captions into "
+        f"{metadata_dir}{f' (video={video})' if video else ''}..."
+    )
+    stats = apply_caption_merging(
+        metadata_dir=metadata_dir,
+        caption_fn=caption_fn,
+        keyframes_dir=kf_dir,
+        video_name=video,
+        overwrite_files=not dry_run,
+    )
+
+    click.echo("\n" + "=" * 60)
+    click.echo(f"Caption Merge {'(DRY RUN)' if dry_run else ''}")
+    click.echo("=" * 60)
+    click.echo(f"  Frames scanned:    {stats['frames_total']}")
+    click.echo(f"  Captioned:         {stats['frames_captioned']}")
+    click.echo(f"  Empty/no output:   {stats['frames_empty']}")
+    if stats["frames_skipped"]:
+        click.echo(f"  Skipped (already): {stats['frames_skipped']}")
+    if stats["frames_failed"]:
+        click.echo(f"  Failed (load err): {stats['frames_failed']}")
+    if dry_run:
+        click.echo("\n  (No files written — pass without --dry-run to apply.)")
     click.echo("=" * 60)
 
 
@@ -626,7 +774,12 @@ def search_group():
 @click.option("--top-k", "-k", type=int, default=None, help="Number of results")
 @click.option("--objects", "-o", default="", help="Filter by objects")
 @click.option("--threshold", "-t", type=float, default=None, help="Confidence threshold")
-def search_text(query: str, top_k: int | None, objects: str, threshold: float | None) -> None:
+def search_text(
+    query: str,
+    top_k: int | None,
+    objects: str,
+    threshold: float | None,
+) -> None:
     """Search keyframes by text description."""
     from aic26.core.retrieval import EVA02ImageRetrieval
 

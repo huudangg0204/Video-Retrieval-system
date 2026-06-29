@@ -33,6 +33,9 @@ from aic26.pipeline.metadata import (
     MetadataExtractor,
     MetadataStats,
     aggregate_metadata_stats,
+    apply_caption_merging,
+    apply_ocr_merging,
+    load_ocr_lookup,
     load_precomputed_detections,
 )
 
@@ -861,3 +864,524 @@ class TestSceneConfidenceThresholding:
         fn = _make_scene_fn_from_top1("kitchen", 0.299, top5)
         out = fn(Image.new("RGB", (10, 10)))
         assert out["category"] == "uncertain"
+
+
+# ── Task 3.1: OCR integration ──────────────────────────────────────────
+
+
+def _write_ocr_csv(path: Path, rows: list[dict]) -> None:
+    """Write a minimal ocr_results.csv with the pipeline's schema."""
+    import csv as _csv
+
+    fieldnames = [
+        "video", "file", "path", "text_full", "num_boxes",
+        "conf_mean", "boxes", "texts", "confs",
+    ]
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = _csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for r in rows:
+            writer.writerow(r)
+
+
+def _boxes_str(polygons: list[list[list[float]]]) -> str:
+    """Render a JSON list of 4-corner polygons (the pipeline's `boxes` format)."""
+    import json as _json
+    return _json.dumps(polygons, ensure_ascii=False)
+
+
+def _texts_str(texts: list[str]) -> str:
+    import json as _json
+    return _json.dumps(texts, ensure_ascii=False)
+
+
+def _confs_str(confs: list[float]) -> str:
+    import json as _json
+    return _json.dumps(confs, ensure_ascii=False)
+
+
+class TestPolygonToXyxy:
+    """Cover the polygon → xyxy conversion used by load_ocr_lookup."""
+
+    def test_top_left_origin(self):
+        from aic26.pipeline.metadata import _polygon_to_xyxy
+
+        poly = [[10.0, 20.0], [110.0, 20.0], [110.0, 120.0], [10.0, 120.0]]
+        assert _polygon_to_xyxy(poly) == [10.0, 20.0, 110.0, 120.0]
+
+    def test_polygon_in_reading_order_still_yields_bounding_box(self):
+        """The polygon is axis-aligned here; bbox is the polygon itself."""
+        from aic26.pipeline.metadata import _polygon_to_xyxy
+
+        poly = [[100, 100], [200, 100], [200, 200], [100, 200]]
+        assert _polygon_to_xyxy(poly) == [100.0, 100.0, 200.0, 200.0]
+
+    def test_empty_polygon_returns_zeros(self):
+        from aic26.pipeline.metadata import _polygon_to_xyxy
+
+        assert _polygon_to_xyxy([]) == [0.0, 0.0, 0.0, 0.0]
+
+    def test_non_polygon_input_returns_zeros(self):
+        """Non-list-of-points (string, None) falls back to zeros."""
+        from aic26.pipeline.metadata import _polygon_to_xyxy
+
+        assert _polygon_to_xyxy("not a polygon") == [0.0, 0.0, 0.0, 0.0]  # type: ignore[arg-type]
+        assert _polygon_to_xyxy(None) == [0.0, 0.0, 0.0, 0.0]  # type: ignore[arg-type]
+
+    def test_single_point_yields_zero_area_box(self):
+        """A 1-point polygon is degenerate but still works (min == max)."""
+        from aic26.pipeline.metadata import _polygon_to_xyxy
+
+        assert _polygon_to_xyxy([[1, 2]]) == [1.0, 2.0, 1.0, 2.0]
+
+
+class TestLoadOcrLookup:
+    """`load_ocr_lookup` parses data/ocr_results.csv correctly."""
+
+    def test_parses_csv_with_polygons(self, tmp_path: Path):
+        csv = tmp_path / "ocr.csv"
+        _write_ocr_csv(csv, [
+            {
+                "video": "K05_V004", "file": "001.jpg",
+                "path": "data/keyframes/K05_V004/001.jpg",
+                "text_full": "06:30", "num_boxes": 1,
+                "conf_mean": 0.95,
+                "boxes": _boxes_str([[[1580, 138], [1708, 138], [1708, 164], [1580, 164]]]),
+                "texts": _texts_str(["06:30"]),
+                "confs": _confs_str([0.95]),
+            },
+            {
+                "video": "K05_V004", "file": "002.jpg",
+                "path": "data/keyframes/K05_V004/002.jpg",
+                "text_full": "EXIT", "num_boxes": 1,
+                "conf_mean": 0.88,
+                "boxes": _boxes_str([[[100, 200], [180, 200], [180, 240], [100, 240]]]),
+                "texts": _texts_str(["EXIT"]),
+                "confs": _confs_str([0.88]),
+            },
+        ])
+        lookup = load_ocr_lookup(csv)
+        assert ("K05_V004", "001") in lookup
+        assert ("K05_V004", "002") in lookup
+        # Polygon → xyxy
+        rec_001 = lookup[("K05_V004", "001")][0]
+        assert rec_001["text"] == "06:30"
+        assert rec_001["bbox"] == [1580.0, 138.0, 1708.0, 164.0]
+        assert rec_001["confidence"] == 0.95
+        rec_002 = lookup[("K05_V004", "002")][0]
+        assert rec_002["text"] == "EXIT"
+        assert rec_002["bbox"] == [100.0, 200.0, 180.0, 240.0]
+
+    def test_skips_empty_rows(self, tmp_path: Path):
+        csv = tmp_path / "ocr.csv"
+        _write_ocr_csv(csv, [
+            {
+                "video": "K05_V004", "file": "001.jpg", "path": "x",
+                "text_full": "", "num_boxes": 0,
+                "conf_mean": 0.0,
+                "boxes": "[]", "texts": "[]", "confs": "[]",
+            },
+            {
+                "video": "K05_V004", "file": "002.jpg", "path": "x",
+                "text_full": "EXIT", "num_boxes": 1,
+                "conf_mean": 0.9,
+                "boxes": _boxes_str([[[0, 0], [50, 0], [50, 20], [0, 20]]]),
+                "texts": _texts_str(["EXIT"]),
+                "confs": _confs_str([0.9]),
+            },
+        ])
+        lookup = load_ocr_lookup(csv)
+        assert ("K05_V004", "001") not in lookup
+        assert ("K05_V004", "002") in lookup
+
+    def test_missing_csv_returns_empty_lookup(self, tmp_path: Path):
+        lookup = load_ocr_lookup(tmp_path / "nope.csv")
+        assert lookup == {}
+
+    def test_handles_multiple_boxes_per_frame(self, tmp_path: Path):
+        csv = tmp_path / "ocr.csv"
+        _write_ocr_csv(csv, [
+            {
+                "video": "V", "file": "007.jpg", "path": "x",
+                "text_full": "A B", "num_boxes": 2,
+                "conf_mean": 0.8,
+                "boxes": _boxes_str([
+                    [[10, 10], [50, 10], [50, 30], [10, 30]],
+                    [[60, 10], [100, 10], [100, 30], [60, 30]],
+                ]),
+                "texts": _texts_str(["A", "B"]),
+                "confs": _confs_str([0.7, 0.9]),
+            },
+        ])
+        lookup = load_ocr_lookup(csv)
+        records = lookup[("V", "007")]
+        assert len(records) == 2
+        assert records[0]["text"] == "A"
+        assert records[1]["text"] == "B"
+        assert records[0]["bbox"] == [10.0, 10.0, 50.0, 30.0]
+        assert records[1]["bbox"] == [60.0, 10.0, 100.0, 30.0]
+
+
+class TestKeyframeMetadataOcrField:
+    """`ocr_text` field round-trips and is omitted from to_dict when None."""
+
+    def test_round_trip_preserves_ocr_text(self):
+        m = KeyframeMetadata(
+            video="V", frame_idx=42,
+            detections=[],
+            scene=None,
+            scene_graph=None,
+            ocr_text=[{"text": "EXIT", "bbox": [0, 0, 50, 20], "confidence": 0.95}],
+        )
+        s = m.to_json()
+        loaded = KeyframeMetadata.from_json(s)
+        assert loaded.ocr_text == [
+            {"text": "EXIT", "bbox": [0, 0, 50, 20], "confidence": 0.95}
+        ]
+
+    def test_omitted_when_none(self):
+        m = KeyframeMetadata(
+            video="V", frame_idx=42,
+            detections=[],
+            scene=None,
+            scene_graph=None,
+        )
+        d = m.to_dict()
+        assert "ocr_text" not in d  # backward-compatible: no key when None
+
+    def test_emitted_as_empty_list_when_explicitly_empty(self):
+        """An empty list means 'OCR ran, no text'. A None means 'not applied'."""
+        m = KeyframeMetadata(
+            video="V", frame_idx=42,
+            detections=[],
+            scene=None,
+            scene_graph=None,
+            ocr_text=[],
+        )
+        d = m.to_dict()
+        assert d["ocr_text"] == []
+
+    def test_loaded_from_dict_with_no_ocr_key(self):
+        """Old sidecars without ocr_text load cleanly with ocr_text=None."""
+        m = KeyframeMetadata.from_dict({
+            "video": "V", "frame_idx": 42,
+            "detections": [], "scene": None, "scene_graph": None,
+        })
+        assert m.ocr_text is None
+
+
+class TestApplyOcrMerging:
+    """`apply_ocr_merging` writes ocr_text to sidecars on disk."""
+
+    def test_writes_ocr_text_to_matching_sidecar(self, tmp_path: Path):
+        # Set up a video dir with 2 sidecars.
+        vdir = tmp_path / "V"
+        vdir.mkdir()
+        for stem in ("001", "002"):
+            m = KeyframeMetadata(
+                video="V", frame_idx=int(stem),
+                detections=[], scene=None, scene_graph=None,
+            )
+            m.save(vdir / f"{stem}.json")
+
+        # Build OCR lookup.
+        ocr = {("V", "001"): [{"text": "EXIT", "bbox": [0, 0, 50, 20], "confidence": 0.9}]}
+        stats = apply_ocr_merging(
+            metadata_dir=tmp_path,
+            ocr_lookup=ocr,
+            video_name="V",
+            overwrite_files=True,
+        )
+        assert stats["frames_total"] == 2
+        assert stats["frames_with_text"] == 1
+        assert stats["frames_empty"] == 1
+
+        # Verify 001.json has ocr_text, 002.json has empty list.
+        m1 = KeyframeMetadata.load(vdir / "001.json")
+        m2 = KeyframeMetadata.load(vdir / "002.json")
+        assert m1.ocr_text == [
+            {"text": "EXIT", "bbox": [0, 0, 50, 20], "confidence": 0.9}
+        ]
+        assert m2.ocr_text == []  # ran, no text
+
+    def test_dry_run_does_not_write(self, tmp_path: Path):
+        vdir = tmp_path / "V"
+        vdir.mkdir()
+        m = KeyframeMetadata(
+            video="V", frame_idx=1, detections=[], scene=None, scene_graph=None,
+        )
+        m.save(vdir / "001.json")
+        ocr = {("V", "001"): [{"text": "X", "bbox": [0, 0, 1, 1], "confidence": 0.5}]}
+
+        # Capture pre-state mtime.
+        pre_path = vdir / "001.json"
+        pre = pre_path.read_text()
+        apply_ocr_merging(
+            metadata_dir=tmp_path,
+            ocr_lookup=ocr,
+            video_name="V",
+            overwrite_files=False,  # simulate "dry run" by not writing
+        )
+        # File untouched (still no ocr_text key).
+        assert pre_path.read_text() == pre
+        loaded = KeyframeMetadata.load(pre_path)
+        assert loaded.ocr_text is None
+
+    def test_aggregate_stats_counts_ocr(self, tmp_path: Path):
+        vdir = tmp_path / "V"
+        vdir.mkdir()
+        for stem, ocr in [
+            ("001", [{"text": "A", "bbox": [0, 0, 1, 1], "confidence": 0.5}]),
+            ("002", []),  # ran, no text
+        ]:
+            m = KeyframeMetadata(
+                video="V", frame_idx=int(stem),
+                detections=[], scene=None, scene_graph=None,
+                ocr_text=ocr,
+            )
+            m.save(vdir / f"{stem}.json")
+        # Add one without ocr_text at all.
+        m = KeyframeMetadata(
+            video="V", frame_idx=3, detections=[], scene=None, scene_graph=None,
+        )
+        m.save(vdir / "003.json")
+
+        stats = aggregate_metadata_stats(tmp_path)
+        assert stats.sidecars_with_ocr == 2
+        assert stats.ocr_total_text_regions == 1  # 1 record on frame 001 only
+
+
+# ── Task 3.2: Caption field on KeyframeMetadata ────────────────────────
+
+
+class TestKeyframeMetadataCaptionField:
+    """`caption` field round-trips and is omitted from to_dict when None."""
+
+    def test_round_trip_preserves_caption(self):
+        m = KeyframeMetadata(
+            video="V", frame_idx=42,
+            detections=[], scene=None, scene_graph=None,
+            caption="a black cat on a mat",
+        )
+        loaded = KeyframeMetadata.from_json(m.to_json())
+        assert loaded.caption == "a black cat on a mat"
+
+    def test_omitted_when_none(self):
+        m = KeyframeMetadata(
+            video="V", frame_idx=42,
+            detections=[], scene=None, scene_graph=None,
+        )
+        d = m.to_dict()
+        assert "caption" not in d  # backward-compatible: no key when None
+
+    def test_emitted_as_empty_string_when_explicitly_empty(self):
+        """Empty string means 'captioning ran, no output' — distinguishable
+        from 'not yet applied' (None)."""
+        m = KeyframeMetadata(
+            video="V", frame_idx=42,
+            detections=[], scene=None, scene_graph=None,
+            caption="",
+        )
+        d = m.to_dict()
+        assert d["caption"] == ""
+
+    def test_loaded_from_dict_with_no_caption_key(self):
+        """Old sidecars without `caption` load cleanly with caption=None."""
+        m = KeyframeMetadata.from_dict({
+            "video": "V", "frame_idx": 42,
+            "detections": [], "scene": None, "scene_graph": None,
+        })
+        assert m.caption is None
+
+
+# ── Task 3.2: MetadataExtractor caption plumbing ───────────────────────
+
+
+class TestProcessKeyframeCaption:
+    """MetadataExtractor wires caption_fn through process_keyframe."""
+
+    def test_runs_caption_fn_when_provided(self, sample_image: Path):
+        caption_fn = lambda img: "a sunset over the hills"  # noqa: E731
+        ext = MetadataExtractor(
+            detector_fn=_stub_detector,
+            scene_fn=_stub_scene,
+            scene_graph_fn=_stub_scene_graph,
+            caption_fn=caption_fn,
+        )
+        meta = ext.process_keyframe(sample_image, video="L01_V001", frame_idx=1)
+        assert meta is not None
+        assert meta.caption == "a sunset over the hills"
+
+    def test_caption_none_when_caption_fn_none(self, sample_image: Path):
+        ext = MetadataExtractor(
+            detector_fn=_stub_detector,
+            scene_fn=_stub_scene,
+            scene_graph_fn=_stub_scene_graph,
+            # caption_fn defaults to None
+        )
+        meta = ext.process_keyframe(sample_image, video="L01_V001", frame_idx=1)
+        assert meta.caption is None
+
+    def test_caption_empty_string_when_model_returns_empty(self, sample_image: Path):
+        ext = MetadataExtractor(
+            detector_fn=_stub_detector,
+            scene_fn=_stub_scene,
+            scene_graph_fn=_stub_scene_graph,
+            caption_fn=lambda img: "",
+        )
+        meta = ext.process_keyframe(sample_image, video="L01_V001", frame_idx=1)
+        # Empty string preserved (distinguishable from None).
+        assert meta.caption == ""
+
+    def test_skip_caption_flag(self, sample_image: Path):
+        caption_fn = lambda img: "should not run"  # noqa: E731
+        ext = MetadataExtractor(
+            detector_fn=_stub_detector,
+            scene_fn=_stub_scene,
+            scene_graph_fn=_stub_scene_graph,
+            caption_fn=caption_fn,
+        )
+        meta = ext.process_keyframe(
+            sample_image, video="L01_V001", frame_idx=1, skip_caption=True,
+        )
+        assert meta.caption is None  # skip_caption short-circuits
+
+    def test_caption_fn_exception_yields_none(self, sample_image: Path):
+        def bad_fn(img):
+            raise RuntimeError("CUDA OOM")
+
+        ext = MetadataExtractor(
+            detector_fn=_stub_detector,
+            scene_fn=_stub_scene,
+            scene_graph_fn=_stub_scene_graph,
+            caption_fn=bad_fn,
+        )
+        meta = ext.process_keyframe(sample_image, video="L01_V001", frame_idx=1)
+        # Graceful degradation: None, not exception.
+        assert meta.caption is None
+
+
+# ── Task 3.2: apply_caption_merging post-pass ──────────────────────────
+
+
+class TestApplyCaptionMerging:
+    """apply_caption_merging() writes caption field to sidecars in-place."""
+
+    def _make_keyframe_jpg(self, parent: Path, stem: str) -> Path:
+        """Create a tiny valid JPEG for the keyframe."""
+        from PIL import Image as _PILImage
+
+        parent.mkdir(parents=True, exist_ok=True)
+        img = _PILImage.new("RGB", (8, 8), color=(128, 128, 128))
+        path = parent / f"{stem}.jpg"
+        img.save(path)
+        return path
+
+    def _write_sidecar(self, video_dir: Path, stem: str, *, caption: str | None = None):
+        m = KeyframeMetadata(
+            video=video_dir.name, frame_idx=int(stem),
+            detections=[], scene=None, scene_graph=None,
+            caption=caption,
+        )
+        m.save(video_dir / f"{stem}.json")
+
+    def test_writes_caption_to_matching_sidecar(self, tmp_path: Path):
+        vdir = tmp_path / "V"
+        vdir.mkdir()
+        # Create matching keyframes + sidecars.
+        for stem in ("001", "002"):
+            self._make_keyframe_jpg(tmp_path / "keyframes" / "V", stem)
+            self._write_sidecar(vdir, stem)
+
+        kf_dir = tmp_path / "keyframes"
+
+        def stub_caption(img):
+            return "a cat on a mat"
+
+        stats = apply_caption_merging(
+            metadata_dir=tmp_path,
+            caption_fn=stub_caption,
+            keyframes_dir=kf_dir,
+            video_name="V",
+            overwrite_files=True,
+        )
+        assert stats["frames_total"] == 2
+        assert stats["frames_captioned"] == 2
+        assert stats["frames_empty"] == 0
+
+        m1 = KeyframeMetadata.load(vdir / "001.json")
+        m2 = KeyframeMetadata.load(vdir / "002.json")
+        assert m1.caption == "a cat on a mat"
+        assert m2.caption == "a cat on a mat"
+
+    def test_dry_run_does_not_write(self, tmp_path: Path):
+        vdir = tmp_path / "V"
+        vdir.mkdir()
+        self._make_keyframe_jpg(tmp_path / "keyframes" / "V", "001")
+        self._write_sidecar(vdir, "001")  # caption=None initially
+
+        pre = (vdir / "001.json").read_text()
+
+        apply_caption_merging(
+            metadata_dir=tmp_path,
+            caption_fn=lambda img: "a fresh caption",
+            keyframes_dir=tmp_path / "keyframes",
+            video_name="V",
+            overwrite_files=False,  # simulate "dry run"
+        )
+        # Sidecar untouched.
+        assert (vdir / "001.json").read_text() == pre
+        loaded = KeyframeMetadata.load(vdir / "001.json")
+        assert loaded.caption is None
+
+    def test_skips_sidecars_with_existing_caption(self, tmp_path: Path):
+        vdir = tmp_path / "V"
+        vdir.mkdir()
+        self._make_keyframe_jpg(tmp_path / "keyframes" / "V", "001")
+        # Sidecar already has a caption.
+        self._write_sidecar(vdir, "001", caption="old caption")
+
+        stats = apply_caption_merging(
+            metadata_dir=tmp_path,
+            caption_fn=lambda img: "new caption",
+            keyframes_dir=tmp_path / "keyframes",
+            video_name="V",
+            overwrite_files=False,
+        )
+        assert stats["frames_skipped"] == 1
+        # Old caption preserved.
+        loaded = KeyframeMetadata.load(vdir / "001.json")
+        assert loaded.caption == "old caption"
+
+    def test_handles_missing_keyframe(self, tmp_path: Path):
+        vdir = tmp_path / "V"
+        vdir.mkdir()
+        # No keyframe image exists — only a sidecar.
+        self._write_sidecar(vdir, "001")
+
+        stats = apply_caption_merging(
+            metadata_dir=tmp_path,
+            caption_fn=lambda img: "should not run",
+            keyframes_dir=tmp_path / "keyframes",  # doesn't exist
+            video_name="V",
+            overwrite_files=True,
+        )
+        assert stats["frames_failed"] == 1
+        # Sidecar should not have been modified.
+        loaded = KeyframeMetadata.load(vdir / "001.json")
+        assert loaded.caption is None
+
+    def test_aggregate_stats_counts_caption(self, tmp_path: Path):
+        vdir = tmp_path / "V"
+        vdir.mkdir()
+        for stem, caption in [
+            ("001", "a cat"),
+            ("002", ""),  # ran, no output
+        ]:
+            self._write_sidecar(vdir, stem, caption=caption)
+        # Sidecar without caption.
+        self._write_sidecar(vdir, "003")
+
+        stats = aggregate_metadata_stats(tmp_path)
+        assert stats.sidecars_with_caption == 2  # 001 and 002 ("" counts)
+        assert stats.caption_total_chars == len("a cat") + len("")  # 5 + 0

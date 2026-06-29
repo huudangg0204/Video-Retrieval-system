@@ -98,15 +98,17 @@ class EVA02ImageRetrieval:
             self._db,
             weight_eva02=settings.eva02_search_weight,
             weight_blip2=settings.blip2_search_weight,
+            weight_bm25=settings.bm25_search_weight,
             pool_multiplier=settings.dual_search_pool_multiplier,
         )
         self._reranker = Reranker(self._models)
         self._trake = TrakeEngine(self._searcher, self._reranker)
         self._exporter = Exporter()
 
-        logger.info(
-            f"Retrieval system ready ({'dual' if self._index.is_dual else 'single'} stream)."
-        )
+        streams = ["eva02"]
+        if self._index.is_dual:
+            streams.append("blip2")
+        logger.info(f"Retrieval system ready (streams: {','.join(streams)}).")
     
     # ── Search ────────────────────────────────────────────────────────
     
@@ -120,19 +122,21 @@ class EVA02ImageRetrieval:
     ) -> List[Dict[str, Any]]:
         """
         Search keyframes by text query.
-        
+
         Args:
             query: Text description to search for
             top_k: Number of results to return
             save_to_db: Whether to save results to database
             objects: Comma-separated object names to filter by
             threshold: Object detection confidence threshold
-            
+
         Returns:
             List of result dicts with image_path, video_name, similarity, etc.
         """
         logger.info(f"Text search: '{query[:100]}...' (top_k={top_k})")
-        return self._searcher.search_text(query, top_k, save_to_db, objects, threshold)
+        return self._searcher.search_text(
+            query, top_k, save_to_db, objects, threshold,
+        )
     
     def search_text_all(
         self,

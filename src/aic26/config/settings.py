@@ -148,6 +148,14 @@ class Settings(BaseSettings):
         description="Multiplier applied to top_k when collecting candidates from each stream before blending",
     )
 
+    # ── BM25 Caption Stream ────────────────────────────────────────
+    bm25_search_weight: float = Field(
+        default=0.2,
+        ge=0.0,
+        le=1.0,
+        description="Weight of BM25 caption similarity when blending with image/BLIP-2 streams",
+    )
+
     yolo_model_name: str = Field(
         default="yolov8x-oiv7.pt",
         description="YOLOv8 model filename or path",
@@ -208,6 +216,42 @@ class Settings(BaseSettings):
     extract_scene_graph: bool = Field(
         default=True,
         description="Run Qwen2.5-VL scene graph during extract-metadata (set false to skip slow step)",
+    )
+
+    ocr_csv_path: Path = Field(
+        default_factory=lambda: Path("data/ocr_results.csv"),
+        description="Path to OCR results CSV produced by pipeline/ocr.py; consumed by 'merge-ocr' subcommand",
+    )
+
+    # ── Image captioning (Task 3.2) ────────────────────────────────
+    caption_model_name: str = Field(
+        default="Salesforce/blip-image-captioning-base",
+        description=(
+            "Captioning model id. Default BLIP base (446M, ~2GB VRAM, fast). "
+            "Switch to 'Salesforce/blip2-opt-2.7b' for richer captions (~5GB)."
+        ),
+    )
+
+    caption_max_new_tokens: int = Field(
+        default=50,
+        ge=10,
+        le=200,
+        description="Max tokens for caption generation.",
+    )
+
+    caption_min_length: int = Field(
+        default=8,
+        ge=1,
+        le=200,
+        description="Min tokens for caption generation; suppresses single-word output.",
+    )
+
+    caption_quantization: str = Field(
+        default="none",
+        description=(
+            "Quantization for the caption model. 'none' for the 446M default. "
+            "Set '8bit' / '4bit' (bitsandbytes) if switching to BLIP-2 OPT 2.7b."
+        ),
     )
 
     # ── Search parameters ──────────────────────────────────────────────

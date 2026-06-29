@@ -34,6 +34,7 @@ from aic26.utils.file_utils import safe_basename
 from aic26.core.embeddings import EmbeddingIndex
 from aic26.core.models import ModelRegistry
 from aic26.core.database import VectorDatabase
+from aic26.core.bm25 import BM25CaptionIndex
 
 
 class SearchEngine:
@@ -59,6 +60,7 @@ class SearchEngine:
         vector_db: VectorDatabase,
         weight_eva02: float = 0.6,
         weight_blip2: float = 0.4,
+        weight_bm25: float = 0.2,
         pool_multiplier: int = 5,
     ) -> None:
         """
@@ -78,12 +80,22 @@ class SearchEngine:
         self.vector_db = vector_db
         self.weight_eva02 = float(weight_eva02)
         self.weight_blip2 = float(weight_blip2)
+        self.weight_bm25 = float(weight_bm25)
         self.pool_multiplier = max(1, int(pool_multiplier))
 
+        self.bm25_index = None
+        if self.weight_bm25 > 0:
+            self.bm25_index = BM25CaptionIndex(image_paths=self.index.image_paths)
+
+        streams = ["eva02"]
+        if self.index.is_dual:
+            streams.append("blip2")
+        if self.bm25_index and self.bm25_index.bm25 is not None:
+            streams.append("bm25")
         logger.debug(
             f"SearchEngine initialized. "
-            f"Index size: {len(self.index.embeddings)} embeddings"
-            f"{' (dual stream: eva02+blip2)' if index.is_dual else ' (single stream)'}"
+            f"Index size: {len(self.index.embeddings)} embeddings "
+            f"(streams: {','.join(streams)})"
         )
     
     # ── Public search API ─────────────────────────────────────────
@@ -122,20 +134,14 @@ class SearchEngine:
 
         # Encode query and compute similarities
         text_emb = self.index.encode_text(query)
+        text_emb_blip: Optional[np.ndarray] = None
         if self.index.is_dual and self._blip2_text_query_usable():
             text_emb_blip = self.index.encode_text_blip2(query)
-            idx, scores = self._dual_topk_indices(text_emb, text_emb_blip, top_k)
-        else:
-            # Single-stream path: BLIP-2 Q-Former is image-only, so text queries
-            # degrade to a constant vector when only an image is supplied. Skip
-            # the dual blend for text queries and trust EVA-02 alone.
-            if self.index.is_dual:
-                logger.debug(
-                    "BLIP-2 text query is degenerate (constant vector); "
-                    "falling back to EVA-02 only."
-                )
-            sims = self.index.cosine_similarity(text_emb, self.index.embeddings)[0]
-            idx, scores = self.index.topk_indices(sims, top_k)
+
+        # Multi-stream blend: EVA-02 always, BLIP-2/BM25 when usable
+        idx, scores = self._multi_stream_topk_indices(
+            query, text_emb, text_emb_blip, top_k
+        )
 
         # Build results
         results, sel_embs = self._build_results(idx, scores)
@@ -187,17 +193,13 @@ class SearchEngine:
             return []
 
         text_emb = self.index.encode_text(query)
+        sims = self.index.cosine_similarity(text_emb, self.index.embeddings)[0]
         if self.index.is_dual and self._blip2_text_query_usable():
             text_emb_blip = self.index.encode_text_blip2(query)
-            sims_eva = self.index.cosine_similarity(text_emb, self.index.embeddings)[0]
             sims_blip = self.index.cosine_similarity(
                 text_emb_blip, self.index.blip2_embeddings
             )[0]
-            sims = self.weight_eva02 * sims_eva + self.weight_blip2 * sims_blip
-        else:
-            # Single-stream: BLIP-2 text query is degenerate for this checkpoint
-            # (Q-Former is image-only). Trust EVA-02 alone for text.
-            sims = self.index.cosine_similarity(text_emb, self.index.embeddings)[0]
+            sims = sims * self.weight_eva02 + sims_blip * self.weight_blip2
 
         idx, scores = self.index.threshold_indices(sims, score)
 
@@ -401,12 +403,30 @@ class SearchEngine:
         top_k: int,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Weighted-average top-k over the dual embedding streams.
+        Backward-compatible wrapper for the dual-stream blend. Internally
+        delegates to `_multi_stream_topk_indices`.
+        """
+        return self._multi_stream_topk_indices("", query_emb_eva, query_emb_blip, top_k)
 
-        Implements the MemoriEase 3.0 (LSC'25) recipe: pull a wider candidate
-        pool (top_k * pool_multiplier) from each stream, then blend the two
-        cosine-similarity vectors using the configured weights and take the
-        final top_k.
+    def _multi_stream_topk_indices(
+        self,
+        query: str,
+        query_emb_eva: np.ndarray,
+        query_emb_blip: np.ndarray | None,
+        top_k: int,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Weighted-average top-k over any combination of the available embedding
+        streams (EVA-02, BLIP-2).
+
+        Implements the MemoriEase 3.0 (LSC'25) recipe generalized to N
+        streams: pull a wider candidate pool from each stream, union them,
+        blend the per-stream cosine similarities by their configured
+        weights, then take the final top_k.
+
+        Active streams:
+          - EVA-02: always (768-dim, encodes query text)
+          - BLIP-2: only when `self.index.is_dual and query_emb_blip is not None`
 
         Returns:
             (indices, blended_scores) — both 1-D arrays of length top_k (or
@@ -416,22 +436,52 @@ class SearchEngine:
         if n == 0:
             return np.array([], dtype=int), np.array([], dtype=np.float32)
 
-        pool_k = min(n, max(top_k * self.pool_multiplier, top_k))
+        # Build (label, weight, pool_multiplier, get_scores_fn) tuples
+        streams = [
+            (
+                "eva02",
+                self.weight_eva02,
+                self.pool_multiplier,
+                lambda: self.index.cosine_similarity(query_emb_eva, self.index.embeddings)[0],
+            )
+        ]
+        if self.index.is_dual and query_emb_blip is not None:
+            streams.append(
+                (
+                    "blip2",
+                    self.weight_blip2,
+                    self.pool_multiplier,
+                    lambda: self.index.cosine_similarity(query_emb_blip, self.index.blip2_embeddings)[0],
+                )
+            )
+        if query and self.bm25_index and self.bm25_index.bm25 is not None and self.weight_bm25 > 0:
+            streams.append(
+                (
+                    "bm25",
+                    self.weight_bm25,
+                    self.pool_multiplier,
+                    lambda: self.bm25_index.get_scores(query),
+                )
+            )
 
-        sims_eva = self.index.cosine_similarity(query_emb_eva, self.index.embeddings)[0]
-        sims_blip = self.index.cosine_similarity(query_emb_blip, self.index.blip2_embeddings)[0]
+        # Per-stream: compute sim, then top pool
+        all_candidates: List[np.ndarray] = []
+        per_stream_sims: Dict[str, np.ndarray] = {}
+        for label, _w, mult, score_fn in streams:
+            sims = score_fn()
+            per_stream_sims[label] = sims
+            pool_k = min(n, max(top_k * mult, top_k))
+            top_idx, _ = self.index.topk_indices(sims, pool_k)
+            all_candidates.append(top_idx)
 
-        # Per-stream top pool
-        eva_idx, _ = self.index.topk_indices(sims_eva, pool_k)
-        blip_idx, _ = self.index.topk_indices(sims_blip, pool_k)
+        # Union of candidate indices across all streams
+        cand_idx = np.unique(np.concatenate(all_candidates))
 
-        # Union of candidate indices
-        cand_idx = np.unique(np.concatenate([eva_idx, blip_idx]))
-        # Blend scores on the candidate set
-        blend = (
-            self.weight_eva02 * sims_eva[cand_idx]
-            + self.weight_blip2 * sims_blip[cand_idx]
-        )
+        # Blend scores on the candidate set, weighted per stream
+        blend = np.zeros(len(cand_idx), dtype=np.float32)
+        for label, weight, _mult, _score_fn in streams:
+            blend += weight * per_stream_sims[label][cand_idx].astype(np.float32)
+
         # Top-k of the blended set
         order = np.argsort(blend)[::-1][:top_k]
         return cand_idx[order], blend[order]

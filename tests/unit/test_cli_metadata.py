@@ -374,3 +374,169 @@ class TestRunAllExtractMetadataFlag:
             kwargs = orch.run.call_args.kwargs
             # Default behavior: opt-in flag absent → flag is False
             assert kwargs.get("extract_metadata") is False
+
+
+# ── Task 3.2: caption flag + merge-captions subcommand ──────────────────
+
+
+class TestExtractMetadataCmdCaption:
+    """Tests for the --skip-caption flag and caption_fn plumbing."""
+
+    def test_skip_caption_flag(
+        self, runner: CliRunner, kf_root_with_video: Path, tmp_path: Path
+    ):
+        out = tmp_path / "metadata"
+        with patch("aic26.pipeline.metadata.MetadataExtractor") as mock_cls:
+            mock_instance = MagicMock()
+            mock_instance.process_all.return_value = {
+                "videos_total": 0, "videos_processed": 0,
+                "frames_total": 0, "frames_processed": 0,
+                "frames_skipped": 0, "frames_failed": 0,
+            }
+            mock_cls.return_value = mock_instance
+            result = runner.invoke(
+                cli,
+                [
+                    "pipeline", "extract-metadata",
+                    "--input", str(kf_root_with_video),
+                    "--output", str(out),
+                    "--skip-caption",
+                ],
+            )
+            assert result.exit_code == 0, result.output
+            call_kwargs = mock_instance.process_all.call_args.kwargs
+            assert call_kwargs.get("skip_caption") is True
+
+    def test_passes_caption_fn_to_extractor(
+        self, runner: CliRunner, kf_root_with_video: Path, tmp_path: Path
+    ):
+        """When --skip-caption is NOT set, build_metadata_callables should
+        return a 4-tuple with a non-None caption_fn, and MetadataExtractor
+        should receive it."""
+        out = tmp_path / "metadata"
+        # build_metadata_callables may attempt to load the model. We
+        # patch the import to return a fake 4-tuple.
+        fake_caption_fn = MagicMock(return_value="a cat")
+        with patch(
+            "aic26.pipeline.metadata.build_metadata_callables",
+            return_value=(MagicMock(), MagicMock(), MagicMock(), fake_caption_fn),
+        ), patch("aic26.pipeline.metadata.MetadataExtractor") as mock_cls:
+            mock_instance = MagicMock()
+            mock_instance.process_all.return_value = {
+                "videos_total": 0, "videos_processed": 0,
+                "frames_total": 0, "frames_processed": 0,
+                "frames_skipped": 0, "frames_failed": 0,
+            }
+            mock_cls.return_value = mock_instance
+            result = runner.invoke(
+                cli,
+                [
+                    "pipeline", "extract-metadata",
+                    "--input", str(kf_root_with_video),
+                    "--output", str(out),
+                ],
+            )
+            assert result.exit_code == 0, result.output
+            # The fake caption_fn was passed to the constructor.
+            init_kwargs = mock_cls.call_args.kwargs
+            assert init_kwargs.get("caption_fn") is fake_caption_fn
+
+
+class TestMergeCaptionsCmd:
+    """Tests for the new `pipeline merge-captions` subcommand."""
+
+    def test_subcommand_registered(self, runner: CliRunner):
+        result = runner.invoke(cli, ["pipeline", "--help"])
+        assert result.exit_code == 0
+        assert "merge-captions" in result.output
+
+    def test_help_lists_required_options(self, runner: CliRunner):
+        result = runner.invoke(cli, ["pipeline", "merge-captions", "--help"])
+        assert result.exit_code == 0
+        assert "--input" in result.output
+        assert "--keyframes-dir" in result.output
+
+    def test_invokes_apply_caption_merging(
+        self, runner: CliRunner, tmp_path: Path
+    ):
+        # Create metadata dir with a fake sidecar and matching keyframe.
+        vdir = tmp_path / "metadata_root" / "V"
+        vdir.mkdir(parents=True)
+        m = KeyframeMetadata(
+            video="V", frame_idx=1,
+            detections=[], scene=None, scene_graph=None,
+        )
+        m.save(vdir / "001.json")
+        # Matching keyframe.
+        from PIL import Image as _PILImage
+        kf_dir = tmp_path / "kf" / "V"
+        kf_dir.mkdir(parents=True)
+        _PILImage.new("RGB", (8, 8), color=(0, 0, 0)).save(kf_dir / "001.jpg")
+
+        with patch(
+            "aic26.pipeline.metadata.apply_caption_merging",
+            return_value={
+                "frames_total": 1, "frames_captioned": 1, "frames_empty": 0,
+                "frames_skipped": 0, "frames_failed": 0,
+            },
+        ) as mock_apply, patch(
+            "aic26.pipeline.captioning.build_caption_fn",
+            return_value=MagicMock(return_value="a cat"),
+        ):
+            result = runner.invoke(
+                cli,
+                [
+                    "pipeline", "merge-captions",
+                    "--input", str(tmp_path / "metadata_root"),
+                    "--keyframes-dir", str(tmp_path / "kf"),
+                    "--video", "V",
+                ],
+            )
+            assert result.exit_code == 0, result.output
+            assert mock_apply.called
+            kwargs = mock_apply.call_args.kwargs
+            assert kwargs.get("video_name") == "V"
+            assert kwargs.get("overwrite_files") is True
+
+    def test_dry_run_does_not_write(
+        self, runner: CliRunner, tmp_path: Path
+    ):
+        vdir = tmp_path / "metadata_root" / "V"
+        vdir.mkdir(parents=True)
+        m = KeyframeMetadata(
+            video="V", frame_idx=1,
+            detections=[], scene=None, scene_graph=None,
+        )
+        m.save(vdir / "001.json")
+        # Matching keyframe.
+        from PIL import Image as _PILImage
+        kf_dir = tmp_path / "kf" / "V"
+        kf_dir.mkdir(parents=True)
+        _PILImage.new("RGB", (8, 8), color=(0, 0, 0)).save(kf_dir / "001.jpg")
+
+        with patch(
+            "aic26.pipeline.metadata.apply_caption_merging",
+            return_value={
+                "frames_total": 1, "frames_captioned": 0, "frames_empty": 1,
+                "frames_skipped": 0, "frames_failed": 0,
+            },
+        ) as mock_apply, patch(
+            "aic26.pipeline.captioning.build_caption_fn",
+            return_value=MagicMock(return_value=""),
+        ):
+            result = runner.invoke(
+                cli,
+                [
+                    "pipeline", "merge-captions",
+                    "--input", str(tmp_path / "metadata_root"),
+                    "--keyframes-dir", str(tmp_path / "kf"),
+                    "--dry-run",
+                ],
+            )
+            assert result.exit_code == 0, result.output
+            # overwrite_files=False under dry-run.
+            kwargs = mock_apply.call_args.kwargs
+            assert kwargs.get("overwrite_files") is False
+            # Sidecar still has no caption.
+            loaded = KeyframeMetadata.load(vdir / "001.json")
+            assert loaded.caption is None

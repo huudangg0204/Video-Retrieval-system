@@ -91,6 +91,22 @@ class KeyframeMetadata:
         smoothed_scene: Scene category after temporal smoothing.
             Populated by ``apply_temporal_smoothing()`` post-processing.
             None when smoothing has not been applied.
+        ocr_text: Per-keyframe OCR results, populated by
+            ``apply_ocr_merging()`` from ``data/ocr_results.csv``. Each
+            entry is ``{"text": str, "bbox": [x1, y1, x2, y2],
+            "confidence": float}``. Empty list when OCR ran but found no
+            text on the frame. ``None`` when OCR has not been applied.
+        caption: Natural-language caption from BLIP / BLIP-2
+            (Task 3.2). ``None`` when captioning has not been applied;
+            empty string when the model ran but produced no output
+            (rare; BLIP base always emits something). Distinguishable
+            from ``None`` so search consumers can tell "not yet
+            generated" from "ran, nothing to say".
+
+    Backward-compatible: ``to_dict()`` only emits the optional fields
+    (``scene_group``, ``smoothed_scene``, ``ocr_text``, ``caption``)
+    when populated, so older sidecars without these fields continue
+    to load cleanly.
     """
 
     video: str
@@ -100,6 +116,8 @@ class KeyframeMetadata:
     scene_graph: list[dict[str, Any]] | None
     scene_group: str | None = None
     smoothed_scene: str | None = None
+    ocr_text: list[dict[str, Any]] | None = None
+    caption: str | None = None
 
     # ── Serialization ─────────────────────────────────────────────
 
@@ -119,11 +137,20 @@ class KeyframeMetadata:
             "scene": self.scene,
             "scene_graph": (list(self.scene_graph) if self.scene_graph is not None else None),
         }
-        # Only serialize Phase 2 fields when populated (backward-compatible).
+        # Only serialize optional fields when populated (backward-compatible).
         if self.scene_group is not None:
             d["scene_group"] = self.scene_group
         if self.smoothed_scene is not None:
             d["smoothed_scene"] = self.smoothed_scene
+        if self.ocr_text is not None:
+            # Always emit a list (possibly empty) to distinguish "ran, no
+            # text" from "not yet applied".
+            d["ocr_text"] = list(self.ocr_text)
+        if self.caption is not None:
+            # Always emit a string. Empty string means "model ran,
+            # produced nothing" — distinguishable from "not yet applied"
+            # (None).
+            d["caption"] = self.caption
         return d
 
     def to_json(self, indent: int = 2) -> str:
@@ -141,6 +168,8 @@ class KeyframeMetadata:
             scene_graph=list(raw.get("scene_graph") or []),
             scene_group=raw.get("scene_group"),
             smoothed_scene=raw.get("smoothed_scene"),
+            ocr_text=raw.get("ocr_text"),
+            caption=raw.get("caption"),
         )
 
     @classmethod
@@ -176,6 +205,14 @@ class MetadataStats:
             all sidecars that have scene_graph populated.
         avg_triples_per_keyframe: scene_graph_total_triples /
             number of keyframes that have a scene_graph (0.0 if none).
+        sidecars_with_ocr: Number of sidecars that have `ocr_text`
+            populated (even if the list is empty).
+        ocr_total_text_regions: Sum of OCR record counts across all
+            sidecars that have `ocr_text`.
+        sidecars_with_caption: Number of sidecars that have `caption`
+            populated (even if the string is empty).
+        caption_total_chars: Sum of caption string lengths across all
+            sidecars that have `caption`.
     """
 
     total_sidecars: int = 0
@@ -183,6 +220,10 @@ class MetadataStats:
     scene_distribution: dict[str, int] = field(default_factory=dict)
     scene_graph_total_triples: int = 0
     avg_triples_per_keyframe: float = 0.0
+    sidecars_with_ocr: int = 0
+    ocr_total_text_regions: int = 0
+    sidecars_with_caption: int = 0
+    caption_total_chars: int = 0
 
     def __repr__(self) -> str:
         return (
@@ -236,6 +277,12 @@ def aggregate_metadata_stats(metadata_root: Path) -> MetadataStats:
             if m.scene_graph:
                 total_triples += len(m.scene_graph)
                 keyframes_with_scene_graph += 1
+            if m.ocr_text is not None:
+                stats.sidecars_with_ocr += 1
+                stats.ocr_total_text_regions += len(m.ocr_text)
+            if m.caption is not None:
+                stats.sidecars_with_caption += 1
+                stats.caption_total_chars += len(m.caption)
 
     stats.total_sidecars = sidecar_count
     stats.scene_distribution = dict(scene_counts.most_common())
@@ -355,6 +402,312 @@ def apply_temporal_smoothing(
         "categories_before": len(categories_before),
         "categories_after": len(categories_after),
     }
+
+
+# ── OCR merging (Phase 3 — Task 3.1) ──────────────────────────────────
+
+
+# Type alias: maps a (video, stem) frame identifier to the list of OCR
+# records for that frame. An empty list means the frame had no text.
+OcrLookup = dict[tuple[str, str], list[dict[str, Any]]]
+
+
+def _polygon_to_xyxy(polygon: list[list[float]]) -> list[float]:
+    """Convert a 4-corner polygon bbox → ``[x_min, y_min, x_max, y_max]``.
+
+    EasyOCR / Tesseract often emit boxes as a list of 4 corner points
+    ``[[x1, y1], [x2, y2], [x3, y3], [x4, y4]]`` (in reading order:
+    top-left, top-right, bottom-right, bottom-left). Our internal bbox
+    convention (matching YOLO) is ``[x_min, y_min, x_max, y_max]``.
+
+    Defensive: if the polygon has fewer than 4 points or is malformed,
+    fall back to zeros rather than raising — a bad OCR record should
+    not break the whole merge pass.
+
+    Args:
+        polygon: list of [x, y] coordinate pairs.
+
+    Returns:
+        ``[x_min, y_min, x_max, y_max]`` as float list.
+    """
+    if not polygon or not all(isinstance(p, (list, tuple)) and len(p) >= 2 for p in polygon):
+        return [0.0, 0.0, 0.0, 0.0]
+    xs = [float(p[0]) for p in polygon]
+    ys = [float(p[1]) for p in polygon]
+    return [min(xs), min(ys), max(xs), max(ys)]
+
+
+def load_ocr_lookup(csv_path: Path) -> OcrLookup:
+    """Parse ``data/ocr_results.csv`` into a ``(video, stem) → records`` map.
+
+    The CSV is produced by ``pipeline/ocr.py`` (EasyOCR). Schema:
+    ``video, file, path, text_full, num_boxes, conf_mean, boxes, texts, confs``.
+    The ``boxes`` column is a list of 4-corner polygons, ``texts`` is a list
+    of recognized strings, and ``confs`` is a list of per-text confidence
+    scores (EasyOCR confidence).
+
+    Rows with ``num_boxes == 0`` are skipped (no text on frame). The
+    resulting dict maps ``(video, stem)`` (e.g. ``("K05_V004", "375")``)
+    to a list of records, each shaped as:
+    ``{"text": str, "bbox": [x_min, y_min, x_max, y_max], "confidence": float}``
+
+    Defensive:
+    - Skips malformed ``boxes``/``texts``/``confs`` columns (logged).
+    - Tolerates empty CSV (returns empty dict).
+    - Never raises on a corrupt single row.
+
+    Args:
+        csv_path: Path to ``ocr_results.csv``.
+
+    Returns:
+        Mapping from ``(video, stem)`` to list of OCR records.
+    """
+    import ast
+    from pathlib import Path as _P
+
+    csv_path = _P(csv_path)
+    lookup: OcrLookup = {}
+    if not csv_path.exists():
+        logger.warning("OCR CSV not found at %s — merge will be a no-op", csv_path)
+        return lookup
+
+    # We rely on pandas (already imported elsewhere in the package —
+    # pipeline/keyframe.py uses it). Fall back to a manual csv.reader
+    # loop if pandas isn't installed (keeps tests lightweight).
+    try:
+        import pandas as pd
+        df = pd.read_csv(csv_path)
+        rows = df.to_dict("records")
+    except ImportError:
+        import csv as _csv
+        rows = []
+        with csv_path.open(encoding="utf-8") as f:
+            reader = _csv.DictReader(f)
+            for row in reader:
+                rows.append(row)
+
+    for row in rows:
+        try:
+            video = row.get("video")
+            file_ = row.get("file")
+            if not video or not file_:
+                continue
+            stem = _P(str(file_)).stem  # strip ".jpg"
+            n_boxes = int(row.get("num_boxes") or 0)
+            if n_boxes <= 0:
+                continue
+            boxes_raw = ast.literal_eval(str(row["boxes"]))
+            texts_raw = ast.literal_eval(str(row["texts"]))
+            confs_raw = ast.literal_eval(str(row["confs"]))
+        except (KeyError, ValueError, SyntaxError, TypeError) as exc:
+            logger.debug("Skip malformed OCR row: %s (%s)", row.get("file"), exc)
+            continue
+
+        records: list[dict[str, Any]] = []
+        for box, text, conf in zip(boxes_raw, texts_raw, confs_raw):
+            records.append(
+                {
+                    "text": str(text),
+                    "bbox": _polygon_to_xyxy(box),
+                    "confidence": float(conf),
+                }
+            )
+        # If multiple rows exist for the same (video, stem), keep the
+        # first non-empty one (the CSV is supposed to have one row per
+        # frame, but guard against duplicates).
+        lookup.setdefault((str(video), str(stem)), records)
+
+    logger.info("Loaded OCR lookup: %d (video, stem) entries from %s", len(lookup), csv_path)
+    return lookup
+
+
+def apply_ocr_merging(
+    metadata_dir: Path,
+    ocr_lookup: OcrLookup,
+    video_name: str | None = None,
+    overwrite_files: bool = True,
+) -> dict[str, int]:
+    """Merge OCR text into existing metadata sidecars.
+
+    Post-processing step (mirrors ``apply_temporal_smoothing``): reads
+    each sidecar JSON, looks up the matching OCR row by ``(video, stem)``,
+    writes the ``ocr_text`` field back to disk.
+
+    Frames present in sidecars but missing from the OCR lookup get
+    ``ocr_text: []`` (we ran, no OCR data available). Frames present in
+    the OCR lookup but with zero text boxes are also written as empty
+    lists. Frames whose sidecar already has ``ocr_text`` are skipped
+    unless ``overwrite_files=True``.
+
+    Args:
+        metadata_dir: Root metadata directory (contains video sub-folders).
+        ocr_lookup: Output of :func:`load_ocr_lookup`.
+        video_name: If set, only process this one video. If None, process
+            all video sub-folders.
+        overwrite_files: If False, skip sidecars that already have
+            ``ocr_text`` populated.
+
+    Returns:
+        Stats dict: ``frames_total``, ``frames_with_text``,
+        ``frames_empty``, ``frames_skipped``.
+    """
+    metadata_dir = Path(metadata_dir)
+
+    video_dirs: list[Path]
+    if video_name:
+        video_dirs = [metadata_dir / video_name]
+    else:
+        video_dirs = sorted(p for p in metadata_dir.iterdir() if p.is_dir())
+
+    frames_total = 0
+    frames_with_text = 0
+    frames_empty = 0
+    frames_skipped = 0
+
+    for vdir in video_dirs:
+        video = vdir.name
+        for sidecar_path in sorted(vdir.glob("*.json")):
+            frames_total += 1
+            try:
+                m = KeyframeMetadata.load(sidecar_path)
+            except (json.JSONDecodeError, KeyError, ValueError, OSError) as exc:
+                logger.warning("Skip malformed sidecar %s: %s", sidecar_path, exc)
+                continue
+
+            if m.ocr_text is not None and not overwrite_files:
+                frames_skipped += 1
+                continue
+
+            records = ocr_lookup.get((video, sidecar_path.stem), [])
+            m.ocr_text = records
+            if records:
+                frames_with_text += 1
+            else:
+                frames_empty += 1
+
+            if overwrite_files:
+                try:
+                    m.save(sidecar_path)
+                except OSError as exc:
+                    logger.warning("Failed to write %s: %s", sidecar_path, exc)
+
+    return {
+        "frames_total": frames_total,
+        "frames_with_text": frames_with_text,
+        "frames_empty": frames_empty,
+        "frames_skipped": frames_skipped,
+    }
+
+
+def apply_caption_merging(
+    metadata_dir: Path,
+    caption_fn: "CaptionFn",
+    keyframes_dir: Path,
+    video_name: str | None = None,
+    overwrite_files: bool = True,
+) -> dict[str, int]:
+    """Generate BLIP/BLIP-2 captions for existing metadata sidecars.
+
+    Post-processing step (mirrors :func:`apply_ocr_merging`): reads
+    each sidecar, opens the matching keyframe image, calls
+    ``caption_fn(image)``, writes the ``caption`` field back. Lets
+    operators backfill captions on existing sidecars without re-running
+    detector/scene/scene-graph.
+
+    Frames whose sidecar already has ``caption`` populated are skipped
+    unless ``overwrite_files=True``. Frames whose keyframe image is
+    missing/corrupt are counted as ``frames_failed`` and skipped (the
+    pipeline does not crash).
+
+    Args:
+        metadata_dir: Root metadata directory (e.g. ``data/metadata``).
+        caption_fn: Callable[[PIL.Image], str] (typically
+            ``build_caption_fn()`` from ``pipeline.captioning``).
+        keyframes_dir: Root keyframe directory (e.g. ``data/keyframes``).
+            Sidecar stem is matched against the keyframe file stem
+            (e.g. ``001.jpg``).
+        video_name: If set, only process this one video. If None,
+            process all video sub-folders.
+        overwrite_files: If False, skip sidecars that already have
+            ``caption`` populated.
+
+    Returns:
+        Stats dict: ``frames_total``, ``frames_captioned``,
+        ``frames_empty``, ``frames_skipped``, ``frames_failed``.
+    """
+    metadata_dir = Path(metadata_dir)
+    keyframes_dir = Path(keyframes_dir)
+
+    video_dirs: list[Path]
+    if video_name:
+        video_dirs = [metadata_dir / video_name]
+    else:
+        video_dirs = sorted(p for p in metadata_dir.iterdir() if p.is_dir())
+
+    frames_total = 0
+    frames_captioned = 0
+    frames_empty = 0
+    frames_skipped = 0
+    frames_failed = 0
+
+    for vdir in video_dirs:
+        video = vdir.name
+        kf_video_dir = keyframes_dir / video
+        for sidecar_path in sorted(vdir.glob("*.json")):
+            frames_total += 1
+            try:
+                m = KeyframeMetadata.load(sidecar_path)
+            except (json.JSONDecodeError, KeyError, ValueError, OSError) as exc:
+                logger.warning("Skip malformed sidecar %s: %s", sidecar_path, exc)
+                continue
+
+            if m.caption is not None and not overwrite_files:
+                frames_skipped += 1
+                continue
+
+            # Find the matching keyframe image. Try common suffixes.
+            stem = sidecar_path.stem
+            img: Image.Image | None = None
+            for suffix in _IMAGE_SUFFIXES:
+                candidate = kf_video_dir / f"{stem}{suffix}"
+                if candidate.exists():
+                    img = _safe_load_image(candidate)
+                    if img is not None:
+                        break
+            if img is None:
+                logger.warning(
+                    "No keyframe image found for %s/%s — skipping", video, stem
+                )
+                frames_failed += 1
+                continue
+
+            try:
+                caption = caption_fn(img)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Caption generation failed for %s: %s", sidecar_path, exc)
+                frames_failed += 1
+                continue
+
+            m.caption = caption
+            if caption:
+                frames_captioned += 1
+            else:
+                frames_empty += 1
+
+            if overwrite_files:
+                try:
+                    m.save(sidecar_path)
+                except OSError as exc:
+                    logger.warning("Failed to write %s: %s", sidecar_path, exc)
+
+    return {
+        "frames_total": frames_total,
+        "frames_captioned": frames_captioned,
+        "frames_empty": frames_empty,
+        "frames_skipped": frames_skipped,
+        "frames_failed": frames_failed,
+    }
+
 
 # ── Helpers ────────────────────────────────────────────────────────────
 
@@ -555,8 +908,12 @@ def build_metadata_callables(
     device: str = "cpu",
     scene_graph_max_triples: int = 5,
     scene_graph_max_new_tokens: int = 512,
-) -> tuple["DetectorFn", "SceneFn", "SceneGraphFn"]:
-    """Build real detector/scene/scene-graph callables for production use.
+    caption_model_name: str | None = None,
+    caption_max_new_tokens: int = 50,
+    caption_min_length: int = 8,
+    caption_quantization: str = "none",
+) -> tuple["DetectorFn", "SceneFn", "SceneGraphFn", "CaptionFn | None"]:
+    """Build real detector/scene/scene-graph/caption callables for production use.
 
     This is the canonical factory used by both ``orchestrator.py`` and
     ``cli/main.py::extract_metadata_cmd`` to wire up real models instead
@@ -575,9 +932,19 @@ def build_metadata_callables(
         device: Torch device string ('cuda', 'cpu', ...).
         scene_graph_max_triples: Max triples per image.
         scene_graph_max_new_tokens: Max tokens for scene-graph model.
+        caption_model_name: BLIP / BLIP-2 captioning model id. If None
+            (or the model fails to load), caption_fn is None and the
+            caption step is silently skipped. Defaults to BLIP base
+            in ``Settings.caption_model_name``.
+        caption_max_new_tokens: Max tokens for caption generation.
+        caption_min_length: Min tokens for caption generation.
+        caption_quantization: "none", "8bit", or "4bit". Required
+            bitsandbytes for 4bit/8bit (for the larger BLIP-2 OPT).
 
     Returns:
-        Tuple of (detector_fn, scene_fn, scene_graph_fn).
+        Tuple of (detector_fn, scene_fn, scene_graph_fn, caption_fn).
+        ``caption_fn`` is None when ``caption_model_name`` is None or
+        the model fails to load.
     """
     # 1. Detection: always read from pre-computed files
     detector_fn = load_precomputed_detections(detection_dir)
@@ -703,7 +1070,30 @@ def build_metadata_callables(
                 "scene_graph module not available — scene graph disabled"
             )
 
-    return detector_fn, scene_fn, scene_graph_fn
+    # 4. Caption (Task 3.2): BLIP / BLIP-2 (lazy-loaded, optional)
+    caption_fn: CaptionFn | None = None
+    if caption_model_name:
+        try:
+            from aic26.pipeline.captioning import build_caption_fn
+
+            caption_fn = build_caption_fn(
+                model_name=caption_model_name,
+                device=device,
+                max_new_tokens=caption_max_new_tokens,
+                min_length=caption_min_length,
+                quantization=caption_quantization,
+            )
+            logger.info(
+                "Caption callable ready (model=%s, max_new=%d)",
+                caption_model_name, caption_max_new_tokens,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Failed to build caption fn: %s — captions disabled", exc,
+            )
+            caption_fn = None
+
+    return detector_fn, scene_fn, scene_graph_fn, caption_fn
 
 
 # ── Orchestrator ───────────────────────────────────────────────────────
@@ -714,10 +1104,14 @@ def build_metadata_callables(
 DetectorFn = Callable[[Path], dict | None]
 SceneFn = Callable[[Image.Image], dict | None]
 SceneGraphFn = Callable[[Image.Image], list[dict]]
+# CaptionFn: takes a PIL.Image, returns a caption string. Empty string
+# is a valid result ("model ran, produced nothing") — None is reserved
+# for "not applied".
+CaptionFn = Callable[[Image.Image], str]
 
 
 class MetadataExtractor:
-    """Orchestrator that combines detection + scene + scene-graph into JSON sidecars.
+    """Orchestrator that combines detection + scene + scene-graph + caption into JSON sidecars.
 
     Args:
         detector_fn: Callable taking an image Path and returning a YOLO
@@ -728,6 +1122,10 @@ class MetadataExtractor:
         scene_graph_fn: Callable taking a PIL Image and returning a list
             of {s, p, o} dicts (often produced by
             aic26.pipeline.scene_graph.extract_scene_graph).
+        caption_fn: Callable taking a PIL Image and returning a
+            caption string (Task 3.2). Returns "" on model failure;
+            absence of caption_fn means "skip captioning entirely" and
+            ``KeyframeMetadata.caption`` is left as None.
     """
 
     def __init__(
@@ -735,10 +1133,12 @@ class MetadataExtractor:
         detector_fn: DetectorFn,
         scene_fn: SceneFn,
         scene_graph_fn: SceneGraphFn,
+        caption_fn: CaptionFn | None = None,
     ) -> None:
         self.detector_fn = detector_fn
         self.scene_fn = scene_fn
         self.scene_graph_fn = scene_graph_fn
+        self.caption_fn = caption_fn
 
     # ── Single keyframe ──────────────────────────────────────────
 
@@ -750,8 +1150,9 @@ class MetadataExtractor:
         skip_detections: bool = False,
         skip_scene: bool = False,
         skip_scene_graph: bool = False,
+        skip_caption: bool = False,
     ) -> KeyframeMetadata | None:
-        """Run all three passes on one keyframe; return assembled metadata.
+        """Run all four passes on one keyframe; return assembled metadata.
 
         Returns None only if the image cannot be loaded at all.
         """
@@ -798,6 +1199,18 @@ class MetadataExtractor:
                 logger.warning("Scene graph extraction failed for %s: %s", image_path, exc)
                 scene_graph = None
 
+        # Caption (Task 3.2): only runs when a caption_fn was injected
+        # AND skip_caption is False. Empty string is preserved
+        # ("model ran, no output") to distinguish from None
+        # ("not applied").
+        caption: str | None = None
+        if self.caption_fn is not None and not skip_caption:
+            try:
+                caption = self.caption_fn(img)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Caption generation failed for %s: %s", image_path, exc)
+                caption = None
+
         # Derive scene_group from scene result (if populated by enriched scene_fn).
         scene_group: str | None = None
         if scene is not None:
@@ -810,6 +1223,7 @@ class MetadataExtractor:
             scene=scene,
             scene_graph=scene_graph,
             scene_group=scene_group,
+            caption=caption,
         )
 
     # ── One video folder ──────────────────────────────────────────
@@ -822,6 +1236,7 @@ class MetadataExtractor:
         skip_detections: bool = False,
         skip_scene: bool = False,
         skip_scene_graph: bool = False,
+        skip_caption: bool = False,
         overwrite: bool = False,
     ) -> dict[str, int]:
         """Walk one video's keyframe folder and emit sidecars.
@@ -869,6 +1284,7 @@ class MetadataExtractor:
                 skip_detections=skip_detections,
                 skip_scene=skip_scene,
                 skip_scene_graph=skip_scene_graph,
+                skip_caption=skip_caption,
             )
             if meta is None:
                 frames_failed += 1
@@ -896,6 +1312,7 @@ class MetadataExtractor:
         skip_detections: bool = False,
         skip_scene: bool = False,
         skip_scene_graph: bool = False,
+        skip_caption: bool = False,
         overwrite: bool = False,
     ) -> dict[str, int]:
         """Walk every video folder under ``keyframes_root`` and process each.
@@ -924,6 +1341,7 @@ class MetadataExtractor:
                 skip_detections=skip_detections,
                 skip_scene=skip_scene,
                 skip_scene_graph=skip_scene_graph,
+                skip_caption=skip_caption,
                 overwrite=overwrite,
             )
             agg_frames_total += stats["frames_total"]
@@ -949,6 +1367,9 @@ __all__ = [
     "MetadataExtractor",
     "aggregate_metadata_stats",
     "apply_temporal_smoothing",
+    "apply_ocr_merging",
+    "apply_caption_merging",
+    "load_ocr_lookup",
     "load_precomputed_detections",
     "build_metadata_callables",
 ]

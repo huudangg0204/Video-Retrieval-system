@@ -103,3 +103,23 @@ SCENE_GRAPH_DEFAULT_MODEL: Final[str] = "Qwen/Qwen2.5-VL-7B-Instruct"
 
 # Default max new tokens for scene-graph JSON generation.
 SCENE_GRAPH_MAX_NEW_TOKENS: Final[int] = 512
+
+# ── Image captioning (Task 3.2) ─────────────────────────────────────
+
+# Default captioning model. BLIP base is intentionally separate from
+# settings.blip2_model_name (blip2-itm-vit-g) — that ITM variant
+# has no .generate() and cannot caption. See memory
+# blip2-itm-vit-g-image-only.md for the full diagnosis.
+CAPTION_DEFAULT_MODEL: Final[str] = "Salesforce/blip-image-captioning-base"
+
+# Default prompt prepended to the image for conditional captioning.
+# BLIP base was trained with short unconditional prompts; BLIP-2 also
+# accepts an empty / domain-specific prompt.
+CAPTION_PROMPT: Final[str] = "a photo of"
+
+# Max caption length in tokens. BLIP base COCO captions average ~10
+# tokens so 50 is generous; operators can raise to 200 for verbose outputs.
+CAPTION_MAX_NEW_TOKENS: Final[int] = 50
+
+# Min caption length — suppresses degenerate single-word outputs ("a", "the").
+CAPTION_MIN_LENGTH: Final[int] = 8
