@@ -529,6 +529,48 @@ class TestAggregateStats:
         assert stats.total_videos == 0
         assert stats.scene_distribution == {}
 
+    def test_nonexistent_root(self, tmp_path):
+        # Missing dir → returns zero-filled stats, no exception.
+        meta_root = tmp_path / "does-not-exist"
+        stats = aggregate_metadata_stats(meta_root)
+        assert stats.total_sidecars == 0
+        assert stats.total_videos == 0
+
+    def test_repr_with_distribution(self):
+        s = MetadataStats(
+            total_sidecars=10, total_videos=2,
+            scene_distribution={"kitchen": 7, "beach": 3},
+            scene_graph_total_triples=15, avg_triples_per_keyframe=1.5,
+        )
+        # Should show top scene in the repr
+        r = repr(s)
+        assert "kitchen" in r
+        assert "10" in r
+
+    def test_repr_empty(self):
+        s = MetadataStats()
+        r = repr(s)
+        assert "n/a" in r
+
+    def test_skips_malformed_sidecar(self, tmp_path):
+        meta_root = tmp_path / "metadata"
+        vdir = meta_root / "L01_V001"
+        vdir.mkdir(parents=True)
+        # Write one valid and one corrupt sidecar
+        KeyframeMetadata(
+            video="L01_V001", frame_idx=0, detections=[],
+            scene={"category": "kitchen", "confidence": 0.8, "top5": []},
+            scene_graph=[],
+        ).save(vdir / "frame_0000.json")
+        (vdir / "frame_0001.json").write_text("not json at all")
+        stats = aggregate_metadata_stats(meta_root)
+        # Both files are counted; corrupt one is skipped during
+        # aggregation (no scene, no triples contribute to stats).
+        assert stats.total_sidecars == 2
+        # The valid sidecar still drives the scene distribution.
+        assert stats.scene_distribution.get("kitchen") == 1
+        assert stats.scene_graph_total_triples == 0
+
 
 # ── Schema contract ────────────────────────────────────────────────────
 
