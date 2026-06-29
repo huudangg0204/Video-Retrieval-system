@@ -296,8 +296,18 @@ class ObjectDetector:
             "detection_class_labels": detection_class_labels,
         }
         # Enrich with per-detection grid positions when image dims are known.
+        # Use the user-tunable threshold from Settings (.env override) so that
+        # lowering POSITION_GRID_THRESHOLD for a domain with smaller objects
+        # (e.g. text/OCR fragments) takes effect end-to-end without code changes.
         if img_h is not None and img_w is not None:
-            result = add_position_to_detections(result, img_h=img_h, img_w=img_w)
+            result = add_position_to_detections(
+                result,
+                img_h=img_h,
+                img_w=img_w,
+                min_bbox_fraction=getattr(
+                    self.config, "position_min_bbox_fraction", POSITION_GRID_THRESHOLD
+                ),
+            )
         return result
 
 

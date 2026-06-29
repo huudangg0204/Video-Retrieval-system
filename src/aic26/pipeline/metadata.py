@@ -80,10 +80,17 @@ class KeyframeMetadata:
             Empty list when detection skipped or no objects found.
         scene: Places365 top-1 result:
             {"category": str, "confidence": float,
-             "top5": [(label, conf), ...]}.
+             "top5": [(label, conf), ...],
+             "scene_group": str (optional high-level group)}.
             None when scene classification skipped or failed.
         scene_graph: List of 3-tuples as {s, p, o} dicts.
             None when scene-graph extraction skipped or failed.
+        scene_group: Coarse scene group (e.g. "outdoor_urban",
+            "indoor_residential"). Derived from scene category.
+            None when scene is None.
+        smoothed_scene: Scene category after temporal smoothing.
+            Populated by ``apply_temporal_smoothing()`` post-processing.
+            None when smoothing has not been applied.
     """
 
     video: str
@@ -91,6 +98,8 @@ class KeyframeMetadata:
     detections: list[dict[str, Any]]
     scene: dict[str, Any] | None
     scene_graph: list[dict[str, Any]] | None
+    scene_group: str | None = None
+    smoothed_scene: str | None = None
 
     # ── Serialization ─────────────────────────────────────────────
 
@@ -103,13 +112,19 @@ class KeyframeMetadata:
         downstream code can distinguish "skipped" (null) from "ran but
         produced nothing" (empty array).
         """
-        return {
+        d: dict[str, Any] = {
             "video": self.video,
             "frame_idx": self.frame_idx,
             "detections": list(self.detections or []),
             "scene": self.scene,
             "scene_graph": (list(self.scene_graph) if self.scene_graph is not None else None),
         }
+        # Only serialize Phase 2 fields when populated (backward-compatible).
+        if self.scene_group is not None:
+            d["scene_group"] = self.scene_group
+        if self.smoothed_scene is not None:
+            d["smoothed_scene"] = self.smoothed_scene
+        return d
 
     def to_json(self, indent: int = 2) -> str:
         """Serialize to a JSON string."""
@@ -124,6 +139,8 @@ class KeyframeMetadata:
             detections=list(raw.get("detections") or []),
             scene=raw.get("scene"),
             scene_graph=list(raw.get("scene_graph") or []),
+            scene_group=raw.get("scene_group"),
+            smoothed_scene=raw.get("smoothed_scene"),
         )
 
     @classmethod
@@ -228,6 +245,117 @@ def aggregate_metadata_stats(metadata_root: Path) -> MetadataStats:
     return stats
 
 
+# ── Temporal smoothing ─────────────────────────────────────────────────
+
+
+def apply_temporal_smoothing(
+    metadata_dir: Path,
+    video_name: str | None = None,
+    window_size: int = 5,
+    overwrite_files: bool = True,
+) -> dict[str, int]:
+    """Apply sliding-window majority vote to smooth scene labels.
+
+    Adjacent keyframes within a video almost always depict the same scene.
+    Per-frame Places365 classifications can be noisy — e.g. one frame in a
+    continuous street segment might be classified as "highway" while its
+    neighbors say "street". Temporal smoothing replaces each frame's scene
+    category with the majority category within a centered window of
+    ``window_size`` frames.
+
+    This is a **post-processing** step that operates on already-written
+    sidecar JSONs. It reads all sidecars for a video, computes smoothed
+    labels, writes the ``smoothed_scene`` field back, and returns stats.
+
+    Args:
+        metadata_dir: Root metadata directory (contains video sub-folders).
+        video_name: If set, only smooth this one video. If None, smooth
+            all video sub-folders.
+        window_size: Number of frames in the sliding window. Must be odd
+            (if even, +1 is applied). Default 5.
+        overwrite_files: If True, write the updated sidecars back to disk.
+
+    Returns:
+        Stats dict: ``smoothed_videos``, ``smoothed_frames``,
+        ``categories_before``, ``categories_after``.
+    """
+    metadata_dir = Path(metadata_dir)
+    if window_size < 1:
+        window_size = 1
+    if window_size % 2 == 0:
+        window_size += 1  # Ensure odd for symmetric window.
+    half = window_size // 2
+
+    video_dirs: list[Path]
+    if video_name:
+        video_dirs = [metadata_dir / video_name]
+    else:
+        video_dirs = sorted(p for p in metadata_dir.iterdir() if p.is_dir())
+
+    total_smoothed_frames = 0
+    total_smoothed_videos = 0
+    categories_before: set[str] = set()
+    categories_after: set[str] = set()
+
+    for vdir in video_dirs:
+        sidecar_paths = sorted(vdir.glob("*.json"))
+        if not sidecar_paths:
+            continue
+
+        # Load all sidecars for this video.
+        sidecars: list[tuple[Path, KeyframeMetadata]] = []
+        for sp in sidecar_paths:
+            try:
+                m = KeyframeMetadata.load(sp)
+                sidecars.append((sp, m))
+            except (json.JSONDecodeError, KeyError, ValueError, OSError) as exc:
+                logger.warning("Skip malformed sidecar %s: %s", sp, exc)
+                continue
+
+        if not sidecars:
+            continue
+
+        # Extract scene labels (raw categories).
+        raw_scenes = [
+            m.scene.get("category", "") if m.scene else ""
+            for _, m in sidecars
+        ]
+
+        # Collect pre-smoothing category set.
+        categories_before.update(c for c in raw_scenes if c)
+
+        # Sliding window majority vote.
+        n = len(raw_scenes)
+        smoothed = []
+        for i in range(n):
+            start = max(0, i - half)
+            end = min(n, i + half + 1)
+            window_labels = [l for l in raw_scenes[start:end] if l]
+            if window_labels:
+                vote_counter: Counter[str] = Counter(window_labels)
+                majority = vote_counter.most_common(1)[0][0]
+                smoothed.append(majority)
+            else:
+                smoothed.append(raw_scenes[i] if raw_scenes[i] else None)
+
+        # Write back.
+        for (sp, m), sm_label in zip(sidecars, smoothed):
+            if sm_label:
+                m.smoothed_scene = sm_label
+                categories_after.add(sm_label)
+                if overwrite_files:
+                    m.save(sp)
+                total_smoothed_frames += 1
+
+        total_smoothed_videos += 1
+
+    return {
+        "smoothed_videos": total_smoothed_videos,
+        "smoothed_frames": total_smoothed_frames,
+        "categories_before": len(categories_before),
+        "categories_after": len(categories_after),
+    }
+
 # ── Helpers ────────────────────────────────────────────────────────────
 
 
@@ -302,6 +430,280 @@ def _normalize_detector_output(det: dict | None) -> list[dict]:
             }
         )
     return out
+
+
+# ── Factory functions for real model callables ─────────────────────────
+
+
+def _enrich_positions_from_image(
+    det: dict,
+    image_path: Path,
+    min_bbox_fraction: float,
+) -> dict:
+    """Compute ``detection_positions`` for a detection dict missing the field.
+
+    Older detection JSONs (produced before position enrichment was added to
+    ``ObjectDetector``) lack the ``detection_positions`` key. This helper
+    reads the keyframe's dimensions from ``image_path`` and computes the
+    3×3 grid label for every bbox via
+    ``pipeline.detection.add_position_to_detections`` — the same helper
+    ``ObjectDetector._detect_single`` uses today.
+
+    Idempotency: if the input dict already carries ``detection_positions``,
+    it is returned unchanged. The detection writer should never overwrite
+    existing positions.
+
+    Defensive: corrupt or missing image → return ``det`` unchanged. The
+    caller will still record detections (with ``position: None``) rather
+    than dropping them entirely.
+
+    Args:
+        det: Detection dict (parallel arrays — see ``_normalize_detector_output``).
+        image_path: Path to the matching keyframe image; only used to read
+            width/height.
+        min_bbox_fraction: Forwarded to ``position_from_bbox`` (default 0.05
+            from ``POSITION_GRID_THRESHOLD``).
+
+    Returns:
+        Detection dict, possibly with a new ``detection_positions`` field.
+    """
+    if "detection_positions" in det:
+        return det
+    if not det.get("detection_boxes"):
+        return det
+    try:
+        from aic26.pipeline.detection import add_position_to_detections
+
+        with Image.open(image_path) as img:
+            img_w, img_h = img.size
+        return add_position_to_detections(
+            det,
+            img_h=img_h,
+            img_w=img_w,
+            min_bbox_fraction=min_bbox_fraction,
+        )
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        # Defensive: corrupt image → return as-is. Caller will record
+        # position=None for every detection, which matches the previous
+        # behavior and is better than dropping detections entirely.
+        logger.debug("Position enrichment skipped for %s: %s", image_path, exc)
+        return det
+
+
+def load_precomputed_detections(
+    detection_dir: Path,
+    min_bbox_fraction: float | None = None,
+) -> "DetectorFn":
+    """Create a DetectorFn that reads pre-computed YOLO detection JSONs.
+
+    Instead of running YOLO inference again, this reads existing detection
+    results from ``data/detections/{video}/{frame}.json`` files produced
+    by the pipeline's Step 2 (``ObjectDetector``).
+
+    For detection files produced by an older ``ObjectDetector`` version
+    that did not compute the 3×3 grid position, this factory also lazily
+    enriches the dict on first read by opening the matching keyframe
+    (``image_path``) and calling ``add_position_to_detections``. Existing
+    positions are never overwritten.
+
+    Args:
+        detection_dir: Root directory containing per-video detection
+            sub-folders (e.g. ``data/detections/``).
+        min_bbox_fraction: Minimum bbox area as fraction of image area to
+            emit a position label (else None). Defaults to
+            ``POSITION_GRID_THRESHOLD`` (0.05). Forwarded to
+            ``add_position_to_detections`` only when the source dict lacks
+            ``detection_positions``.
+
+    Returns:
+        A callable ``(image_path: Path) -> dict | None`` suitable for
+        ``MetadataExtractor(detector_fn=...)``.
+    """
+    from aic26.config.constants import POSITION_GRID_THRESHOLD
+
+    detection_dir = Path(detection_dir)
+    if min_bbox_fraction is None:
+        min_bbox_fraction = POSITION_GRID_THRESHOLD
+
+    def _detector_fn(image_path: Path) -> dict | None:
+        stem = image_path.stem
+        video = image_path.parent.name
+        det_path = detection_dir / video / f"{stem}.json"
+        if det_path.exists():
+            try:
+                det = json.loads(det_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.warning(
+                    "Failed to read pre-computed detection %s: %s", det_path, exc
+                )
+                return None
+            # Backfill positions for older detection JSONs that lack the field.
+            return _enrich_positions_from_image(
+                det, image_path, min_bbox_fraction=min_bbox_fraction
+            )
+        logger.debug("No pre-computed detection for %s/%s", video, stem)
+        return None
+
+    return _detector_fn
+
+
+def build_metadata_callables(
+    detection_dir: Path,
+    places365_weights_path: Path | None = None,
+    places365_labels_path: Path | None = None,
+    scene_graph_model_name: str | None = None,
+    device: str = "cpu",
+    scene_graph_max_triples: int = 5,
+    scene_graph_max_new_tokens: int = 512,
+) -> tuple["DetectorFn", "SceneFn", "SceneGraphFn"]:
+    """Build real detector/scene/scene-graph callables for production use.
+
+    This is the canonical factory used by both ``orchestrator.py`` and
+    ``cli/main.py::extract_metadata_cmd`` to wire up real models instead
+    of dummy lambdas.
+
+    Args:
+        detection_dir: Root of pre-computed detection JSONs (e.g.
+            ``data/detections/``).
+        places365_weights_path: Path to ``resnet50_places365.pth.tar``.
+            If None or doesn't exist, scene_fn degrades gracefully to
+            return None.
+        places365_labels_path: Path to ``categories_places365.txt``.
+            If None, auto-resolved relative to weights_path.
+        scene_graph_model_name: Qwen model id for scene-graph extraction.
+            If None, scene_graph_fn degrades gracefully to return [].
+        device: Torch device string ('cuda', 'cpu', ...).
+        scene_graph_max_triples: Max triples per image.
+        scene_graph_max_new_tokens: Max tokens for scene-graph model.
+
+    Returns:
+        Tuple of (detector_fn, scene_fn, scene_graph_fn).
+    """
+    # 1. Detection: always read from pre-computed files
+    detector_fn = load_precomputed_detections(detection_dir)
+
+    # 2. Scene classification: Places365
+    scene_fn: SceneFn = lambda img: None  # noqa: E731 — default fallback
+    if places365_weights_path is not None:
+        weights_p = Path(places365_weights_path)
+        if weights_p.is_dir():
+            weights_p = weights_p / "resnet50_places365.pth.tar"
+        if weights_p.exists():
+            labels_p = (
+                Path(places365_labels_path)
+                if places365_labels_path
+                else weights_p.parent / "categories_places365.txt"
+            )
+            if labels_p.exists():
+                try:
+                    from aic26.pipeline.places365 import Places365Classifier
+
+                    classifier = Places365Classifier.from_weights(
+                        weights_path=weights_p,
+                        labels_path=labels_p,
+                        device=device,
+                    )
+                    logger.info(
+                        "Places365 classifier loaded from %s (device=%s)",
+                        weights_p,
+                        device,
+                    )
+
+                    def _scene_fn(image: Image.Image) -> dict | None:
+                        try:
+                            from aic26.pipeline.places365 import _infer_scene_group
+
+                            result = classifier.classify(image)
+                            category = result.category
+                            confidence = result.confidence
+
+                            # Confidence thresholding: low-confidence scenes
+                            # are labeled "uncertain" to reduce noise.
+                            if confidence < 0.3:
+                                category = "uncertain"
+                                # Infer scene_group from top-5 via majority
+                                # vote — even if exact category is uncertain,
+                                # the group (indoor/outdoor/...) is useful.
+                                top5_groups = [
+                                    _infer_scene_group(lbl) for lbl, _ in result.top5
+                                ]
+                                group_counter = Counter(top5_groups)
+                                scene_group = group_counter.most_common(1)[0][0]
+                            else:
+                                scene_group = _infer_scene_group(category)
+
+                            return {
+                                "category": category,
+                                "confidence": confidence,
+                                "top5": result.top5,
+                                "scene_group": scene_group,
+                            }
+                        except Exception as exc:  # noqa: BLE001
+                            logger.warning("Places365 classify failed: %s", exc)
+                            return None
+
+                    scene_fn = _scene_fn
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "Failed to load Places365 classifier: %s — scene disabled",
+                        exc,
+                    )
+            else:
+                logger.warning("Places365 labels not found at %s", labels_p)
+        else:
+            logger.warning("Places365 weights not found at %s", weights_p)
+
+    # 3. Scene graph: Qwen2.5-VL (heavy, optional)
+    scene_graph_fn: SceneGraphFn = lambda img: []  # noqa: E731 — default fallback
+    if scene_graph_model_name:
+        try:
+            from aic26.pipeline.scene_graph import extract_scene_graph
+
+            # Lazy-load the model on first call to avoid VRAM allocation
+            # when the scene-graph step is skipped via --skip-scene-graph.
+            _qwen_model = None
+            _model_name = scene_graph_model_name
+
+            def _sg_fn(image: Image.Image) -> list[dict]:
+                nonlocal _qwen_model
+                if _qwen_model is None:
+                    logger.info(
+                        "Lazy-loading Qwen scene-graph model: %s", _model_name
+                    )
+                    try:
+                        from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+                        _qwen_model_obj = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+                            _model_name,
+                            device_map="auto",
+                            torch_dtype="auto",
+                        )
+                        _qwen_model = _qwen_model_obj
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning(
+                            "Failed to load Qwen model %s: %s — scene graph disabled",
+                            _model_name,
+                            exc,
+                        )
+                        return []
+                try:
+                    triples = extract_scene_graph(
+                        image,
+                        model=_qwen_model,
+                        max_triples=scene_graph_max_triples,
+                        max_new_tokens=scene_graph_max_new_tokens,
+                    )
+                    return [{"s": s, "p": p, "o": o} for s, p, o in triples]
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("Scene graph extraction failed: %s", exc)
+                    return []
+
+            scene_graph_fn = _sg_fn
+        except ImportError:
+            logger.warning(
+                "scene_graph module not available — scene graph disabled"
+            )
+
+    return detector_fn, scene_fn, scene_graph_fn
 
 
 # ── Orchestrator ───────────────────────────────────────────────────────
@@ -396,12 +798,18 @@ class MetadataExtractor:
                 logger.warning("Scene graph extraction failed for %s: %s", image_path, exc)
                 scene_graph = None
 
+        # Derive scene_group from scene result (if populated by enriched scene_fn).
+        scene_group: str | None = None
+        if scene is not None:
+            scene_group = scene.get("scene_group")
+
         return KeyframeMetadata(
             video=video,
             frame_idx=frame_idx,
             detections=detections,
             scene=scene,
             scene_graph=scene_graph,
+            scene_group=scene_group,
         )
 
     # ── One video folder ──────────────────────────────────────────
@@ -540,4 +948,7 @@ __all__ = [
     "MetadataStats",
     "MetadataExtractor",
     "aggregate_metadata_stats",
+    "apply_temporal_smoothing",
+    "load_precomputed_detections",
+    "build_metadata_callables",
 ]

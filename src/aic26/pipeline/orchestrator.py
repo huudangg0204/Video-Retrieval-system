@@ -301,17 +301,43 @@ class PipelineOrchestrator:
             logger.info("Step 6/6: Extracting per-keyframe metadata...")
             step_start = time.time()
             try:
-                from aic26.pipeline.metadata import MetadataExtractor
+                from aic26.pipeline.metadata import (
+                    MetadataExtractor,
+                    build_metadata_callables,
+                )
+
+                # Resolve Places365 weights path — auto-detect from
+                # settings or canonical models/places365/ directory.
+                p365_weights = self.config.places365_weights_path
+                if p365_weights is None:
+                    candidate = Path("models/places365")
+                    if candidate.exists():
+                        p365_weights = candidate
+
+                # Build real callables: precomputed detections + Places365 + Qwen
+                detector_fn, scene_fn, scene_graph_fn = build_metadata_callables(
+                    detection_dir=Path(self.config.detection_dir),
+                    places365_weights_path=p365_weights,
+                    scene_graph_model_name=(
+                        self.config.scene_graph_model
+                        if self.config.extract_scene_graph
+                        else None
+                    ),
+                    device=self.config.device,
+                    scene_graph_max_triples=self.config.scene_graph_max_triples,
+                    scene_graph_max_new_tokens=self.config.scene_graph_max_new_tokens,
+                )
 
                 extractor = MetadataExtractor(
-                    detector_fn=lambda p: None,  # defer to existing detection JSONs if present
-                    scene_fn=lambda img: None,
-                    scene_graph_fn=lambda img: [],
+                    detector_fn=detector_fn,
+                    scene_fn=scene_fn,
+                    scene_graph_fn=scene_graph_fn,
                 )
                 results['metadata'] = extractor.process_all(
                     keyframes_root=str(self.config.keyframes_dir),
                     output_root=str(self.config.metadata_dir),
                     skip_scene_graph=not self.config.extract_scene_graph,
+                    overwrite=True,
                 )
                 self.steps_completed.append("metadata_extraction")
                 duration = time.time() - step_start

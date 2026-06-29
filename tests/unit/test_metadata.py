@@ -10,6 +10,9 @@ Tests cover:
 4. `MetadataExtractor.process_all()` — walks the keyframes root, mirror
    structure of `data/detections/`.
 5. `metadata-stats` aggregator — counts + scene distribution.
+6. `load_precomputed_detections` — backfills `detection_positions` on
+   older detection JSONs that lack the field (Task 1.1).
+7. Scene confidence thresholding + `scene_group` aggregation (Task 2.2).
 
 The real models are NOT loaded; detector / classifier / scene_graph
 extractor are injected as callables returning deterministic dicts /
@@ -30,6 +33,7 @@ from aic26.pipeline.metadata import (
     MetadataExtractor,
     MetadataStats,
     aggregate_metadata_stats,
+    load_precomputed_detections,
 )
 
 # ── Fixtures ───────────────────────────────────────────────────────────
@@ -620,3 +624,240 @@ class TestSchemaContract:
         d = m.to_dict()
         sg = d["scene_graph"][0]
         assert set(sg.keys()) >= {"s", "p", "o"}
+
+
+# ── Task 1.1: position enrichment in load_precomputed_detections ──────
+
+
+def _write_detection(video_dir: Path, stem: str, det: dict) -> Path:
+    """Write a detection JSON and return its path."""
+    det_path = video_dir / f"{stem}.json"
+    det_path.write_text(json.dumps(det), encoding="utf-8")
+    return det_path
+
+
+def _bare_detection(bbox: list[float]) -> dict:
+    """Build a detection dict WITHOUT detection_positions (legacy shape)."""
+    return {
+        "detection_scores": [0.9],
+        "detection_class_names": ["/m/01g317"],
+        "detection_class_entities": ["Person"],
+        "detection_boxes": [bbox],
+        "detection_class_labels": [0],
+    }
+
+
+class TestLoadPrecomputedDetections:
+    """`load_precomputed_detections` should backfill positions for legacy files."""
+
+    def test_returns_none_when_no_file(self, tmp_path: Path):
+        det_dir = tmp_path / "detections"
+        det_dir.mkdir()
+        (det_dir / "V001").mkdir()
+        image_path = tmp_path / "keyframes" / "V001" / "001.jpg"
+        (tmp_path / "keyframes" / "V001").mkdir(parents=True)
+        Image.new("RGB", (640, 360)).save(image_path)
+
+        fn = load_precomputed_detections(det_dir)
+        assert fn(image_path) is None
+
+    def test_reads_legacy_file_without_positions_key(self, tmp_path: Path):
+        """A detection file lacking detection_positions is still read."""
+        det_dir = tmp_path / "detections"
+        (det_dir / "V001").mkdir(parents=True)
+        _write_detection(
+            det_dir / "V001",
+            "001",
+            _bare_detection([10, 10, 160, 160]),  # 150×150 = 9.77% of 640×360
+        )
+        kf_dir = tmp_path / "keyframes" / "V001"
+        kf_dir.mkdir(parents=True)
+        image_path = kf_dir / "001.jpg"
+        Image.new("RGB", (640, 360)).save(image_path)
+
+        fn = load_precomputed_detections(det_dir)
+        det = fn(image_path)
+        assert det is not None
+        assert "detection_positions" in det
+        assert det["detection_positions"] == ["top-left"]
+
+    def test_existing_positions_are_not_overwritten(self, tmp_path: Path):
+        """A newer detection file with positions must be returned unchanged."""
+        det_dir = tmp_path / "detections"
+        (det_dir / "V001").mkdir(parents=True)
+        det = _bare_detection([10, 10, 160, 160])
+        det["detection_positions"] = ["center"]  # intentionally wrong on purpose
+        _write_detection(det_dir / "V001", "001", det)
+
+        kf_dir = tmp_path / "keyframes" / "V001"
+        kf_dir.mkdir(parents=True)
+        image_path = kf_dir / "001.jpg"
+        Image.new("RGB", (640, 360)).save(image_path)
+
+        fn = load_precomputed_detections(det_dir)
+        assert fn(image_path)["detection_positions"] == ["center"]
+
+    def test_corrupt_image_returns_detection_without_positions(self, tmp_path: Path):
+        """If the keyframe can't be opened, fall back to the bare detection."""
+        det_dir = tmp_path / "detections"
+        (det_dir / "V001").mkdir(parents=True)
+        _write_detection(det_dir / "V001", "001", _bare_detection([10, 10, 160, 160]))
+
+        kf_dir = tmp_path / "keyframes" / "V001"
+        kf_dir.mkdir(parents=True)
+        image_path = kf_dir / "001.jpg"
+        # Write a non-image file to force PIL failure.
+        image_path.write_text("not an image", encoding="utf-8")
+
+        fn = load_precomputed_detections(det_dir)
+        det = fn(image_path)
+        assert det is not None
+        assert "detection_positions" not in det  # graceful: don't crash, don't enrich
+
+    def test_small_bbox_gets_none_position(self, tmp_path: Path):
+        """A bbox below the 5% threshold should map to None."""
+        det_dir = tmp_path / "detections"
+        (det_dir / "V001").mkdir(parents=True)
+        # 10×10 = 100 px = 0.04% of 640×360 → well below 5% threshold.
+        _write_detection(det_dir / "V001", "001", _bare_detection([100, 100, 110, 110]))
+
+        kf_dir = tmp_path / "keyframes" / "V001"
+        kf_dir.mkdir(parents=True)
+        image_path = kf_dir / "001.jpg"
+        Image.new("RGB", (640, 360)).save(image_path)
+
+        fn = load_precomputed_detections(det_dir)
+        det = fn(image_path)
+        assert det["detection_positions"] == [None]
+
+    def test_multiple_bboxes_all_get_positions(self, tmp_path: Path):
+        det_dir = tmp_path / "detections"
+        (det_dir / "V001").mkdir(parents=True)
+        det = {
+            "detection_scores": [0.9, 0.8, 0.7],
+            "detection_class_names": ["a", "b", "c"],
+            "detection_class_entities": ["A", "B", "C"],
+            "detection_boxes": [
+                [10, 10, 160, 160],   # top-left
+                [245, 110, 395, 250],  # center
+                [480, 200, 630, 350],  # bottom-right
+            ],
+            "detection_class_labels": [0, 1, 2],
+        }
+        _write_detection(det_dir / "V001", "001", det)
+
+        kf_dir = tmp_path / "keyframes" / "V001"
+        kf_dir.mkdir(parents=True)
+        image_path = kf_dir / "001.jpg"
+        Image.new("RGB", (640, 360)).save(image_path)
+
+        fn = load_precomputed_detections(det_dir)
+        out = fn(image_path)
+        assert out["detection_positions"] == ["top-left", "center", "bottom-right"]
+
+    def test_custom_min_bbox_fraction_respected(self, tmp_path: Path):
+        """A larger threshold (10%) should reject bboxes that 5% would accept."""
+        det_dir = tmp_path / "detections"
+        (det_dir / "V001").mkdir(parents=True)
+        # 150×150 = 9.77% → passes 5% but fails 10%.
+        _write_detection(det_dir / "V001", "001", _bare_detection([10, 10, 160, 160]))
+
+        kf_dir = tmp_path / "keyframes" / "V001"
+        kf_dir.mkdir(parents=True)
+        image_path = kf_dir / "001.jpg"
+        Image.new("RGB", (640, 360)).save(image_path)
+
+        fn = load_precomputed_detections(det_dir, min_bbox_fraction=0.10)
+        assert fn(image_path)["detection_positions"] == [None]
+
+
+# ── Task 2.2: scene confidence thresholding + scene_group ──────────────
+
+
+def _make_scene_fn_from_top1(top1_category: str, top1_confidence: float, top5: list):
+    """Build a `_scene_fn` matching the production one in build_metadata_callables.
+
+    Mirrors `pipeline/metadata.py::_scene_fn` so we can test the threshold
+    + scene_group aggregation logic in isolation, without loading Places365.
+    """
+    from collections import Counter
+
+    from aic26.pipeline.places365 import _infer_scene_group
+
+    def _scene_fn(image: Image.Image) -> dict:
+        category = top1_category
+        confidence = top1_confidence
+
+        if confidence < 0.3:
+            category = "uncertain"
+            top5_groups = [_infer_scene_group(lbl) for lbl, _ in top5]
+            group_counter = Counter(top5_groups)
+            scene_group = group_counter.most_common(1)[0][0]
+        else:
+            scene_group = _infer_scene_group(category)
+
+        return {
+            "category": category,
+            "confidence": confidence,
+            "top5": top5,
+            "scene_group": scene_group,
+        }
+
+    return _scene_fn
+
+
+class TestSceneConfidenceThresholding:
+    """Task 2.2: low-confidence scenes are flagged 'uncertain' with scene_group fallback."""
+
+    def test_high_confidence_returns_category_unchanged(self):
+        top5 = [
+            ("kitchen", 0.85),
+            ("dining_room", 0.07),
+            ("restaurant", 0.04),
+            ("living_room", 0.02),
+            ("pantry", 0.01),
+        ]
+        fn = _make_scene_fn_from_top1("kitchen", 0.85, top5)
+        out = fn(Image.new("RGB", (10, 10)))
+        assert out["category"] == "kitchen"
+        assert out["scene_group"] == "indoor_residential"  # "kitchen" matches indoor_residential
+
+    def test_low_confidence_marks_uncertain(self):
+        top5 = [
+            ("pharmacy", 0.25),
+            ("general_store_indoor", 0.15),
+            ("drugstore", 0.09),
+            ("chemistry_lab", 0.08),
+            ("biology_laboratory", 0.05),
+        ]
+        fn = _make_scene_fn_from_top1("pharmacy", 0.25, top5)
+        out = fn(Image.new("RGB", (10, 10)))
+        assert out["category"] == "uncertain"
+        assert out["confidence"] == 0.25  # preserved for transparency
+
+    def test_low_confidence_scene_group_from_top5_majority(self):
+        """When uncertain, scene_group is majority-vote of top5 inferred groups."""
+        top5 = [
+            ("general_store_indoor", 0.25),  # → indoor_commercial
+            ("drugstore", 0.20),             # → indoor_commercial
+            ("pharmacy", 0.15),              # → indoor_commercial
+            ("chemistry_lab", 0.05),         # → workspace_industrial
+            ("biology_laboratory", 0.04),    # → workspace_industrial
+        ]
+        fn = _make_scene_fn_from_top1("pharmacy", 0.25, top5)
+        out = fn(Image.new("RGB", (10, 10)))
+        # 3/5 → indoor_commercial wins.
+        assert out["scene_group"] == "indoor_commercial"
+
+    def test_threshold_boundary_at_0_3(self):
+        """Confidence exactly at 0.3 is NOT uncertain (>= threshold)."""
+        top5 = [("kitchen", 0.30), ("dining_room", 0.20)]
+        fn = _make_scene_fn_from_top1("kitchen", 0.30, top5)
+        out = fn(Image.new("RGB", (10, 10)))
+        assert out["category"] == "kitchen"
+
+    def test_just_below_threshold_marks_uncertain(self):
+        top5 = [("kitchen", 0.299), ("dining_room", 0.20)]
+        fn = _make_scene_fn_from_top1("kitchen", 0.299, top5)
+        out = fn(Image.new("RGB", (10, 10)))
+        assert out["category"] == "uncertain"

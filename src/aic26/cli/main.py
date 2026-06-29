@@ -493,20 +493,35 @@ def extract_metadata_cmd(
     overwrite: bool,
 ) -> None:
     """Extract per-keyframe metadata (detections + scene + scene graph)."""
-    from aic26.pipeline import metadata as metadata_mod
+    from aic26.pipeline.metadata import MetadataExtractor, build_metadata_callables
 
     in_root = Path(input)
     out_root = Path(output) if output else Path(settings.metadata_dir)
     out_root.mkdir(parents=True, exist_ok=True)
 
-    # Default factory: stub callables that record their invocation but
-    # do not load any heavy model. Real model wiring lives in
-    # `_build_metadata_extractor()` (above) and is opt-in via direct
-    # invocation from `__main__` scripts / Jupyter.
-    extractor = metadata_mod.MetadataExtractor(
-        detector_fn=lambda p: None,
-        scene_fn=lambda img: None,
-        scene_graph_fn=lambda img: [],
+    # Resolve Places365 weights path
+    p365_weights = settings.places365_weights_path
+    if p365_weights is None:
+        candidate = Path("models/places365")
+        if candidate.exists():
+            p365_weights = candidate
+
+    # Build real callables with graceful degradation
+    detector_fn, scene_fn, scene_graph_fn = build_metadata_callables(
+        detection_dir=Path(settings.detection_dir),
+        places365_weights_path=p365_weights if not skip_scene else None,
+        scene_graph_model_name=(
+            settings.scene_graph_model if not skip_scene_graph else None
+        ),
+        device=settings.device,
+        scene_graph_max_triples=settings.scene_graph_max_triples,
+        scene_graph_max_new_tokens=settings.scene_graph_max_new_tokens,
+    )
+
+    extractor = MetadataExtractor(
+        detector_fn=detector_fn,
+        scene_fn=scene_fn,
+        scene_graph_fn=scene_graph_fn,
     )
 
     stats = extractor.process_all(

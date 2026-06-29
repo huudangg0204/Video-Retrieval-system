@@ -91,9 +91,12 @@ def load_places365_labels(labels_file: Path) -> list[str]:
         /a/airplane_cabin 1
         /a/airport_terminal 2
 
-    We return the label *only* (no path, no id), lowercased, indexed
-    by category id. This matches what downstream code expects when it
-    looks up a category by index.
+    **De-duplication:** When multiple categories share the same leaf name
+    (e.g. ``/b/balcony/indoor`` and ``/s/swimming_pool/indoor``), we
+    disambiguate by prepending the parent segment:
+    ``"balcony_indoor"``, ``"swimming_pool_indoor"``.
+    Non-duplicate labels retain their original leaf form for backward
+    compatibility.
 
     Args:
         labels_file: Path to `categories_places365.txt`.
@@ -107,18 +110,148 @@ def load_places365_labels(labels_file: Path) -> list[str]:
     if not labels_file.exists():
         raise FileNotFoundError(f"Places365 labels file not found: {labels_file}")
 
-    labels: list[str] = []
+    # First pass: parse all entries, collect (full_path, leaf) tuples.
+    entries: list[tuple[str, str]] = []
     for raw_line in labels_file.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if not line:
             continue
-        # Format: "<category_path> <numeric_id>"  → take the first token
-        # and discard the trailing id.
         first_token = line.split()[0]
-        # Strip the leading "/a/" or "/y/" path prefix to expose the leaf.
         leaf = first_token.rsplit("/", 1)[-1]
-        labels.append(leaf.lower())
+        entries.append((first_token, leaf.lower()))
+
+    # Second pass: find duplicate leaf names.
+    from collections import Counter
+
+    leaf_counts = Counter(leaf for _, leaf in entries)
+    duplicated_leaves = {leaf for leaf, cnt in leaf_counts.items() if cnt > 1}
+
+    # Third pass: build unique labels.
+    labels: list[str] = []
+    for full_path, leaf in entries:
+        if leaf in duplicated_leaves:
+            # Use parent_leaf format: /b/balcony/indoor → "balcony_indoor"
+            parts = full_path.strip("/").split("/")
+            if len(parts) >= 2:
+                parent = parts[-2]
+                labels.append(f"{parent}_{leaf}".lower())
+            else:
+                labels.append(leaf)
+        else:
+            labels.append(leaf)
     return labels
+
+
+# ── Scene group mapping ────────────────────────────────────────────────
+# Maps fine-grained Places365 categories into ~12 high-level groups for
+# noise reduction (Phase 2 Task 2.2). Any label not explicitly listed
+# falls through to _infer_scene_group() heuristic below.
+
+SCENE_GROUPS: dict[str, str] = {}
+
+# Auto-populated from keyword patterns rather than hand-listing 365 entries.
+_SCENE_GROUP_PATTERNS: list[tuple[str, list[str]]] = [
+    ("indoor_residential", [
+        "bedroom", "bathroom", "kitchen", "living_room", "dining_room",
+        "closet", "attic", "basement", "childs_room", "dorm_room",
+        "dressing_room", "home_office", "home_theater", "nursery",
+        "playroom", "television_room", "utility_room", "pantry",
+        "bedchamber", "porch", "yard", "patio",
+    ]),
+    ("indoor_commercial", [
+        "restaurant", "bar", "coffee_shop", "supermarket", "shopping_mall",
+        "bookstore", "bakery", "pharmacy", "shoe_shop", "clothing_store",
+        "jewelry_shop", "gift_shop", "pet_shop", "toyshop", "drugstore",
+        "delicatessen", "butchers_shop", "candy_store", "florist_shop",
+        "hardware_store", "fabric_store", "beauty_salon", "ice_cream_parlor",
+        "fastfood_restaurant", "sushi_bar", "pizzeria", "food_court",
+        "beer_hall", "beer_garden", "pub", "wet_bar",
+    ]),
+    ("indoor_public", [
+        "lobby", "corridor", "elevator", "escalator", "staircase",
+        "office", "conference_room", "classroom", "lecture_room", "library",
+        "museum", "art_gallery", "hospital", "hospital_room", "church",
+        "mosque", "synagogue", "temple", "throne_room", "courthouse",
+        "legislative_chamber", "reception", "waiting_room", "jail_cell",
+        "operating_room", "clean_room", "server_room", "archive",
+        "entrance_hall", "elevator_lobby",
+    ]),
+    ("outdoor_urban", [
+        "street", "crosswalk", "downtown", "plaza", "alley", "bridge",
+        "building_facade", "skyscraper", "parking_lot", "parking_garage",
+        "gas_station", "construction_site", "industrial_area", "driveway",
+        "residential_neighborhood", "shopfront", "promenade", "viaduct",
+        "highway", "desert_road", "field_road", "railroad_track", "runway",
+        "airport_terminal", "bus_station", "train_station", "subway_station",
+    ]),
+    ("outdoor_nature", [
+        "beach", "ocean", "coast", "mountain", "mountain_path", "mountain_snowy",
+        "forest", "forest_path", "forest_road", "rainforest", "bamboo_forest",
+        "river", "creek", "lake", "lagoon", "pond", "waterfall", "wave",
+        "valley", "canyon", "cliff", "glacier", "volcano", "marsh", "swamp",
+        "desert", "tundra", "badlands", "snowfield", "iceberg", "ice_floe",
+        "hot_spring", "geyser", "rock_arch", "butte", "islet",
+    ]),
+    ("outdoor_garden", [
+        "park", "garden", "formal_garden", "botanical_garden", "japanese_garden",
+        "zen_garden", "topiary_garden", "roof_garden", "vegetable_garden",
+        "lawn", "orchard", "vineyard", "tree_farm", "campsite", "picnic_area",
+    ]),
+    ("transportation", [
+        "car_interior", "bus_interior", "train_interior", "airplane_cabin",
+        "cockpit", "boat_deck", "harbor", "heliport", "airfield",
+        "raceway", "racecourse",
+    ]),
+    ("sports_leisure", [
+        "stadium", "basketball_court", "baseball_field", "soccer_field",
+        "football_field", "volleyball_court", "tennis_court", "golf_course",
+        "bowling_alley", "boxing_ring", "gymnasium", "ice_skating_rink",
+        "ski_slope", "ski_resort", "swimming_pool", "swimming_hole",
+        "water_park", "amusement_park", "amusement_arcade", "playground",
+        "recreation_room", "martial_arts_gym",
+    ]),
+    ("entertainment_culture", [
+        "movie_theater", "stage", "auditorium", "amphitheater", "arena",
+        "ballroom", "banquet_hall", "discotheque", "music_studio",
+        "television_studio", "art_studio", "science_museum",
+        "natural_history_museum", "orchestra_pit",
+    ]),
+    ("workspace_industrial", [
+        "auto_factory", "assembly_line", "engine_room", "repair_shop",
+        "warehouse", "loading_dock", "hangar", "shed", "stable", "barn",
+        "garage", "auto_showroom", "biology_laboratory", "chemistry_lab",
+        "physics_laboratory", "computer_room",
+    ]),
+    ("accommodation", [
+        "hotel", "hotel_room", "motel", "inn", "youth_hostel", "chalet",
+        "cabin", "cottage", "mansion", "house", "apartment_building",
+        "manufactured_home", "tree_house", "igloo",
+    ]),
+    ("historic_religious", [
+        "castle", "palace", "pagoda", "ruin", "mausoleum", "cemetery",
+        "catacomb", "burial_chamber", "kasbah", "medina", "tower",
+        "aqueduct", "arch", "lighthouse", "windmill", "oast_house",
+    ]),
+]
+
+
+def _infer_scene_group(label: str) -> str:
+    """Infer scene group from a Places365 label using keyword patterns.
+
+    Checks if any keyword from ``_SCENE_GROUP_PATTERNS`` appears in the
+    label. Falls back to ``"other"`` when no pattern matches.
+    """
+    label_lower = label.lower()
+    for group_name, keywords in _SCENE_GROUP_PATTERNS:
+        for kw in keywords:
+            if kw in label_lower:
+                return group_name
+    # Simple heuristic fallbacks
+    if "outdoor" in label_lower:
+        return "outdoor_urban"
+    if "indoor" in label_lower:
+        return "indoor_public"
+    return "other"
 
 
 class Places365Classifier:
