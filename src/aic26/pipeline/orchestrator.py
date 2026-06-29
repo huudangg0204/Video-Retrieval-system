@@ -68,24 +68,28 @@ class PipelineOrchestrator:
         skip_ocr: bool = False,
         skip_embeddings: bool = False,
         skip_index: bool = False,
+        extract_metadata: bool = False,
     ) -> Dict[str, Any]:
         """
         Run the complete data processing pipeline.
-        
+
         Steps:
         1. Extract keyframes from videos
         2. Object detection on keyframes (optional)
         3. OCR text extraction (optional)
         4. Extract EVA-02 embeddings (optional)
         5. Build FAISS index (optional)
-        
+        6. Metadata extraction (optional, opt-in per AD-5)
+
         Args:
             video_dir: Directory containing video files
             skip_detection: Skip object detection step
             skip_ocr: Skip OCR step
             skip_embeddings: Skip embedding extraction
             skip_index: Skip FAISS index building
-            
+            extract_metadata: Run per-keyframe metadata extraction
+                (detections + scene + scene-graph). Off by default.
+
         Returns:
             Dict with pipeline results and timing info
         """
@@ -291,7 +295,34 @@ class PipelineOrchestrator:
         else:
             logger.info("Step 5/5: FAISS index building SKIPPED")
             self.steps_skipped.append("index_building")
-        
+
+        # ── Step 6: Metadata Extraction (optional, opt-in per AD-5) ─
+        if extract_metadata:
+            logger.info("Step 6/6: Extracting per-keyframe metadata...")
+            step_start = time.time()
+            try:
+                from aic26.pipeline.metadata import MetadataExtractor
+
+                extractor = MetadataExtractor(
+                    detector_fn=lambda p: None,  # defer to existing detection JSONs if present
+                    scene_fn=lambda img: None,
+                    scene_graph_fn=lambda img: [],
+                )
+                results['metadata'] = extractor.process_all(
+                    keyframes_root=str(self.config.keyframes_dir),
+                    output_root=str(self.config.metadata_dir),
+                    skip_scene_graph=not self.config.extract_scene_graph,
+                )
+                self.steps_completed.append("metadata_extraction")
+                duration = time.time() - step_start
+                logger.info(f"✅ Metadata extraction complete ({duration:.1f}s)")
+            except Exception as e:
+                logger.warning(f"⚠️  Metadata extraction failed (continuing): {e}")
+                self.steps_failed.append("metadata_extraction")
+        else:
+            logger.info("Step 6/6: Metadata extraction SKIPPED (opt-in: --extract-metadata)")
+            self.steps_skipped.append("metadata_extraction")
+
         # ── Summary ──────────────────────────────────────────────
         total_duration = time.time() - self.start_time
         

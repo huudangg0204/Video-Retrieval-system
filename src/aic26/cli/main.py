@@ -12,25 +12,31 @@ Usage:
     aic26 search text --query "a red car"
     aic26 serve api --port 8080
 """
+
 from __future__ import annotations
 
-import click
+import json
+import sys
 from pathlib import Path
+
+import click
+from loguru import logger
 
 from aic26.config import settings
 from aic26.utils.logging import setup_logging
 
-from loguru import logger
 
 @click.group()
 @click.version_option(version="1.0.0", prog_name="AIC-26")
 @click.option(
-    "--verbose", "-v",
+    "--verbose",
+    "-v",
     is_flag=True,
     help="Enable verbose (DEBUG) output",
 )
 @click.option(
-    "--config", "-c",
+    "--config",
+    "-c",
     type=click.Path(exists=True),
     help="Path to configuration file",
 )
@@ -38,30 +44,32 @@ from loguru import logger
 def cli(ctx: click.Context, verbose: bool, config: str | None) -> None:
     """
     AIC-26: AI Challenge Video Retrieval System.
-    
+
     Intelligent video search using EVA-02 embeddings, FAISS vector search,
     and TRAKE temporal reasoning.
     """
     ctx.ensure_object(dict)
-    
+
     # Configure logging
     log_level = "DEBUG" if verbose else settings.log_level
     setup_logging(level=log_level, log_file=settings.log_file)
-    
+
     # Store config in context
     ctx.obj["verbose"] = verbose
-    
+
     from loguru import logger
+
     logger.info(f"AIC-26 v1.0.0 starting (log level: {log_level})")
 
 
 # ── Pipeline commands ──────────────────────────────────────────────────
 
+
 @cli.group(name="pipeline")
 def pipeline_group():
     """
     Data processing pipeline commands.
-    
+
     Run steps of the data preparation pipeline:
     extract keyframes, detect objects, OCR, extract embeddings,
     and build the FAISS index.
@@ -71,18 +79,21 @@ def pipeline_group():
 
 @pipeline_group.command(name="extract-keyframes")
 @click.option(
-    "--input", "-i",
+    "--input",
+    "-i",
     required=True,
     type=click.Path(exists=True),
     help="Input directory containing video files",
 )
 @click.option(
-    "--output", "-o",
+    "--output",
+    "-o",
     type=click.Path(),
     help="Output directory for keyframes",
 )
 @click.option(
-    "--workers", "-w",
+    "--workers",
+    "-w",
     type=int,
     default=None,
     help="Number of worker threads",
@@ -90,33 +101,36 @@ def pipeline_group():
 def extract_keyframes(input: str, output: str | None, workers: int | None) -> None:
     """Extract keyframes from video files."""
     from aic26.pipeline.keyframe import KeyframeExtractor
-    
+
     extractor = KeyframeExtractor(settings)
     stats = extractor.process(
         input_dir=input,
         output_dir=output,
         num_workers=workers or settings.max_workers,
     )
-    
-    click.echo(f"\n✅ Keyframe extraction complete!")
+
+    click.echo("\n✅ Keyframe extraction complete!")
     click.echo(f"   Videos processed: {stats['videos_processed']}/{stats['videos_found']}")
     click.echo(f"   Keyframes total:  {stats['keyframes_total']}")
 
 
 @pipeline_group.command(name="detect-objects")
 @click.option(
-    "--input", "-i",
+    "--input",
+    "-i",
     required=True,
     type=click.Path(exists=True),
     help="Input directory containing keyframe folders",
 )
 @click.option(
-    "--output", "-o",
+    "--output",
+    "-o",
     type=click.Path(),
     help="Output directory for detection JSONs",
 )
 @click.option(
-    "--workers", "-w",
+    "--workers",
+    "-w",
     type=int,
     default=None,
     help="Number of worker threads",
@@ -124,33 +138,36 @@ def extract_keyframes(input: str, output: str | None, workers: int | None) -> No
 def detect_objects(input: str, output: str | None, workers: int | None) -> None:
     """Run object detection on keyframes."""
     from aic26.pipeline.detection import ObjectDetector
-    
+
     detector = ObjectDetector(settings)
     stats = detector.process(
         input_dir=input,
         output_dir=output,
         num_workers=workers or settings.max_workers,
     )
-    
-    click.echo(f"\n✅ Object detection complete!")
+
+    click.echo("\n✅ Object detection complete!")
     click.echo(f"   Folders processed: {stats['folders_processed']}/{stats['folders_found']}")
     click.echo(f"   Images total:      {stats['images_total']}")
 
 
 @pipeline_group.command(name="extract-embeddings")
 @click.option(
-    "--input", "-i",
+    "--input",
+    "-i",
     required=True,
     type=click.Path(exists=True),
     help="Input directory containing keyframe folders",
 )
 @click.option(
-    "--output", "-o",
+    "--output",
+    "-o",
     type=click.Path(),
     help="Output directory for .npy embedding files",
 )
 @click.option(
-    "--batch-size", "-b",
+    "--batch-size",
+    "-b",
     type=int,
     default=40,
     help="Batch size for GPU processing",
@@ -158,28 +175,30 @@ def detect_objects(input: str, output: str | None, workers: int | None) -> None:
 def extract_embeddings(input: str, output: str | None, batch_size: int) -> None:
     """Extract EVA-02 embeddings from keyframes."""
     from aic26.pipeline.embedding import EmbeddingExtractor
-    
+
     extractor = EmbeddingExtractor(settings)
     stats = extractor.process_images(
         input_dir=input,
         output_dir=output,
         batch_size=batch_size,
     )
-    
-    click.echo(f"\n✅ Embedding extraction complete!")
+
+    click.echo("\n✅ Embedding extraction complete!")
     click.echo(f"   Folders processed: {stats['folders_processed']}/{stats['folders_total']}")
     click.echo(f"   Images total:      {stats['images_total']}")
 
 
 @pipeline_group.command(name="extract-ocr")
 @click.option(
-    "--input", "-i",
+    "--input",
+    "-i",
     required=True,
     type=click.Path(exists=True),
     help="Input directory containing keyframe folders",
 )
 @click.option(
-    "--output", "-o",
+    "--output",
+    "-o",
     type=click.Path(),
     help="Output CSV file path",
 )
@@ -202,7 +221,7 @@ def extract_ocr(
 ) -> None:
     """Extract text from keyframes using OCR."""
     from aic26.pipeline.ocr import OCRExtractor
-    
+
     ocr = OCRExtractor(settings)
     df = ocr.process(
         input_dir=input,
@@ -210,25 +229,29 @@ def extract_ocr(
         annotate=annotate,
         min_conf=min_conf,
     )
-    
-    click.echo(f"\n✅ OCR extraction complete!")
+
+    click.echo("\n✅ OCR extraction complete!")
     click.echo(f"   Images processed: {len(df)}")
     click.echo(f"   Output: {output or settings.ocr_output_path}")
 
+
 @pipeline_group.command(name="extract-caption-embeddings")
 @click.option(
-    "--input", "-i",
+    "--input",
+    "-i",
     required=True,
     type=click.Path(exists=True),
     help="Input directory containing caption JSON folders",
 )
 @click.option(
-    "--output", "-o",
+    "--output",
+    "-o",
     type=click.Path(),
     help="Output directory for .npy embedding files",
 )
 @click.option(
-    "--batch-size", "-b",
+    "--batch-size",
+    "-b",
     type=int,
     default=40,
     help="Batch size for GPU processing",
@@ -240,27 +263,30 @@ def extract_caption_embeddings(
 ) -> None:
     """Extract EVA-02 embeddings from caption JSON files."""
     from aic26.pipeline.embedding import EmbeddingExtractor
-    
+
     extractor = EmbeddingExtractor(settings)
     stats = extractor.process_captions(
         input_dir=input,
         output_dir=output,
         batch_size=batch_size,
     )
-    
-    click.echo(f"\n✅ Caption embedding extraction complete!")
+
+    click.echo("\n✅ Caption embedding extraction complete!")
     click.echo(f"   Folders processed: {stats['folders_processed']}/{stats['folders_total']}")
     click.echo(f"   Captions total:    {stats['captions_total']}")
 
+
 @pipeline_group.command(name="build-index")
 @click.option(
-    "--input", "-i",
+    "--input",
+    "-i",
     required=True,
     type=click.Path(exists=True),
     help="Input directory containing .npy embedding files",
 )
 @click.option(
-    "--output", "-o",
+    "--output",
+    "-o",
     type=click.Path(),
     help="Output path for FAISS database",
 )
@@ -273,15 +299,15 @@ def extract_caption_embeddings(
 def build_index(input: str, output: str | None, index_type: str) -> None:
     """Build FAISS index from embeddings."""
     from aic26.pipeline.indexer import IndexBuilder
-    
+
     builder = IndexBuilder(settings)
     stats = builder.build(
         embedding_dir=input,
         output_path=output,
         index_type=index_type,
     )
-    
-    click.echo(f"\n✅ FAISS index built successfully!")
+
+    click.echo("\n✅ FAISS index built successfully!")
     click.echo(f"   Embeddings: {stats['embeddings_loaded']}")
     click.echo(f"   Dimension:  {stats['dimension']}")
     click.echo(f"   Index type: {stats['index_type']}")
@@ -290,7 +316,8 @@ def build_index(input: str, output: str | None, index_type: str) -> None:
 
 @pipeline_group.command(name="run-all")
 @click.option(
-    "--video-dir", "-v",
+    "--video-dir",
+    "-v",
     required=True,
     type=click.Path(exists=True),
     help="Input directory containing video files",
@@ -299,16 +326,22 @@ def build_index(input: str, output: str | None, index_type: str) -> None:
 @click.option("--skip-ocr", is_flag=True, help="Skip OCR step")
 @click.option("--skip-embeddings", is_flag=True, help="Skip embedding extraction")
 @click.option("--skip-index", is_flag=True, help="Skip FAISS index building")
+@click.option(
+    "--extract-metadata",
+    is_flag=True,
+    help="Also run metadata extraction (detections+scene+scene-graph) — opt-in per AD-5",
+)
 def run_all_pipeline(
     video_dir: str,
     skip_detection: bool,
     skip_ocr: bool,
     skip_embeddings: bool,
     skip_index: bool,
+    extract_metadata: bool,
 ) -> None:
     """Run the complete data processing pipeline."""
     from aic26.pipeline.orchestrator import PipelineOrchestrator
-    
+
     orchestrator = PipelineOrchestrator(settings)
     results = orchestrator.run(
         video_dir=video_dir,
@@ -316,22 +349,24 @@ def run_all_pipeline(
         skip_ocr=skip_ocr,
         skip_embeddings=skip_embeddings,
         skip_index=skip_index,
+        extract_metadata=extract_metadata,
     )
-    
-    stats = results.get('_pipeline_stats', {})
-    
-    click.echo(f"\n{'='*60}")
+
+    stats = results.get("_pipeline_stats", {})
+
+    click.echo(f"\n{'=' * 60}")
     click.echo("Pipeline Complete!")
     click.echo(f"  Completed: {len(stats.get('steps_completed', []))} steps")
     click.echo(f"  Failed:    {len(stats.get('steps_failed', []))} steps")
     click.echo(f"  Skipped:   {len(stats.get('steps_skipped', []))} steps")
     click.echo(f"  Duration:  {stats.get('total_duration_seconds', 0):.1f}s")
-    click.echo(f"{'='*60}")
+    click.echo(f"{'=' * 60}")
 
 
 @pipeline_group.command(name="extract-dual-embeddings")
 @click.option(
-    "--input", "-i",
+    "--input",
+    "-i",
     required=True,
     type=click.Path(exists=True),
     help="Input directory containing keyframe folders",
@@ -349,7 +384,8 @@ def run_all_pipeline(
     help="Output dir for BLIP-2 .npy (default: settings.blip2_embedding_dir)",
 )
 @click.option(
-    "--batch-size", "-b",
+    "--batch-size",
+    "-b",
     type=int,
     default=8,
     help="Batch size (smaller than single-stream — BLIP-2 is heavy)",
@@ -370,7 +406,7 @@ def extract_dual_embeddings(
         blip2_output_dir=blip2_out,
         batch_size=batch_size,
     )
-    click.echo(f"\n✅ Dual embedding extraction complete!")
+    click.echo("\n✅ Dual embedding extraction complete!")
     click.echo(f"   Folders processed: {stats['folders_processed']}/{stats['folders_total']}")
     click.echo(f"   Images total:      {stats['images_total']}")
     click.echo(f"   EVA-02 output:     {eva02_out or settings.embedding_dir}")
@@ -391,7 +427,8 @@ def extract_dual_embeddings(
     help="Dir with BLIP-2 .npy (default: settings.blip2_embedding_dir)",
 )
 @click.option(
-    "--output", "-o",
+    "--output",
+    "-o",
     type=click.Path(),
     default=None,
     help="Output pickle path (default: settings.db_path)",
@@ -417,7 +454,7 @@ def build_dual_index(
         output_path=output,
         index_type=index_type,
     )
-    click.echo(f"\n✅ Dual FAISS index built!")
+    click.echo("\n✅ Dual FAISS index built!")
     click.echo(f"   Vectors:    {stats['embeddings_loaded']}")
     click.echo(f"   EVA-02 dim: {stats['eva02_dim']}")
     click.echo(f"   BLIP-2 dim: {stats['blip2_dim']}")
@@ -425,7 +462,143 @@ def build_dual_index(
     click.echo(f"   Output:     {stats['output_path']} ({stats['file_size_mb']:.1f} MB)")
 
 
+# ── Metadata extraction subcommands (per docs/specs/metadata-extraction.md AD-4) ─
+
+
+@pipeline_group.command(name="extract-metadata")
+@click.option(
+    "--input",
+    "-i",
+    required=True,
+    type=click.Path(exists=True),
+    help="Keyframes root directory (one sub-folder per video)",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    default=None,
+    help="Output root for metadata sidecars (default: settings.metadata_dir)",
+)
+@click.option("--skip-detections", is_flag=True, help="Skip YOLO object detection pass")
+@click.option("--skip-scene", is_flag=True, help="Skip Places365 scene classification")
+@click.option("--skip-scene-graph", is_flag=True, help="Skip Qwen scene-graph extraction")
+@click.option("--overwrite", is_flag=True, help="Overwrite existing sidecars")
+def extract_metadata_cmd(
+    input: str,
+    output: str | None,
+    skip_detections: bool,
+    skip_scene: bool,
+    skip_scene_graph: bool,
+    overwrite: bool,
+) -> None:
+    """Extract per-keyframe metadata (detections + scene + scene graph)."""
+    from aic26.pipeline import metadata as metadata_mod
+
+    in_root = Path(input)
+    out_root = Path(output) if output else Path(settings.metadata_dir)
+    out_root.mkdir(parents=True, exist_ok=True)
+
+    # Default factory: stub callables that record their invocation but
+    # do not load any heavy model. Real model wiring lives in
+    # `_build_metadata_extractor()` (above) and is opt-in via direct
+    # invocation from `__main__` scripts / Jupyter.
+    extractor = metadata_mod.MetadataExtractor(
+        detector_fn=lambda p: None,
+        scene_fn=lambda img: None,
+        scene_graph_fn=lambda img: [],
+    )
+
+    stats = extractor.process_all(
+        keyframes_root=in_root,
+        output_root=out_root,
+        skip_detections=skip_detections,
+        skip_scene=skip_scene,
+        skip_scene_graph=skip_scene_graph,
+        overwrite=overwrite,
+    )
+
+    click.echo("\n" + "=" * 60)
+    click.echo("Metadata Extraction Complete")
+    click.echo("=" * 60)
+    click.echo(f"  Videos:   {stats['videos_processed']}/{stats['videos_total']} processed")
+    click.echo(f"  Frames:   {stats['frames_processed']}/{stats['frames_total']} processed")
+    click.echo(f"  Skipped:  {stats['frames_skipped']} (idempotent re-run)")
+    click.echo(f"  Failed:   {stats['frames_failed']}")
+    click.echo(f"  Output:   {out_root}")
+    click.echo("=" * 60)
+
+
+@pipeline_group.command(name="verify-metadata")
+@click.option(
+    "--input",
+    "-i",
+    required=True,
+    type=click.Path(exists=True),
+    help="Metadata root directory (default: settings.metadata_dir)",
+)
+@click.option("--video", required=True, help="Video folder name (e.g. L01_V001)")
+@click.option(
+    "--frame-idx",
+    type=int,
+    required=True,
+    help="Frame index (must match the sidecar filename stem)",
+)
+def verify_metadata_cmd(input: str, video: str, frame_idx: int) -> None:
+    """Pretty-print a single keyframe metadata sidecar."""
+    from aic26.pipeline import metadata as metadata_mod
+
+    in_root = Path(input)
+    sidecar_path = in_root / video / f"frame_{frame_idx:04d}.json"
+    if not sidecar_path.exists():
+        # Try without zero-padding as fallback
+        sidecar_path = in_root / video / f"frame_{frame_idx}.json"
+    if not sidecar_path.exists():
+        click.echo(f"❌ No sidecar at {sidecar_path}", err=True)
+        sys.exit(1)
+
+    meta = metadata_mod.KeyframeMetadata.load(sidecar_path)
+    click.echo("\n" + "=" * 60)
+    click.echo(f"Keyframe Metadata: {video} / frame {frame_idx}")
+    click.echo("=" * 60)
+    click.echo(json.dumps(meta.to_dict(), indent=2, ensure_ascii=False))
+    click.echo("=" * 60)
+
+
+@pipeline_group.command(name="metadata-stats")
+@click.option(
+    "--input",
+    "-i",
+    required=True,
+    type=click.Path(exists=True),
+    help="Metadata root directory (default: settings.metadata_dir)",
+)
+def metadata_stats_cmd(input: str) -> None:
+    """Aggregate statistics over a metadata root directory."""
+    from aic26.pipeline import metadata as metadata_mod
+
+    in_root = Path(input)
+    stats = metadata_mod.aggregate_metadata_stats(in_root)
+
+    click.echo("\n" + "=" * 60)
+    click.echo("Metadata Stats")
+    click.echo("=" * 60)
+    click.echo(f"  Sidecars:        {stats.total_sidecars}")
+    click.echo(f"  Videos:          {stats.total_videos}")
+    if stats.scene_graph_total_triples:
+        click.echo(
+            f"  Scene-graph:     {stats.scene_graph_total_triples} triples "
+            f"(avg {stats.avg_triples_per_keyframe:.2f}/keyframe)"
+        )
+    if stats.scene_distribution:
+        click.echo("\n  Top scene categories:")
+        for category, count in list(stats.scene_distribution.items())[:10]:
+            click.echo(f"    - {category:<25s} {count}")
+    click.echo("=" * 60)
+
+
 # ── Search commands ────────────────────────────────────────────────────
+
 
 @cli.group(name="search")
 def search_group():
@@ -441,7 +614,7 @@ def search_group():
 def search_text(query: str, top_k: int | None, objects: str, threshold: float | None) -> None:
     """Search keyframes by text description."""
     from aic26.core.retrieval import EVA02ImageRetrieval
-    
+
     retriever = EVA02ImageRetrieval()
     results = retriever.search_text(
         query=query,
@@ -449,11 +622,11 @@ def search_text(query: str, top_k: int | None, objects: str, threshold: float | 
         objects=objects,
         threshold=threshold or settings.default_obj_threshold,
     )
-    
+
     if not results:
         click.echo("No results found.")
         return
-    
+
     click.echo(f"\nFound {len(results)} results:\n")
     for i, r in enumerate(results, 1):
         time_str = r.get("time_str", "N/A")
@@ -475,6 +648,7 @@ def search_temporal(events: tuple[str, ...], mode: str) -> None:
 
 # ── Server commands ────────────────────────────────────────────────────
 
+
 @cli.group(name="serve")
 def serve_group():
     """Server and GUI commands."""
@@ -488,18 +662,18 @@ def serve_group():
 def serve_api(host: str | None, port: int | None, debug: bool | None) -> None:
     """Start the REST API server."""
     from loguru import logger
-    
+
     host = host or settings.host
     port = port or settings.port
     debug = debug if debug is not None else settings.debug
-    
+
     logger.info(f"Starting API server on {host}:{port}")
     logger.warning("API server will be fully migrated in Phase 4")
     logger.info("For now, use the original sever.py script")
-    
-    click.echo(f"⚠️  API server coming in Phase 4.")
+
+    click.echo("⚠️  API server coming in Phase 4.")
     click.echo(f"   Would start on http://{host}:{port}")
-    click.echo(f"   For now: python sever.py")
+    click.echo("   For now: python sever.py")
 
 
 @serve_group.command(name="api")
@@ -509,13 +683,13 @@ def serve_api(host: str | None, port: int | None, debug: bool | None) -> None:
 def serve_api(host: str | None, port: int | None, debug: bool | None) -> None:
     """Start the REST API server."""
     from aic26.api.server import create_app
-    
+
     host = host or settings.host
     port = port or settings.port
     debug = debug if debug is not None else settings.debug
-    
+
     logger.info(f"Starting API server on http://{host}:{port}")
-    
+
     app = create_app(settings)
     app.run(host=host, port=port, debug=debug)
 
@@ -524,7 +698,7 @@ def serve_api(host: str | None, port: int | None, debug: bool | None) -> None:
 def serve_gui() -> None:
     """Launch the desktop GUI application."""
     from aic26.gui.retrieval_app import EVA02GUI
-    
+
     logger.info("Starting desktop GUI...")
     app = EVA02GUI(settings)
     app.run()
@@ -532,23 +706,26 @@ def serve_gui() -> None:
 
 @serve_group.command(name="filter")
 @click.option(
-    "--objects-dir", "-o",
+    "--objects-dir",
+    "-o",
     type=click.Path(exists=True),
     help="Directory containing detection JSONs",
 )
 @click.option(
-    "--keyframes-dir", "-k",
+    "--keyframes-dir",
+    "-k",
     type=click.Path(exists=True),
     help="Directory containing keyframe images",
 )
 def serve_filter(objects_dir: str | None, keyframes_dir: str | None) -> None:
     """Launch the object filter GUI."""
     import tkinter as tk
+
     from aic26.gui.filter_app import ObjectFilterApp
-    
+
     objects_dir = objects_dir or str(settings.detection_dir)
     keyframes_dir = keyframes_dir or str(settings.keyframes_dir)
-    
+
     logger.info("Starting object filter GUI...")
     root = tk.Tk()
     app = ObjectFilterApp(root, objects_dir, keyframes_dir)
@@ -557,6 +734,7 @@ def serve_filter(objects_dir: str | None, keyframes_dir: str | None) -> None:
 
 # ── Utility commands ───────────────────────────────────────────────────
 
+
 @cli.command(name="config")
 @click.option("--show", is_flag=True, help="Show all current settings")
 def show_config(show: bool) -> None:
@@ -564,7 +742,7 @@ def show_config(show: bool) -> None:
     if show:
         settings.display()
     else:
-        click.echo(f"Config file: .env")
+        click.echo("Config file: .env")
         click.echo(f"Data directory: {settings.data_dir}")
         click.echo(f"GPU available: {settings.is_gpu_available()}")
 
@@ -574,35 +752,36 @@ def check_system() -> None:
     """Check system requirements and dependencies."""
     import sys
     from importlib.metadata import version
-    
+
     click.echo("=" * 60)
     click.echo("AIC-26 System Check")
     click.echo("=" * 60)
-    
+
     click.echo(f"\nPython: {sys.version}")
     click.echo(f"Platform: {sys.platform}")
-    
+
     click.echo(f"\nGPU Available: {settings.is_gpu_available()}")
     if settings.is_gpu_available():
         import torch
+
         click.echo(f"CUDA Version: {torch.version.cuda}")
         click.echo(f"GPU Count: {torch.cuda.device_count()}")
-    
-    click.echo(f"\nData Directories:")
+
+    click.echo("\nData Directories:")
     for dir_name in ["data_dir", "embedding_dir", "keyframes_dir"]:
         dir_path = getattr(settings, dir_name)
         exists = Path(dir_path).exists()
         icon = "✅" if exists else "⚠️"
         click.echo(f"  {icon} {dir_name}: {dir_path}")
-    
-    click.echo(f"\nDependencies:")
+
+    click.echo("\nDependencies:")
     for pkg in ["torch", "flask", "numpy", "pandas"]:
         try:
             ver = version(pkg)
             click.echo(f"  ✅ {pkg}: {ver}")
         except Exception:
             click.echo(f"  ❌ {pkg}: NOT INSTALLED")
-    
+
     # Check faiss (can be faiss-gpu or faiss-cpu)
     try:
         ver = version("faiss-gpu")
@@ -612,23 +791,27 @@ def check_system() -> None:
             ver = version("faiss-cpu")
             click.echo(f"  ✅ faiss (cpu): {ver}")
         except Exception:
-            click.echo(f"  ❌ faiss: NOT INSTALLED")
+            click.echo("  ❌ faiss: NOT INSTALLED")
+
 
 @cli.command(name="download")
 @click.option(
-    "--urls", "-u",
+    "--urls",
+    "-u",
     default="urls.txt",
     type=click.Path(exists=True),
     help="File containing video URLs (one per line)",
 )
 @click.option(
-    "--output", "-o",
+    "--output",
+    "-o",
     default="./videos",
     type=click.Path(),
     help="Output directory for downloaded videos",
 )
 @click.option(
-    "--max", "-m",
+    "--max",
+    "-m",
     type=int,
     default=None,
     help="Maximum number of videos to download",
@@ -637,31 +820,30 @@ def download_videos(urls: str, output: str, max: int | None) -> None:
     """Download videos from URLs listed in a file."""
     import subprocess
     from pathlib import Path
-    
+
     urls_path = Path(urls)
     output_path = Path(output)
     output_path.mkdir(parents=True, exist_ok=True)
-    
+
     # Read URLs
-    with open(urls_path, "r") as f:
-        urls_list = [
-            line.strip() for line in f
-            if line.strip() and not line.startswith("#")
-        ]
-    
+    with open(urls_path) as f:
+        urls_list = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+
     if max:
         urls_list = urls_list[:max]
-    
+
     click.echo(f"Downloading {len(urls_list)} video(s) to {output}...")
-    
+
     for i, url in enumerate(urls_list, 1):
         click.echo(f"[{i}/{len(urls_list)}] {url}")
         try:
             subprocess.run(
                 [
                     "yt-dlp",
-                    "--format", "best[height<=1080]",
-                    "--output", str(output_path / "%(title)s.%(ext)s"),
+                    "--format",
+                    "best[height<=1080]",
+                    "--output",
+                    str(output_path / "%(title)s.%(ext)s"),
                     "--no-playlist",
                     "--quiet",
                     url,
@@ -673,8 +855,10 @@ def download_videos(urls: str, output: str, max: int | None) -> None:
         except FileNotFoundError:
             click.echo("  ❌ yt-dlp not found. Install: pip install yt-dlp")
             return
-    
+
     click.echo(f"\n✅ Download complete. Videos saved to {output}")
+
+
 # ── Main entry point ───────────────────────────────────────────────────
 
 if __name__ == "__main__":
