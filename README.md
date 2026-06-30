@@ -33,6 +33,7 @@ AIC-26 là một hệ thống truy xuất video đa phương thức được xâ
 | **Object Filtering** | Thu hẹp kết quả theo các đối tượng được phát hiện với ngưỡng confidence |
 | **OCR Search** | Lập chỉ mục và tìm kiếm văn bản xuất hiện trong các frame video |
 | **Dual-Embedding Retrieval** | Kết hợp EVA-02 + BLIP-2 Q-Former (weighted blend 0.6/0.4) theo MemoriEase 3.0 §3.2 — xem [docs/dual-embedding.md](docs/dual-embedding.md) |
+| **Metadata Sidecars** | Enrich mỗi keyframe với bbox position (3×3 grid), Places365 scene + scene_group, scene graph (Qwen2.5-VL), OCR text và BLIP caption — xem [docs/specs/metadata-extraction.md](docs/specs/metadata-extraction.md) |
 | **Client-side Filtering** | Giao diện hỗ trợ lọc Metadata (OCR, Scene, Caption) tức thì bằng `Fuse.js`, tối ưu hóa trải nghiệm truy vấn |
 
 ### Công Nghệ Sử Dụng
@@ -43,11 +44,15 @@ AIC-26 là một hệ thống truy xuất video đa phương thức được xâ
 | Vision-Language Model (phụ) | BLIP-2 Q-Former (768-dim) | Stream thứ hai cho dual-embedding blend |
 | Vector Search | FAISS IndexFlatIP × 2 streams | Tìm kiếm tương đồng dưới một giây |
 | Temporal Reasoning | TRAKE (custom DP) | Truy xuất sự kiện có thứ tự |
-| Object Detection | YOLOv8 (Open Images V7) | Chú thích frame với 600+ lớp đối tượng |
+| Object Detection | YOLOv8 (Open Images V7) | Bbox + 3×3 grid position cho metadata sidecar |
+| Scene Recognition | Places365 ResNet50 | 365 scene classes cho metadata sidecar |
+| Scene Graph | Qwen2.5-VL-7B 4-bit | `(s, p, o)` triple extraction |
+| Caption Generation | BLIP image captioning | English caption cho mỗi keyframe |
 | Reranking | BLIP ITM | Cải thiện độ chính xác |
 | OCR | EasyOCR | Trích xuất văn bản tiếng Việt/tiếng Anh |
 | Keyframe Extraction | DINOv2 + cosine similarity | Phát hiện thay đổi cảnh |
 | API Server | Flask + Flask-CORS | REST endpoints |
+| Web UI Metadata Filter | Fuse.js (client-side) | Filter tức thì trên kết quả trả về |
 | Desktop GUI | CustomTkinter | Giao diện desktop |
 
 ---
@@ -117,6 +122,12 @@ DB_PATH=data/faiss_db.pkl
 # Mặc định tìm kiếm
 DEFAULT_TOP_K=100
 DEFAULT_SCORE_THRESHOLD=0.2
+
+# Metadata sidecars (extract-metadata, merge-ocr, merge-captions)
+METADATA_DIR=data/metadata
+CAPTION_MODEL_NAME=Salesforce/blip-image-captioning-base
+CAPTION_MAX_NEW_TOKENS=30
+PLACES365_MODEL_PATH=models/places365/resnet50_places365.pth.tar
 
 # Server
 HOST=0.0.0.0
@@ -192,6 +203,68 @@ aic26 search temporal \
   --events "the crowd cheering" \
   --mode highest
 ```
+
+### 5. Metadata Sidecars
+
+Mỗi keyframe được enrich bằng một JSON sidecar tại `data/metadata/{video}/{frame_idx}.json`, kết hợp 5 tín hiệu trực giao để hỗ trợ query lọc theo **vị trí object**, **scene**, **quan hệ giữa object**, **OCR text** và **BLIP caption**. Triển khai theo [docs/specs/metadata-extraction.md](docs/specs/metadata-extraction.md) (kết hợp SnapSeek 3.0 §3.5 + lifeXplore §3).
+
+```bash
+# Trích xuất toàn bộ metadata (bbox + Places365 + scene graph qua Qwen2.5-VL)
+aic26 pipeline extract-metadata -i data/keyframes -o data/metadata [--skip-scene-graph]
+
+# Verify một keyframe cụ thể
+aic26 pipeline verify-metadata --video K05_V004 --frame-idx 42
+
+# Thống kê coverage
+aic26 pipeline metadata-stats -i data/metadata
+
+# Gộp OCR/EasyOCR text regions vào sidecar (chạy sau extract-metadata)
+aic26 pipeline merge-ocr --input data/ocr_results.csv --metadata-dir data/metadata
+
+# Tạo BLIP captions cho keyframes
+aic26 pipeline merge-captions --metadata-dir data/metadata
+```
+
+**Sidecar schema (v1)**:
+
+```json
+{
+  "video": "K05_V004",
+  "frame_idx": 42,
+  "detections": [
+    {"label": "Person", "score": 0.92, "bbox": [10, 20, 100, 200], "position": "top-left"}
+  ],
+  "scene": {
+    "category": "airport_terminal", "confidence": 0.633,
+    "top5": [["airport_terminal", 0.633], ["indoor", 0.185]],
+    "smoothed_scene": "airport_terminal", "scene_group": "indoor_public"
+  },
+  "scene_graph": [{"s": "person", "p": "hold", "o": "cup", "confidence": 0.9}],
+  "ocr_text": [{"text": "Kết quả bốc thăm", "bbox": [12, 230, 410, 280], "confidence": 0.84}],
+  "caption": "a man holding a trophy on stage"
+}
+```
+
+**Quy ước**: `detections = []` khi YOLO không tìm được object; `scene` / `scene_graph` là `null` khi model bị skip, `[]` / `{...}` khi chạy nhưng trống. Bbox < 5% diện tích ảnh → `position: null`.
+
+**Models**:
+- **YOLOv8x-OIV7** (`pipeline/detection.py`) — bbox + 3×3 grid position.
+- **Places365 ResNet50** (`pipeline/places365.py`) — 365 scene classes, ~9 MB, chạy CPU được; có `_infer_scene_group()` để nhóm leaves.
+- **Qwen2.5-VL-7B-Instruct 4-bit** (`pipeline/scene_graph.py`) — scene graph `(s, p, o)`, ~5 GB VRAM.
+- **BLIP image captioning** (`pipeline/captioning.py`) — tiếng Anh, ~446M params, ~2 GB VRAM.
+
+**Kết quả trên K05_V004** (theo [docs/plans/metadata-improvement-plan.md](docs/plans/metadata-improvement-plan.md)):
+
+| Signal | Coverage | Notes |
+|---|---|---|
+| Detections (w/ position) | 88.3% | 377/427 sidecars |
+| Scene (Places365) | 100% | Có temporal smoothing sliding window |
+| Scene group (13 nhóm) | 100% | `outdoor_urban`, `indoor_public`, ... |
+| OCR text | 100% | 3,139 regions merged |
+| Caption (English, BLIP) | 100% | 46 chars/caption avg |
+| Scene graph (Qwen) | 0% | Phase 4.1 — sẽ chạy sau |
+
+**Client-side filtering**: Web UI (`src/aic26/api/templates/index.html`) dùng Fuse.js để lọc metadata tức thì trên các kết quả trả về — không phải query lại server. Modal "Metadata Inspector" cho phép click vào từng frame để xem sidecar đầy đủ.
 
 ---
 
