@@ -33,6 +33,7 @@ AIC-26 là một hệ thống truy xuất video đa phương thức được xâ
 | **Object Filtering** | Thu hẹp kết quả theo các đối tượng được phát hiện với ngưỡng confidence |
 | **OCR Search** | Lập chỉ mục và tìm kiếm văn bản xuất hiện trong các frame video |
 | **Dual-Embedding Retrieval** | Kết hợp EVA-02 + BLIP-2 Q-Former (weighted blend 0.6/0.4) theo MemoriEase 3.0 §3.2 — xem [docs/dual-embedding.md](docs/dual-embedding.md) |
+| **Client-side Filtering** | Giao diện hỗ trợ lọc Metadata (OCR, Scene, Caption) tức thì bằng `Fuse.js`, tối ưu hóa trải nghiệm truy vấn |
 
 ### Công Nghệ Sử Dụng
 
@@ -168,7 +169,9 @@ aic26 pipeline run-all --video-dir data/videos --skip-detection --skip-ocr
 aic26 serve api --port 5000
 ```
 
-Mở [http://localhost:5000](http://localhost:5000) để sử dụng giao diện web tích hợp sẵn.
+*Lưu ý: API Server sử dụng cơ chế **Eager Loading**, quá trình khởi động sẽ mất khoảng 15-20 giây để nạp hoàn chỉnh các AI model (EVA-02, BLIP-2) và Vector Index vào VRAM. Lệnh sẽ không trả về `Running on http://0.0.0.0:5000` cho đến khi hệ thống sẵn sàng 100%. Nhờ đó, tốc độ truy vấn lần đầu sẽ được tối ưu tuyệt đối.*
+
+Mở [http://localhost:5000](http://localhost:5000) để sử dụng giao diện web Multi-modal Query Builder tích hợp sẵn (Hỗ trợ Fuse.js Filtering, TRAKE, và Modal Metadata Inspector).
 
 ### 3. Khởi Chạy Desktop GUI
 

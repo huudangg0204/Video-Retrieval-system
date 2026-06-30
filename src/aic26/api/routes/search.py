@@ -10,6 +10,31 @@ import os
 from pathlib import Path
 
 from loguru import logger
+import json
+
+def _attach_metadata(results):
+    from aic26.config import settings
+    meta_dir = Path(settings.metadata_dir)
+    for r in results:
+        video = r.get("video_name")
+        frame = r.get("frame_idx")
+        r["ocr_text"] = ""
+        r["scene"] = ""
+        r["caption"] = ""
+        r["detections"] = []
+        if video and frame:
+            json_path = meta_dir / video / f"{frame}.json"
+            if json_path.exists():
+                try:
+                    with open(json_path, "r", encoding="utf-8") as f:
+                        meta = json.load(f)
+                        r["ocr_text"] = meta.get("ocr_text", "")
+                        r["scene"] = meta.get("scene", "")
+                        r["caption"] = meta.get("caption", "")
+                        r["detections"] = meta.get("detections", [])
+                except Exception:
+                    pass
+    return results
 
 
 def _get_retriever():
@@ -88,6 +113,8 @@ def search_text():
     )
     elapsed = time.time() - start
     
+    results = _attach_metadata(results)
+    
     return jsonify({
         'elapsed': round(elapsed, 3),
         'count': len(results),
@@ -139,6 +166,8 @@ def search_image():
         save_to_db=True,
     )
     elapsed = time.time() - start
+    
+    results = _attach_metadata(results)
     
     return jsonify({
         'elapsed': round(elapsed, 3),
@@ -231,6 +260,8 @@ def upload_and_search():
     elapsed = time.time() - start
     _safe_remove(save_path)
     
+    results = _attach_metadata(results)
+    
     return jsonify({
         'elapsed': round(elapsed, 3),
         'count': len(results),
@@ -316,6 +347,8 @@ def search_text_with_image():
     elapsed = time.time() - start
     
     _safe_remove(save_path)
+    
+    results = _attach_metadata(results)
     
     return jsonify({
         'elapsed': round(elapsed, 3),

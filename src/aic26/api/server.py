@@ -54,8 +54,13 @@ def create_app(config=None) -> Flask:
     # ── Extensions ─────────────────────────────────────────────
     CORS(app)
     
-    # ── Initialize retriever (lazy) ────────────────────────────
+    # ── Initialize retriever (eagerly) ─────────────────────────
     _init_retriever(app, config)
+    
+    # Force load models immediately before starting server
+    logger.info("Eagerly loading retrieval engine models before starting server...")
+    app.config.get('_get_retriever')()
+    logger.info("Models loaded. Server is now ready to accept requests.")
     
     # ── Register blueprints ────────────────────────────────────
     app.register_blueprint(search.bp, url_prefix='/api')
@@ -103,8 +108,8 @@ def _init_retriever(app: Flask, config) -> None:
     """
     Initialize the EVA02ImageRetrieval instance.
     
-    Loaded lazily on first request to speed up startup
-    and avoid loading models during import.
+    Loaded eagerly during application startup to ensure
+    models are ready before serving requests.
     """
     retriever_instance = None
     

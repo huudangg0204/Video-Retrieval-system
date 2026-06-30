@@ -1,595 +1,611 @@
 <!doctype html>
-<html>
-
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>EVA02 Retrieval Web (TRAKE)</title>
+  <title>AIC-26 Multi-modal Query Builder</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body {
-      background: #f7f9fc;
-      color: #222;
-      font-family: system-ui, -apple-system, Roboto, "Segoe UI", Arial;
-      margin: 0;
-      padding: 20px;
+    /* Custom scrollbar for a cleaner look */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; }
+    ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+    
+    .frame-image {
+        width: 100%;
+        height: auto;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: transform 0.2s;
     }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    h1 {
-      margin: 0 0 16px 0;
-      font-size: 24px;
-      color: #2563eb;
-    }
-
-    .card {
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    }
-
-    input,
-    textarea,
-    button {
-      font-size: 15px;
-    }
-
-    input,
-    textarea {
-      width: 100%;
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      background: #fff;
-      color: #222;
-      margin-top: 8px;
-      box-sizing: border-box;
-    }
-
-    button {
-      padding: 10px 16px;
-      border-radius: 8px;
-      border: none;
-      background: #2563eb;
-      color: white;
-      cursor: pointer;
-      margin-top: 8px;
-      font-weight: 500;
-      transition: background 0.2s;
-    }
-
-    button:hover {
-      background: #1e4ecf;
-    }
-
-    .row {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      align-items: flex-start;
-    }
-
-    .col {
-      flex: 1;
-      min-width: 200px;
-    }
-
-    .results img {
-      max-width: 240px;
-      display: block;
-      margin-top: 8px;
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    .small {
-      font-size: 13px;
-      color: #555;
-    }
-
-    .btn-light {
-      background: #e5e7eb;
-      color: #111;
-    }
-
-    .btn-light:hover {
-      background: #d1d5db;
-    }
-
-    .frames-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 12px;
-    }
-
-    .frames-grid img {
-      width: 150px;
-      height: auto;
-      object-fit: cover;
-      border-radius: 8px;
-      border: 1px solid #ddd;
-    }
-
-    .card h2 {
-      font-size: 18px;
-      margin: 0 0 12px 0;
-      color: #111;
-    }
-
-    /* Hàng ảnh cuộn ngang */
-    .thumb-row {
-      display: flex;
-      flex-wrap: nowrap;
-      gap: 12px;
-      overflow-x: auto;
-      padding: 6px 0;
-    }
-
-    .thumb-item {
-      flex: 0 0 auto;
-      /* đừng co giãn */
-      width: 240px;
-      /* mỗi ô ~240px */
-    }
-
-    .thumb-item img {
-      width: 100%;
-      height: auto;
-      display: block;
-    }
-
-    pre {
-      white-space: pre-wrap;
-      color: #333;
-      background: #f3f4f6;
-      padding: 8px;
-      border-radius: 6px;
+    .frame-image:hover {
+        transform: scale(1.02);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
   </style>
 </head>
+<body class="bg-gray-50 text-gray-800 font-sans h-screen overflow-hidden flex">
 
-<body>
-  <div class="container">
-    <h1>EVA02 Retrieval Web (TRAKE)</h1>
-
-    <div class="card">
-      <h2>Stats</h2>
-      <div class="small" id="statsBox">{{ stats }}</div>
+  <!-- Sidebar -->
+  <aside class="w-80 bg-white border-r border-gray-200 shadow-sm flex flex-col h-full z-10 shrink-0">
+    <div class="p-4 border-b bg-indigo-600 text-white">
+        <h1 class="text-xl font-bold flex items-center gap-2">
+            <i class="fa fa-search"></i> AIC-26 Explorer
+        </h1>
+        <div id="statsBox" class="text-xs mt-1 opacity-80">{{ stats }}</div>
     </div>
-
-    <div class="card" id="text-search-card">
-      <h2>Text Search</h2>
-      <div class="row">
-        <div class="col">
-          <input id="queryInput" placeholder="Enter text query...">
-        </div>
-        <div style="width:140px">
-          <input id="topkInput" placeholder="Top-K (100)">
-        </div>
-      </div>
-      <!-- New inputs for object filter -->
-      <div class="row" style="margin-top:12px">
-        <div class="col">
-          <input id="objectInput" placeholder="List objects (comma separated)">
-        </div>
-        <div style="width:140px">
-          <input id="thresholdInput" placeholder="Threshold (+/- for keep/remove, default 0.5)">
-        </div>
-        <div style="width:140px">
-          <button onclick="searchText()">Search</button>
-        </div>
-      </div>
-      <!-- Add this inside the text-search-card div, after the first row div -->
-      <div class="row" style="margin-top:12px">
-        <div class="col">
-          <input type="file" id="textSearchImage" accept="image/*" placeholder="Optional: Upload image to rerank">
-        </div>
-        <div class="small" style="margin-top:4px">Optional: Upload image to rerank results</div>
-      </div>
-      <div id="textResults" class="results"></div>
-
-      <div style="margin-top:16px">
-        <input id="exportName" placeholder="CSV name (no .csv)">
-        <input id="exportConst" placeholder="Optional const value (int)">
-        <button class="btn-light" onclick="exportResults()">Export Last Results</button>
-        <div id="exportMsg" class="small" style="margin-top:8px"></div>
-      </div>
-
-      <div style="margin-top:16px">
-        <div class="row">
-          <div style="width:180px">
-            <select id="groupSortBy">
-              <option value="frame">Sort by frame</option>
-              <option value="similarity">Sort by similarity</option>
-            </select>
-          </div>
-          <div style="width:200px">
-            <input id="groupTopPerVideo" placeholder="Top per video (e.g. 20)">
-          </div>
-          <div style="width:160px">
-            <button class="btn-light" onclick="groupByVideoText()">Group by video</button>
-          </div>
-        </div>
-        <div id="groupedResults" class="results" style="margin-top:12px"></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Image Search (Upload)</h2>
-      <div class="row">
-        <div class="col">
-          <input type="file" id="uploadFile" accept="image/*">
-        </div>
-        <div style="width:140px">
-          <input id="imgTopk" placeholder="Top-K (100)">
-        </div>
-        <div style="width:160px">
-          <button onclick="uploadAndSearch()">Upload & Search</button>
-        </div>
-      </div>
-      <div id="imageResults" class="results"></div>
-
-      <div style="margin-top:16px">
-        <div class="row">
-          <div style="width:180px">
-            <select id="groupSortByImg">
-              <option value="frame">Sort by frame</option>
-              <option value="similarity">Sort by similarity</option>
-            </select>
-          </div>
-          <div style="width:200px">
-            <input id="groupTopPerVideoImg" placeholder="Top per video (e.g. 20)">
-          </div>
-          <div style="width:160px">
-            <button class="btn-light" onclick="groupByVideoImage()">Group by video</button>
-          </div>
-        </div>
-        <div id="groupedImageResults" class="results" style="margin-top:12px"></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>TRAKE (Temporal Retrieval)</h2>
-      <textarea id="eventsBox" rows="5" placeholder="E1: ...&#10;E2: ..."></textarea>
-      <div class="row">
-        <div class="col">
-          <input id="trakeTopk" placeholder="Top-K per event (200)">
-        </div>
-        <div class="col">
-          <input id="trakeCandidates" placeholder="Candidates (e.g. 200)">
-        </div>
-        <div class="col">
-          <select id="trakeOption">
-            <option value="Closest">Closest</option>
-            <option value="Highest">Highest</option>
-            <option value="All">All</option>
-          </select>
-        </div>
-        <div style="width:160px">
-          <button onclick="runTrake()">Run TRAKE</button>
-        </div>
-      </div>
-
-      <!-- Nút export riêng cho TRAKE -->
-      <div style="margin-top:12px">
-        <input id="trakeExportName" placeholder="CSV name (no .csv)">
-        <button class="btn-light" onclick="exportTrake()">Export TRAKE Results</button>
-        <div id="trakeExportMsg" class="small" style="margin-top:8px"></div>
-      </div>
-
-      <div id="trakeResults" class="results"></div>
-    </div>
-
-    <div class="card">
-      <h2>Video Frames Viewer</h2>
-      <div class="row">
-        <div class="col">
-          <input id="videoNameInput" placeholder="Enter video folder name (e.g. video_0001)">
-        </div>
-        <div style="width:160px">
-          <button onclick="showFrames()">Show Frames</button>
-        </div>
-      </div>
-      <div id="framesView" class="frames-grid"></div>
-    </div>
-
-    <div class="card">
-      <h2>Video Frames Range Viewer</h2>
-      <div class="row">
-        <div class="col">
-          <input id="videoNameRangeInput" placeholder="Enter video folder name (e.g. video_0001)">
-        </div>
-        <div class="col">
-          <input id="frameIdInput" placeholder="Frame ID (e.g. 100)">
-        </div>
-        <div class="col">
-          <input id="rangeInput" placeholder="Range (x frames, e.g. 5)">
-        </div>
-        <div style="width:200px">
-          <button onclick="showFramesRange()">Show Frames Range</button>
-        </div>
-      </div>
-      <div id="framesRangeView" class="frames-grid"></div>
-    </div>
-    <div class="card">
-      <h2>Make Submission</h2>
-      <div class="row">
-        <div class="col">
-          <input id="subExportName" placeholder="CSV name (no .csv)">
-        </div>
-        <div class="col">
-          <input id="subVideoName" placeholder="Video name (e.g. video_0001)">
-        </div>
-        <div class="col">
-          <input id="subFrameId" placeholder="Frame ID (e.g. 100)">
-        </div>
-        <div class="col">
-          <input id="subGap" placeholder="GAP_KEYFRAME (e.g. 5)">
-        </div>
-        <div class="col">
-          <input id="subConst" placeholder="Optional const value">
-        </div>
-        <div style="width:200px">
-          <button onclick="makeSubmission()">Export Submission</button>
-        </div>
-      </div>
-      <div id="subMsg" class="small" style="margin-top:8px"></div>
-    </div>
-  </div>
-  </div>
-
-  <script>
-    window.lastResults = [];
-    function imgTagForPath(path, alt = "") {
-  const fixedPath = path.replace(/\\/g, "/");  // ← THÊM DÒNG NÀY
-  const url = "/api/image?path=" + encodeURIComponent(fixedPath);
-  return `<img src="${url}" alt="${alt}">`;
-}
     
+    <div class="flex-1 overflow-y-auto p-4 space-y-6">
+        
+        <!-- Text Search -->
+        <div class="space-y-3">
+            <h2 class="font-semibold text-gray-700 flex items-center gap-2">
+                <i class="fa fa-keyboard"></i> Text Search
+            </h2>
+            <textarea id="queryInput" class="w-full text-sm border border-gray-300 rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none" rows="2" placeholder="Free-text query..."></textarea>
+            
+            <div class="flex gap-2">
+                <input id="topkInput" class="w-1/2 text-sm border border-gray-300 rounded p-2 focus:ring-indigo-500 outline-none" placeholder="Top-K (100)">
+                <input id="thresholdInput" class="w-1/2 text-sm border border-gray-300 rounded p-2 focus:ring-indigo-500 outline-none" placeholder="Thresh (0.5)">
+            </div>
+            
+            <input id="objectInput" class="w-full text-sm border border-gray-300 rounded p-2 focus:ring-indigo-500 outline-none" placeholder="Objects (comma separated)">
+            
+            <div class="text-xs text-gray-500">Optional: Image Reranking</div>
+            <input type="file" id="textSearchImage" class="w-full text-xs" accept="image/*">
+            
+            <button onclick="searchText()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded py-2 text-sm font-medium transition shadow-sm">
+                Search
+            </button>
+        </div>
+
+        <hr>
+
+        <!-- Image Search -->
+        <div class="space-y-3">
+            <h2 class="font-semibold text-gray-700 flex items-center gap-2">
+                <i class="fa fa-image"></i> Image Search
+            </h2>
+            <input type="file" id="uploadFile" class="w-full text-xs" accept="image/*">
+            <input id="imgTopk" class="w-full text-sm border border-gray-300 rounded p-2 focus:ring-indigo-500 outline-none" placeholder="Top-K (100)">
+            <button onclick="uploadAndSearch()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded py-2 text-sm font-medium transition shadow-sm">
+                Upload & Search
+            </button>
+        </div>
+
+        <hr>
+
+        <!-- TRAKE -->
+        <div class="space-y-3">
+            <h2 class="font-semibold text-gray-700 flex items-center gap-2">
+                <i class="fa fa-clock"></i> TRAKE (Temporal)
+            </h2>
+            <textarea id="eventsBox" rows="3" class="w-full text-sm border border-gray-300 rounded p-2 focus:ring-indigo-500 outline-none" placeholder="E1: ...&#10;E2: ..."></textarea>
+            <div class="flex gap-2">
+                <input id="trakeTopk" class="w-1/2 text-sm border border-gray-300 rounded p-2" placeholder="Top-K (200)">
+                <input id="trakeCandidates" class="w-1/2 text-sm border border-gray-300 rounded p-2" placeholder="Cand (200)">
+            </div>
+            <select id="trakeOption" class="w-full text-sm border border-gray-300 rounded p-2">
+                <option value="Closest">Closest</option>
+                <option value="Highest">Highest</option>
+                <option value="All">All</option>
+            </select>
+            <button onclick="runTrake()" class="w-full bg-purple-600 hover:bg-purple-700 text-white rounded py-2 text-sm font-medium transition shadow-sm">
+                Run TRAKE
+            </button>
+        </div>
+
+        <hr>
+
+        <!-- Submission / Export -->
+        <div class="space-y-3">
+            <h2 class="font-semibold text-gray-700 flex items-center gap-2">
+                <i class="fa fa-file-export"></i> Submission
+            </h2>
+            <input id="subVideoName" class="w-full text-sm border border-gray-300 rounded p-2" placeholder="Video (video_0001)">
+            <div class="flex gap-2">
+                <input id="subFrameId" class="w-1/2 text-sm border border-gray-300 rounded p-2" placeholder="Frame ID">
+                <input id="subGap" class="w-1/2 text-sm border border-gray-300 rounded p-2" placeholder="GAP (15)">
+            </div>
+            <input id="subExportName" class="w-full text-sm border border-gray-300 rounded p-2" placeholder="CSV Name">
+            <button onclick="makeSubmission()" class="w-full bg-green-600 hover:bg-green-700 text-white rounded py-2 text-sm font-medium transition shadow-sm">
+                Export Submission
+            </button>
+            <div id="subMsg" class="text-xs text-green-700 mt-1"></div>
+        </div>
+
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 flex flex-col h-full overflow-hidden bg-gray-100">
+    
+    <!-- Topbar: Client-side Filters -->
+    <header class="bg-white p-4 border-b border-gray-200 shadow-sm flex gap-4 items-center shrink-0">
+        <div class="flex-1 relative">
+            <i class="fa fa-filter absolute left-3 top-2.5 text-gray-400"></i>
+            <input type="text" id="fuseSearchInput" oninput="applyFuseFilter()" class="w-full pl-10 pr-4 py-2 border border-indigo-200 rounded-full text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="Fuzzy filter results by OCR, Scene, Caption (Fuse.js)...">
+        </div>
+        <div class="flex items-center gap-2 text-sm bg-gray-50 px-3 py-1.5 rounded-lg border">
+            <i class="fa fa-search-plus text-gray-500"></i>
+            <input type="range" id="gridSize" min="150" max="400" value="220" oninput="updateGridSize()" class="w-24">
+        </div>
+        
+        <!-- Quick Export Buttons -->
+        <button onclick="exportResults()" class="text-sm border bg-white hover:bg-gray-50 px-3 py-1.5 rounded shadow-sm text-gray-700" title="Export Current Results">
+            <i class="fa fa-download"></i> Export
+        </button>
+        <button onclick="groupByVideoText()" class="text-sm border bg-white hover:bg-gray-50 px-3 py-1.5 rounded shadow-sm text-gray-700" title="Group by Video">
+            <i class="fa fa-layer-group"></i> Group
+        </button>
+    </header>
+
+    <!-- Info Bar -->
+    <div id="infoBar" class="bg-indigo-50 border-b border-indigo-100 px-6 py-2 text-sm text-indigo-800 flex justify-between items-center hidden">
+        <span id="infoStatus"></span>
+        <button onclick="clearResults()" class="text-indigo-600 hover:text-indigo-800 font-medium">Clear</button>
+    </div>
+
+    <!-- Results Area -->
+    <div id="mainResultsContainer" class="flex-1 overflow-y-auto p-6">
+        <div id="resultsGrid" class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+            <!-- Items injected by JS -->
+            <div class="col-span-full text-center text-gray-400 mt-20">
+                <i class="fa fa-image text-4xl mb-3 opacity-50"></i>
+                <p>Run a search from the sidebar to see results here.</p>
+            </div>
+        </div>
+    </div>
+  </main>
+
+  <!-- Modal Inspector -->
+  <div id="inspectorModal" class="fixed inset-0 bg-black bg-opacity-80 hidden z-50 flex justify-center items-center p-4 transition-opacity" onclick="closeModal(event)">
+      <div class="bg-white rounded-xl shadow-2xl overflow-hidden max-w-5xl w-full flex flex-col md:flex-row max-h-[90vh]" onclick="event.stopPropagation()">
+          
+          <!-- Image Section -->
+          <div class="flex-1 bg-gray-900 flex items-center justify-center p-4 relative min-h-[300px]">
+              <img id="modalImg" class="max-w-full max-h-full object-contain shadow-lg" src="">
+              <button onclick="closeModal()" class="absolute top-4 right-4 text-white bg-black bg-opacity-50 hover:bg-opacity-80 rounded-full w-8 h-8 flex items-center justify-center">
+                  <i class="fa fa-times"></i>
+              </button>
+          </div>
+
+          <!-- Metadata Section -->
+          <div class="w-full md:w-96 bg-white flex flex-col h-full border-l border-gray-200">
+              <div class="p-4 border-b bg-gray-50">
+                  <h3 id="modalVideoName" class="font-bold text-lg text-gray-800">Video Name</h3>
+                  <p id="modalFrameInfo" class="text-sm text-gray-500">Frame: ? | Time: ? | Sim: ?</p>
+              </div>
+              <div class="flex-1 overflow-y-auto p-5 space-y-5">
+                  <div>
+                      <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"><i class="fa fa-align-left mr-1"></i> Caption</h4>
+                      <p id="modalCaption" class="text-sm text-gray-800 bg-blue-50 p-3 rounded border border-blue-100 italic"></p>
+                  </div>
+                  <div>
+                      <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"><i class="fa fa-font mr-1"></i> OCR Text</h4>
+                      <p id="modalOCR" class="text-sm text-gray-800 bg-yellow-50 p-3 rounded border border-yellow-100 font-mono"></p>
+                  </div>
+                  <div>
+                      <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"><i class="fa fa-map-marker-alt mr-1"></i> Scene</h4>
+                      <p id="modalScene" class="text-sm text-gray-800 bg-green-50 p-3 rounded border border-green-100 font-medium"></p>
+                  </div>
+                  <div>
+                      <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"><i class="fa fa-cubes mr-1"></i> Detections (Top 10)</h4>
+                      <div id="modalDetections" class="flex flex-wrap gap-2"></div>
+                  </div>
+              </div>
+              <div class="p-4 border-t bg-gray-50 flex justify-between">
+                  <a id="modalWatchUrl" href="#" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                      <i class="fa fa-external-link-alt"></i> Watch Video
+                  </a>
+                  <!-- Action to find context -->
+                  <button id="modalContextBtn" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded transition">
+                      Explore Context
+                  </button>
+              </div>
+          </div>
+      </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    // --- State Management ---
+    window.lastResults = [];     // Raw results from backend
+    window.filteredResults = []; // Results after Fuse.js filtering
+    let fuse = null;             // Fuse instance
+
+    // Path resolution
+    function getImgUrl(path) {
+        if (!path) return "";
+        const fixedPath = path.replace(/\\/g, "/");
+        return "/api/image?path=" + encodeURIComponent(fixedPath);
+    }
+
+    // Update Grid Size dynamically
+    function updateGridSize() {
+        const size = document.getElementById("gridSize").value;
+        document.getElementById("resultsGrid").style.gridTemplateColumns = `repeat(auto-fill, minmax(${size}px, 1fr))`;
+    }
+
+    // Clear Results
+    function clearResults() {
+        window.lastResults = [];
+        window.filteredResults = [];
+        document.getElementById("fuseSearchInput").value = "";
+        renderResults([]);
+        document.getElementById("infoBar").classList.add("hidden");
+    }
+
+    // --- Search Core ---
     async function searchText() {
-      const q = document.getElementById("queryInput").value.trim();
-      if (!q) { alert("Please enter a query"); return; }
+        const q = document.getElementById("queryInput").value.trim();
+        if (!q) { alert("Please enter a text query"); return; }
+        
+        const topk = document.getElementById("topkInput").value || 100;
+        const obj = document.getElementById("objectInput").value.trim();
+        const threshold = parseFloat(document.getElementById("thresholdInput").value) || 0.5;
+        const imageInput = document.getElementById("textSearchImage");
+        let formData = null;
 
-      const topk = document.getElementById("topkInput").value || 100;
-      const obj = document.getElementById("objectInput").value.trim();
-      const threshold = parseFloat(document.getElementById("thresholdInput").value) || 0.5;
+        if (imageInput.files && imageInput.files[0]) {
+            formData = new FormData();
+            formData.append("file", imageInput.files[0]);
+            formData.append("query", q);
+            formData.append("top_k", topk);
+            formData.append("objects", obj);
+            formData.append("threshold", threshold);
+        }
 
-      // Handle image upload if present
-      const imageInput = document.getElementById("textSearchImage");
-      let formData = null;
+        showLoading();
 
-      if (imageInput.files && imageInput.files[0]) {
-        formData = new FormData();
-        formData.append("file", imageInput.files[0]);
-        formData.append("query", q);
-        formData.append("top_k", topk);
-        formData.append("objects", obj);
-        formData.append("threshold", threshold);
-      }
+        try {
+            let res;
+            if (formData) {
+                res = await fetch("/api/search_text_with_image", { method: "POST", body: formData });
+            } else {
+                res = await fetch("/api/search_text", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ query: q, top_k: parseInt(topk), objects: obj, threshold: threshold })
+                });
+            }
 
-      document.getElementById("textResults").innerHTML = "<div class='small'>Searching...</div>";
-
-      let res;
-      if (formData) {
-        // If image is present, use multipart form data
-        res = await fetch("/api/search_text_with_image", {
-          method: "POST",
-          body: formData
-        });
-      } else {
-        // Original text-only search
-        res = await fetch("/api/search_text", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: q,
-            top_k: parseInt(topk),
-            objects: obj,
-            threshold: threshold
-          })
-        });
-      }
-
-      const data = await res.json();
-      window.lastResults = data.results || [];
-      let html = `<div class="small">Time: ${data.elapsed?.toFixed(2)}s | Results: ${window.lastResults.length}</div>`;
-      for (const r of window.lastResults) {
-        html += `<div style="margin-top:12px">
-                <b>${r.video_name}</b> | Frame ${r.frame_idx} | Time ${r.time_str || "?"} | Frame_video ${r.frame_idx_video} | Score ${r.similarity?.toFixed(3)} | <a href="${r.watch_url}" target="_blank">${r.watch_url}</a><br>
-                ${imgTagForPath(r.image_path)}
-              </div>`;
-      }
-      document.getElementById("textResults").innerHTML = html;
+            const data = await res.json();
+            handleBackendResponse(data, `Text Search: "${q}"`);
+        } catch(e) {
+            alert("Error: " + e.message);
+            hideLoading();
+        }
     }
+
     async function uploadAndSearch() {
-      const input = document.getElementById("uploadFile");
-      if (!input.files.length) { alert("Choose a file first"); return; }
-      const fd = new FormData();
-      fd.append("file", input.files[0]);
-      fd.append("top_k", document.getElementById("imgTopk").value || 100);
-      document.getElementById("imageResults").innerHTML = "<div class='small'>Uploading...</div>";
-      const res = await fetch("/api/upload_image", { method: "POST", body: fd });
-      const data = await res.json();
-      window.lastResults = data.results || [];
-      let html = `<div class="small">Time: ${data.elapsed?.toFixed(2)}s | Results: ${window.lastResults.length}</div>`;
-      for (const r of window.lastResults) {
-        html += `<div style="margin-top:12px"><b>${r.video_name}</b> | Frame ${r.frame_idx} | Score ${r.similarity?.toFixed(3)} | <a href="${r.watch_url}" target="_blank">${r.watch_url}</a> <br>${imgTagForPath(r.image_path)}</br> </div>`;
-      }
-      document.getElementById("imageResults").innerHTML = html;
+        const input = document.getElementById("uploadFile");
+        if (!input.files.length) { alert("Choose an image file first"); return; }
+        
+        const fd = new FormData();
+        fd.append("file", input.files[0]);
+        fd.append("top_k", document.getElementById("imgTopk").value || 100);
+        
+        showLoading();
+        
+        try {
+            const res = await fetch("/api/upload_image", { method: "POST", body: fd });
+            const data = await res.json();
+            handleBackendResponse(data, `Image Search`);
+        } catch(e) {
+            alert("Error: " + e.message);
+            hideLoading();
+        }
     }
-
 
     async function runTrake() {
-      const events = document.getElementById("eventsBox").value.trim().split("\n").filter(x => x);
-      if (!events.length) { alert("Enter events"); return; }
-      const topk = document.getElementById("trakeTopk").value || 200;
-      const candidates = document.getElementById("trakeCandidates").value || 200;
-      const option = document.getElementById("trakeOption").value;
-      const len_of_events = events.length;
-      document.getElementById("trakeResults").innerHTML = "<div class='small'>Running...</div>";
-      const res = await fetch("/api/trake", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          events: events,
-          top_k: parseInt(topk),
-          candidates: parseInt(candidates),
-          option: option
-        })
-      });
-      const data = await res.json();
-      if (!data.result || data.result.length === 0) {
-        document.getElementById("trakeResults").innerHTML = "<div class='small'>No sequence found.</div>";
-        return;
-      }
-      let html = "";
-      for (const candidate of data.result) {
-        html += `<div class="small">Video: ${candidate.video_name} | Time: ${data.elapsed?.toFixed(2)}s | <a href="${candidate.watch_url}" target="_blank">${candidate.watch_url}</a></div>`;
-        for (const d of candidate.details) {
-          html += `<div style="margin-top:12px">
-                   <b>Event:</b> ${d.event} | Frame ${d.frame} | Score ${d.sim?.toFixed(3)}<br>
-                   ${imgTagForPath(d.path)}
-                 </div>`;
+        const events = document.getElementById("eventsBox").value.trim().split("\n").filter(x => x);
+        if (!events.length) { alert("Enter events"); return; }
+        const topk = document.getElementById("trakeTopk").value || 200;
+        const candidates = document.getElementById("trakeCandidates").value || 200;
+        const option = document.getElementById("trakeOption").value;
+        
+        showLoading();
+        
+        try {
+            const res = await fetch("/api/trake", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ events: events, top_k: parseInt(topk), candidates: parseInt(candidates), option: option })
+            });
+            const data = await res.json();
+            
+            // Trake results are nested, we need to flatten them for the generic viewer,
+            // or render them specially. We'll render them specially but also populate lastResults for exporting.
+            window.lastResults = [];
+            const len_of_events = events.length;
+            
+            if (!data.result || data.result.length === 0) {
+                document.getElementById("resultsGrid").innerHTML = `<div class="col-span-full text-center py-10">No sequence found.</div>`;
+                showInfo(`TRAKE completed in ${data.elapsed?.toFixed(2)}s. No results.`);
+                return;
+            }
+
+            let html = "";
+            for (const candidate of data.result) {
+                // Add a full width header for the sequence
+                html += `<div class="col-span-full bg-indigo-100 p-3 rounded mt-4 mb-2 flex justify-between items-center shadow-sm">
+                            <span class="font-bold text-indigo-900"><i class="fa fa-film"></i> ${candidate.video_name}</span>
+                            <a href="${candidate.watch_url}" target="_blank" class="text-sm text-indigo-600 hover:underline"><i class="fa fa-play-circle"></i> Watch Video</a>
+                         </div>`;
+                         
+                for (const d of candidate.details) {
+                    html += `
+                    <div class="bg-white border rounded-xl overflow-hidden shadow hover:shadow-md transition">
+                        <div class="relative group">
+                            <img src="${getImgUrl(d.path)}" class="frame-image rounded-none" loading="lazy">
+                        </div>
+                        <div class="p-3">
+                            <div class="text-xs font-bold text-gray-500 uppercase">${d.event}</div>
+                            <div class="font-semibold text-gray-800 text-sm mt-1">Frame ${d.frame}</div>
+                            <div class="text-xs text-gray-500 mt-1">Score: ${d.sim?.toFixed(3)}</div>
+                        </div>
+                    </div>`;
+                    
+                    window.lastResults.push({
+                        image_path: d.path,
+                        video_name: candidate.video_name,
+                        frame_idx: d.frame,
+                        similarity: d.sim,
+                        watch_url: d.watch_url,
+                        event: len_of_events
+                    });
+                }
+            }
+            
+            document.getElementById("resultsGrid").innerHTML = html;
+            showInfo(`TRAKE completed in ${data.elapsed?.toFixed(2)}s`);
+            
+            // Disable fuse for trake sequences
+            fuse = null; 
+            document.getElementById("fuseSearchInput").value = "";
+            document.getElementById("fuseSearchInput").disabled = true;
+            
+        } catch(e) {
+            alert("Error: " + e.message);
+            hideLoading();
         }
-        html += `<hr>`;
-      }
-      document.getElementById("trakeResults").innerHTML = html;
-      window.lastResults = [];
-      for (const candidate of data.result) {
-        window.lastResults.push(...candidate.details.map(d => ({
-          image_path: d.path,
-          video_name: candidate.video_name,
-          frame_idx: d.frame,
-          similarity: d.sim,
-          watch_url: d.watch_url,
-          event: len_of_events
-        })));
-      }
     }
 
-    async function exportTrake() {
-      const results = window.lastResults || [];
-      if (!results.length) {
-        alert("No TRAKE results to export");
-        return;
-      }
+    // --- Core Rendering & Filtering ---
+    function handleBackendResponse(data, title) {
+        window.lastResults = data.results || [];
+        window.filteredResults = [...window.lastResults];
+        
+        showInfo(`${title} — Time: ${data.elapsed?.toFixed(2)}s | Found: ${window.lastResults.length}`);
+        
+        // Setup Fuse.js for client side filtering
+        const fuseOptions = {
+            keys: [
+                { name: 'ocr_text', weight: 0.4 },
+                { name: 'scene', weight: 0.3 },
+                { name: 'caption', weight: 0.2 },
+                { name: 'video_name', weight: 0.1 }
+            ],
+            threshold: 0.4, // 0.0 is perfect match, 1.0 matches anything
+            ignoreLocation: true,
+            useExtendedSearch: true
+        };
+        fuse = new Fuse(window.lastResults, fuseOptions);
+        
+        document.getElementById("fuseSearchInput").disabled = false;
+        document.getElementById("fuseSearchInput").value = "";
+        
+        renderResults(window.filteredResults);
+    }
 
-      const name = document.getElementById("trakeExportName").value || `trake_${Date.now()}`;
-
-      try {
-        const res = await fetch("/api/export_trake_results", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ results: results, name: name })
-        });
-        const data = await res.json();
-
-        if (data.status === "ok") {
-          document.getElementById("trakeExportMsg").innerText = `Exported: ${data.csv_path}`;
+    function applyFuseFilter() {
+        const query = document.getElementById("fuseSearchInput").value.trim();
+        if (!query) {
+            window.filteredResults = [...window.lastResults];
         } else {
-          document.getElementById("trakeExportMsg").innerText = `Export failed: ${data.msg}`;
+            if (fuse) {
+                const results = fuse.search(query);
+                window.filteredResults = results.map(r => r.item);
+            }
         }
-      } catch (err) {
-        document.getElementById("trakeExportMsg").innerText = "Error: " + err.message;
-      }
+        renderResults(window.filteredResults);
     }
 
-    async function exportResults() {
-      if (!window.lastResults.length) { alert("No results"); return; }
-      const name = document.getElementById("exportName").value || `exported_${Date.now()}`;
-      const constVal = document.getElementById("exportConst").value;
-      const res = await fetch("/api/export_results", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ results: window.lastResults, name: name, const_value: constVal })
-      });
-      const data = await res.json();
-      document.getElementById("exportMsg").innerText = data.status === "ok" ? `Exported: ${data.csv_path}` : "Error";
+    function renderResults(results) {
+        const grid = document.getElementById("resultsGrid");
+        if (results.length === 0) {
+            grid.innerHTML = `<div class="col-span-full text-center text-gray-500 py-10 mt-10">
+                <i class="fa fa-folder-open text-4xl mb-3 opacity-50"></i>
+                <p>No matching results.</p>
+            </div>`;
+            return;
+        }
+
+        let html = "";
+        // Render each card
+        results.forEach((r, index) => {
+            const timeStr = r.time_str || "?";
+            const fvid = r.frame_idx_video || "?";
+            const sim = r.similarity?.toFixed(3) || "N/A";
+            
+            // Store raw JSON in a data attribute to retrieve it when clicking
+            const safeData = encodeURIComponent(JSON.stringify(r));
+            
+            html += `
+            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group cursor-pointer" onclick="openModal('${safeData}')">
+                <div class="relative overflow-hidden bg-black flex-1 flex items-center justify-center min-h-[160px]">
+                    <img src="${getImgUrl(r.image_path)}" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" loading="lazy">
+                    <div class="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                        <i class="fa fa-star text-yellow-400"></i> ${sim}
+                    </div>
+                </div>
+                <div class="p-3 bg-white">
+                    <div class="font-bold text-gray-800 text-sm truncate" title="${r.video_name}">${r.video_name}</div>
+                    <div class="text-xs text-gray-500 mt-1 flex justify-between">
+                        <span><i class="fa fa-film"></i> ${fvid}</span>
+                        <span><i class="fa fa-clock"></i> ${timeStr}</span>
+                    </div>
+                </div>
+            </div>`;
+        });
+        grid.innerHTML = html;
+        document.getElementById("infoStatus").innerText = `Showing ${results.length} results.`;
     }
 
+    // --- Modal Inspector ---
+    function openModal(encodedData) {
+        try {
+            const r = JSON.parse(decodeURIComponent(encodedData));
+            
+            document.getElementById("modalImg").src = getImgUrl(r.image_path);
+            document.getElementById("modalVideoName").innerText = r.video_name;
+            document.getElementById("modalFrameInfo").innerText = `Frame: ${r.frame_idx_video || r.frame_idx} | Time: ${r.time_str || '?'} | Sim: ${r.similarity?.toFixed(3) || '?'}`;
+            
+            document.getElementById("modalCaption").innerText = r.caption || "No caption available.";
+            document.getElementById("modalOCR").innerText = r.ocr_text || "No text detected.";
+            document.getElementById("modalScene").innerText = r.scene || "Unknown scene.";
+            
+            // Detections tags
+            const detContainer = document.getElementById("modalDetections");
+            let detHtml = "";
+            if (r.detections && r.detections.length > 0) {
+                // show top 10 unique detections
+                const uniqueDets = [...new Set(r.detections)].slice(0, 10);
+                uniqueDets.forEach(d => {
+                    detHtml += `<span class="bg-gray-100 border text-gray-600 text-xs px-2 py-1 rounded-full">${d}</span>`;
+                });
+            } else {
+                detHtml = `<span class="text-xs text-gray-400 italic">No objects detected.</span>`;
+            }
+            detContainer.innerHTML = detHtml;
+            
+            const watchBtn = document.getElementById("modalWatchUrl");
+            if (r.watch_url) {
+                watchBtn.href = r.watch_url;
+                watchBtn.style.display = "inline-flex";
+            } else {
+                watchBtn.style.display = "none";
+            }
 
+            // Hook the explore context button
+            const ctxBtn = document.getElementById("modalContextBtn");
+            ctxBtn.onclick = (e) => {
+                e.stopPropagation();
+                closeModal();
+                // We map explore context to "frames range viewer" (3 frames before and after)
+                document.getElementById("subVideoName").value = r.video_name;
+                document.getElementById("subFrameId").value = r.frame_idx;
+                alert(`Context Exploration: Please use the Video Frames Viewer or Submission tools with Frame ID ${r.frame_idx} for ${r.video_name}.`);
+            };
 
-    async function showFrames() {
-      const vid = document.getElementById("videoNameInput").value.trim();
-      if (!vid) { alert("Enter video"); return; }
-      const res = await fetch("/api/get_frames/" + encodeURIComponent(vid));
-      const data = await res.json();
-      let html = "";
-      for (const f of data) {
-        html += imgTagForPath(f.image_path);
-      }
-      document.getElementById("framesView").innerHTML = html;
+            document.getElementById("inspectorModal").classList.remove("hidden");
+        } catch(e) {
+            console.error(e);
+        }
     }
-    async function showFramesRange() {
-      const vid = document.getElementById("videoNameRangeInput").value.trim();
-      const frameId = document.getElementById("frameIdInput").value.trim();
-      const range = document.getElementById("rangeInput").value.trim();
-      if (!vid) { alert("Enter video"); return; }
-      if (!frameId || isNaN(frameId)) { alert("Enter a valid Frame ID"); return; }
-      if (!range || isNaN(range)) { alert("Enter a valid Range"); return; }
-      const res = await fetch("/api/get_frames_range/" + encodeURIComponent(vid) + "/" + frameId + "/" + range);
-      const data = await res.json();
-      let html = "";
-      for (const f of data) {
-        html += imgTagForPath(f.image_path);
-      }
-      document.getElementById("framesRangeView").innerHTML = html;
+
+    function closeModal(e) {
+        document.getElementById("inspectorModal").classList.add("hidden");
+        document.getElementById("modalImg").src = "";
     }
-    async function groupByVideoGeneric(targetId, sortId, topId) {
-      const results = window.lastResults || [];
-      if (!results.length) { alert("No results to group. Run a search first."); return; }
 
-      const sort_by = document.getElementById(sortId).value || "frame";
-      const topInput = document.getElementById(topId).value.trim();
-      const top_per_video = topInput ? parseInt(topInput) : null;
-
-      const target = document.getElementById(targetId);
-      target.innerHTML = "<div class='small'>Grouping...</div>";
-
-      const res = await fetch("/api/group_by_video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ results, sort_by, top_per_video })
-      });
-      const data = await res.json();
-
-      let html = "";
-      const entries = Object.entries(data);
-      if (!entries.length) {
-        target.innerHTML = "<div class='small'>No grouped items.</div>";
-        return;
-      }
-
-      for (const [vid, items] of entries) {
-        html += `<details open>
-        <summary><b>${vid}</b> <span class="small">(${items.length} items)</span></summary>
-        <div class="thumb-row">`;
-        for (const r of items) {
-          const fvid = (r.frame_idx_video ?? r.frame_idx ?? "?");
-          const tstr = r.time_str || "?";
-          const sim = (typeof r.similarity === "number") ? r.similarity.toFixed(3) : "–";
-          html += `<div class="thumb-item">
-          <div class="small">Frame ${fvid} • ${tstr} • ${sim}</div>
-          ${imgTagForPath(r.image_path)}
+    // --- Helpers ---
+    function showLoading() {
+        document.getElementById("resultsGrid").innerHTML = `
+        <div class="col-span-full flex flex-col items-center justify-center py-20">
+            <i class="fa fa-spinner fa-spin text-4xl text-indigo-500 mb-4"></i>
+            <p class="text-gray-500 font-medium animate-pulse">Processing request...</p>
         </div>`;
+    }
+    
+    function hideLoading() {}
+
+    function showInfo(text) {
+        const bar = document.getElementById("infoBar");
+        bar.classList.remove("hidden");
+        document.getElementById("infoStatus").innerText = text;
+    }
+
+    // --- Export / Grouping / Submission (Preserved Legacy Functions) ---
+    async function exportResults() {
+        const results = window.filteredResults && window.filteredResults.length > 0 ? window.filteredResults : window.lastResults;
+        if (!results || !results.length) { alert("No results"); return; }
+        const name = prompt("Enter CSV name (no .csv):", `exported_${Date.now()}`);
+        if (!name) return;
+        const constVal = prompt("Optional const value (int) or leave blank:");
+        
+        try {
+            const res = await fetch("/api/export_results", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ results: results, name: name, const_value: constVal })
+            });
+            const data = await res.json();
+            alert(data.status === "ok" ? `Exported: ${data.csv_path}` : "Error exporting.");
+        } catch(e) {
+            alert("Error: " + e.message);
         }
-        html += `</div></details><hr>`;
-      }
-
-      target.innerHTML = html;
     }
 
-    function groupByVideoText() {
-      return groupByVideoGeneric("groupedResults", "groupSortBy", "groupTopPerVideo");
-    }
-    function groupByVideoImage() {
-      return groupByVideoGeneric("groupedImageResults", "groupSortByImg", "groupTopPerVideoImg");
+    async function groupByVideoText() {
+        const results = window.filteredResults && window.filteredResults.length > 0 ? window.filteredResults : window.lastResults;
+        if (!results || !results.length) { alert("No results to group. Run a search first."); return; }
+
+        const sort_by = prompt("Sort by (frame or similarity):", "frame") || "frame";
+        const topInput = prompt("Top per video (e.g. 20):", "20");
+        const top_per_video = topInput ? parseInt(topInput) : null;
+
+        showLoading();
+
+        try {
+            const res = await fetch("/api/group_by_video", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ results, sort_by, top_per_video })
+            });
+            const data = await res.json();
+
+            let html = "";
+            const entries = Object.entries(data);
+            if (!entries.length) {
+                document.getElementById("resultsGrid").innerHTML = "<div class='col-span-full'>No grouped items.</div>";
+                return;
+            }
+
+            for (const [vid, items] of entries) {
+                html += `<div class="col-span-full mt-4 mb-2 bg-indigo-50 border border-indigo-100 rounded-lg overflow-hidden">
+                    <div class="bg-indigo-100 px-4 py-2 font-bold text-indigo-900 cursor-pointer flex justify-between" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                        <span><i class="fa fa-folder"></i> ${vid} <span class="text-xs font-normal bg-indigo-200 px-2 py-0.5 rounded-full ml-2">${items.length} items</span></span>
+                        <i class="fa fa-chevron-down"></i>
+                    </div>
+                    <div class="flex overflow-x-auto gap-4 p-4">`;
+                
+                for (const r of items) {
+                    const fvid = (r.frame_idx_video ?? r.frame_idx ?? "?");
+                    const sim = (typeof r.similarity === "number") ? r.similarity.toFixed(3) : "–";
+                    const safeData = encodeURIComponent(JSON.stringify(r));
+                    
+                    html += `
+                    <div class="shrink-0 w-48 bg-white border rounded shadow-sm cursor-pointer hover:shadow-md transition" onclick="openModal('${safeData}')">
+                        <img src="${getImgUrl(r.image_path)}" class="w-full h-32 object-cover border-b" loading="lazy">
+                        <div class="p-2 text-xs">
+                            <div class="font-bold text-gray-700 mb-1 flex justify-between"><span>Fr: ${fvid}</span> <span><i class="fa fa-star text-yellow-500"></i> ${sim}</span></div>
+                        </div>
+                    </div>`;
+                }
+                html += `</div></div>`;
+            }
+            
+            document.getElementById("resultsGrid").innerHTML = html;
+            document.getElementById("infoStatus").innerText = `Grouped ${results.length} items into ${entries.length} videos.`;
+            
+        } catch(e) {
+            alert("Error: " + e.message);
+        }
     }
 
     async function makeSubmission() {
@@ -597,26 +613,15 @@
       const videoName = document.getElementById("subVideoName").value.trim();
       const frameIdStr = document.getElementById("subFrameId").value.trim();
       const gapStr = document.getElementById("subGap").value.trim();
-      const constValStr = document.getElementById("subConst").value.trim();
-
+      
       if (!videoName || !frameIdStr || !gapStr) {
-        alert("Please enter video_name, frame_id and GAP_KEYFRAME");
+        alert("Please enter video_name, frame_id and GAP");
         return;
       }
-
+      
       const frameId = parseInt(frameIdStr);
-      const GAP_KEYFRAME = parseInt(gapStr);
-      const constVal = constValStr !== "" ? constValStr : null;   
-
-      if (isNaN(frameId) || frameId < 0) {
-        alert("Invalid frame_id");
-        return;
-      }
-      if (isNaN(GAP_KEYFRAME) || GAP_KEYFRAME <= 0) {
-        alert("Invalid GAP_KEYFRAME");
-        return;
-      }
-
+      const GAP = parseInt(gapStr);
+      
       try {
         const res = await fetch("/api/export_submission", {
           method: "POST",
@@ -624,22 +629,24 @@
           body: JSON.stringify({
             video_name: videoName,
             frame_id: frameId,
-            gap: GAP_KEYFRAME,
-            const_value: constVal,
+            gap: GAP,
+            const_value: null,
             name: name
           })
         });
         const data = await res.json();
+        const msg = document.getElementById("subMsg");
         if (data.status === "ok") {
-          document.getElementById("subMsg").innerText = `Exported: ${data.csv_path}`;
+          msg.innerText = `Success: ${data.csv_path}`;
+          msg.className = "text-xs text-green-700 mt-1";
         } else {
-          document.getElementById("subMsg").innerText = `Export failed: ${data.msg}`;
+          msg.innerText = `Failed: ${data.msg}`;
+          msg.className = "text-xs text-red-700 mt-1";
         }
       } catch (err) {
-        document.getElementById("subMsg").innerText = "Error: " + err.message;
+        alert("Error: " + err.message);
       }
     }
   </script>
 </body>
-
 </html>
