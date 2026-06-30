@@ -32,13 +32,15 @@ AIC-26 là một hệ thống truy xuất video đa phương thức được xâ
 | **TRAKE Temporal Search** | Xác định các chuỗi sự kiện có thứ tự trong video bằng dynamic programming |
 | **Object Filtering** | Thu hẹp kết quả theo các đối tượng được phát hiện với ngưỡng confidence |
 | **OCR Search** | Lập chỉ mục và tìm kiếm văn bản xuất hiện trong các frame video |
+| **Dual-Embedding Retrieval** | Kết hợp EVA-02 + BLIP-2 Q-Former (weighted blend 0.6/0.4) theo MemoriEase 3.0 §3.2 — xem [docs/dual-embedding.md](docs/dual-embedding.md) |
 
 ### Công Nghệ Sử Dụng
 
 | Thành phần | Công nghệ | Mục đích |
 |---|---|---|
-| Vision-Language Model | EVA-02 CLIP (768-dim) | Embedding text và hình ảnh |
-| Vector Search | FAISS IndexFlatIP | Tìm kiếm tương đồng dưới một giây |
+| Vision-Language Model | EVA-02 CLIP (768-dim) | Embedding text và hình ảnh (stream chính) |
+| Vision-Language Model (phụ) | BLIP-2 Q-Former (768-dim) | Stream thứ hai cho dual-embedding blend |
+| Vector Search | FAISS IndexFlatIP × 2 streams | Tìm kiếm tương đồng dưới một giây |
 | Temporal Reasoning | TRAKE (custom DP) | Truy xuất sự kiện có thứ tự |
 | Object Detection | YOLOv8 (Open Images V7) | Chú thích frame với 600+ lớp đối tượng |
 | Reranking | BLIP ITM | Cải thiện độ chính xác |
@@ -115,6 +117,13 @@ DB_PATH=data/faiss_db.pkl
 DEFAULT_TOP_K=100
 DEFAULT_SCORE_THRESHOLD=0.2
 
+# Dual-Embedding (EVA-02 + BLIP-2)
+USE_DUAL_EMBEDDING=true
+EVA02_SEARCH_WEIGHT=0.6
+BLIP2_SEARCH_WEIGHT=0.4
+DUAL_SEARCH_POOL_MULTIPLIER=5
+BLIP2_MODEL_NAME=Salesforce/blip2-itm-vit-g
+
 # Server
 HOST=0.0.0.0
 PORT=5000
@@ -187,6 +196,29 @@ aic26 search temporal \
   --events "the crowd cheering" \
   --mode highest
 ```
+
+### 5. Dual-Embedding (EVA-02 + BLIP-2)
+
+Khi `USE_DUAL_EMBEDDING=true` trong `.env`, hệ thống trích xuất và tìm kiếm trên **hai luồng embedding song song** rồi kết hợp bằng weighted-average cosine similarity theo MemoriEase 3.0 §3.2:
+
+```
+EVA-02 (768-d) ──┐
+                  ├──► 0.6 × sim_eva + 0.4 × sim_blip2 ──► top-k
+BLIP-2 (768-d) ──┘
+```
+
+```bash
+# Trích xuất dual embeddings (chạy 1 lần, ~25 phút cho 12,609 ảnh trên RTX 2080 Ti)
+aic26 pipeline extract-dual-embeddings -i data/keyframes -b 4
+
+# Xây dựng dual FAISS index (~112 MB pickle, 2 × IndexFlatIP)
+aic26 pipeline build-dual-index
+
+# Sau đó search bình thường — facade tự động dùng dual blend
+aic26 search text -q "a person riding a bicycle" -k 10
+```
+
+**Lưu ý quan trọng**: Checkpoint `Salesforce/blip2-itm-vit-g` có Q-Former **image-only** — text query qua BLIP-2 trả về vector hằng số. Hệ thống tự động phát hiện lúc runtime và fallback về EVA-02 cho text query; **image query vẫn dùng đầy đủ dual blend** (top-1 self-match sim=1.0). Xem chi tiết tại [docs/dual-embedding.md](docs/dual-embedding.md).
 
 ---
 
