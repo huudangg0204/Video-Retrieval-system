@@ -322,3 +322,93 @@ class OCRExtractor:
         
         cv2.imwrite(out_path, canvas)
         return out_path
+
+    # ── External OCR import ──────────────────────────────────────
+
+    @staticmethod
+    def load_from_csv(csv_path: str) -> pd.DataFrame:
+        """
+        Load pre-computed OCR results from an external CSV file.
+
+        This enables a workflow where OCR is run externally (e.g., PaddleOCR
+        on a different machine/environment) and imported into the AIC-26
+        pipeline without changing the OCR engine dependency.
+
+        Expected CSV columns (minimum):
+            - video: Video name (e.g., "L01_V001")
+            - file:  Keyframe filename (e.g., "000123.jpg")
+            - text_full: Concatenated OCR text for the frame
+
+        Optional columns:
+            - path, num_boxes, conf_mean, boxes, texts, confs
+
+        Args:
+            csv_path: Path to the external OCR CSV file
+
+        Returns:
+            DataFrame with validated OCR results
+
+        Raises:
+            FileNotFoundError: If csv_path does not exist
+            ValueError: If required columns are missing
+        """
+        if not os.path.exists(csv_path):
+            raise FileNotFoundError(f"OCR CSV not found: {csv_path}")
+
+        df = pd.read_csv(csv_path, encoding="utf-8")
+        required = {"video", "file", "text_full"}
+        missing = required - set(df.columns)
+        if missing:
+            raise ValueError(
+                f"Missing required columns in OCR CSV: {missing}. "
+                f"Expected at least: {sorted(required)}"
+            )
+
+        logger.info(
+            f"Loaded external OCR: {len(df)} rows from {csv_path} "
+            f"(columns: {sorted(df.columns.tolist())})"
+        )
+        return df
+
+    @staticmethod
+    def merge_external_csv(
+        existing_csv: str,
+        external_csv: str,
+        output_csv: str | None = None,
+        overwrite: bool = False,
+    ) -> str:
+        """
+        Merge external OCR results into an existing pipeline OCR CSV.
+
+        Args:
+            existing_csv: Path to the current pipeline OCR CSV
+            external_csv: Path to the external OCR CSV to merge
+            output_csv: Output path (defaults to existing_csv)
+            overwrite: If True, external rows overwrite existing ones
+                       for the same (video, file) pair. If False,
+                       existing rows are kept.
+
+        Returns:
+            Path to the merged output CSV
+        """
+        output_csv = output_csv or existing_csv
+
+        ext_df = OCRExtractor.load_from_csv(external_csv)
+
+        if os.path.exists(existing_csv):
+            cur_df = pd.read_csv(existing_csv, encoding="utf-8")
+            if overwrite:
+                # Drop existing rows that will be replaced
+                keys = set(zip(ext_df["video"], ext_df["file"]))
+                cur_df = cur_df[
+                    ~cur_df.apply(lambda r: (r["video"], r["file"]) in keys, axis=1)
+                ]
+            merged = pd.concat([cur_df, ext_df], ignore_index=True)
+        else:
+            merged = ext_df
+
+        merged.to_csv(output_csv, index=False, encoding="utf-8")
+        logger.info(
+            f"Merged OCR CSV written: {len(merged)} rows -> {output_csv}"
+        )
+        return output_csv

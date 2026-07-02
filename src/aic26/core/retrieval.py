@@ -56,7 +56,7 @@ class EVA02ImageRetrieval:
         embedding_dir: Optional[str] = None,
         keyframes_dir: Optional[str] = None,
         db_path: Optional[str] = None,
-        blip2_dir: Optional[str] = None,
+        clip32_dir: Optional[str] = None,
     ) -> None:
         """
         Initialize the retrieval system.
@@ -65,12 +65,12 @@ class EVA02ImageRetrieval:
             embedding_dir: Directory containing .npy embedding files
             keyframes_dir: Directory containing keyframe images
             db_path: Path to the FAISS database pickle file
-            blip2_dir: Optional directory of BLIP-2 .npy files. When provided
+            clip32_dir: Optional directory of CLIP ViT-B-32 .npy files. When provided
                        and populated, dual-stream weighted search is enabled.
         """
         self.embedding_dir = embedding_dir or str(settings.embedding_dir)
         self.keyframes_dir = keyframes_dir or str(settings.keyframes_dir)
-        self.blip2_dir = blip2_dir or str(settings.blip2_embedding_dir)
+        self.clip32_dir = clip32_dir or str(settings.clip32_embedding_dir)
 
         logger.info("Initializing EVA-02 Retrieval System...")
 
@@ -84,7 +84,7 @@ class EVA02ImageRetrieval:
             self._models,
             self.embedding_dir,
             self.keyframes_dir,
-            blip2_dir=self.blip2_dir,
+            clip32_dir=self.clip32_dir,
         )
 
         # Persistent query store
@@ -97,7 +97,7 @@ class EVA02ImageRetrieval:
             self._index,
             self._db,
             weight_eva02=settings.eva02_search_weight,
-            weight_blip2=settings.blip2_search_weight,
+            weight_clip32=settings.clip32_search_weight,
             weight_bm25=settings.bm25_search_weight,
             pool_multiplier=settings.dual_search_pool_multiplier,
         )
@@ -107,7 +107,7 @@ class EVA02ImageRetrieval:
 
         streams = ["eva02"]
         if self._index.is_dual:
-            streams.append("blip2")
+            streams.append("clip32")
         logger.info(f"Retrieval system ready (streams: {','.join(streams)}).")
     
     # ── Search ────────────────────────────────────────────────────────

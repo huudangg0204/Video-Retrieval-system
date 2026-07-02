@@ -50,12 +50,12 @@ class IndexBuilder:
     def build_dual(
         self,
         eva02_dir: str,
-        blip2_dir: str,
+        clip32_dir: str,
         output_path: Optional[str] = None,
         index_type: str = "flat_ip",
     ) -> dict:
         """
-        Build a FAISS index pair from two embedding streams (EVA-02 + BLIP-2).
+        Build a FAISS index pair from two embedding streams (EVA-02 + CLIP-32).
 
         Both directories are read with the same sorted video_name order so
         the row order of the two stacked arrays matches. The pickled DB
@@ -64,60 +64,60 @@ class IndexBuilder:
         The new pickle schema is:
             {
                 "eva02_index": faiss.IndexFlatIP,
-                "blip2_index": faiss.IndexFlatIP,
+                "clip32_index": faiss.IndexFlatIP,
                 "embeddings":  np.ndarray (eva02, kept for backward compat),
                 "image_paths": list[str],
                 "video_names": list[str],
                 "weight_eva02": float,
-                "weight_blip2": float,
+                "weight_clip32": float,
                 "metadata": {...},
             }
 
         Single-stream pickle (legacy "faiss_index" key) is still loadable;
-        the loader in core/embeddings.py detects the missing blip2_index
+        the loader in core/embeddings.py detects the missing clip32_index
         and falls back.
         """
         eva02_path = Path(eva02_dir)
-        blip2_path = Path(blip2_dir)
+        clip32_path = Path(clip32_dir)
         if not eva02_path.exists():
             raise FileNotFoundError(f"EVA-02 embedding dir not found: {eva02_path}")
-        if not blip2_path.exists():
-            raise FileNotFoundError(f"BLIP-2 embedding dir not found: {blip2_path}")
+        if not clip32_path.exists():
+            raise FileNotFoundError(f"CLIP-32 embedding dir not found: {clip32_path}")
 
         output_path = output_path or str(self.config.db_path)
         ensure_dir(os.path.dirname(output_path))
 
         logger.info(f"Loading EVA-02 embeddings from {eva02_path}...")
         eva02_emb, image_paths, video_names = self._load_with_paths(str(eva02_path))
-        logger.info(f"Loading BLIP-2 embeddings from {blip2_path}...")
-        blip2_emb, _, _ = self._load_with_paths(str(blip2_path), image_paths, video_names)
+        logger.info(f"Loading CLIP-32 embeddings from {clip32_path}...")
+        clip32_emb, _, _ = self._load_with_paths(str(clip32_path), image_paths, video_names)
 
-        if eva02_emb.shape != blip2_emb.shape:
+        if eva02_emb.shape[0] != clip32_emb.shape[0]:
             raise ValueError(
-                f"Stream shape mismatch: eva02={eva02_emb.shape} blip2={blip2_emb.shape}"
+                f"Stream row count mismatch: eva02={eva02_emb.shape[0]} clip32={clip32_emb.shape[0]}"
             )
 
         d_eva = eva02_emb.shape[1]
-        d_blip = blip2_emb.shape[1]
+        d_clip = clip32_emb.shape[1]
         eva02_f32 = eva02_emb.astype(np.float32)
-        blip2_f32 = blip2_emb.astype(np.float32)
+        clip32_f32 = clip32_emb.astype(np.float32)
 
         if index_type == "flat_ip":
             eva02_index = faiss.IndexFlatIP(d_eva)
-            blip2_index = faiss.IndexFlatIP(d_blip)
+            clip32_index = faiss.IndexFlatIP(d_clip)
         else:
             eva02_index = faiss.IndexFlatL2(d_eva)
-            blip2_index = faiss.IndexFlatL2(d_blip)
+            clip32_index = faiss.IndexFlatL2(d_clip)
 
         eva02_index.add(eva02_f32)
-        blip2_index.add(blip2_f32)
+        clip32_index.add(clip32_f32)
         logger.info(
-            f"FAISS dual index built: eva02={d_eva}-d, blip2={d_blip}-d, "
+            f"FAISS dual index built: eva02={d_eva}-d, clip32={d_clip}-d, "
             f"n={eva02_index.ntotal}"
         )
 
         w_eva = float(getattr(self.config, "eva02_search_weight", 0.6))
-        w_blip = float(getattr(self.config, "blip2_search_weight", 0.4))
+        w_clip = float(getattr(self.config, "clip32_search_weight", 0.4))
 
         db_data = {
             "queries": [],
@@ -129,18 +129,18 @@ class IndexBuilder:
             "similarities": [],
             "timestamps": [],
             "eva02_index": eva02_index,
-            "blip2_index": blip2_index,
+            "clip32_index": clip32_index,
             "weight_eva02": w_eva,
-            "weight_blip2": w_blip,
+            "weight_clip32": w_clip,
             "dual": True,
             "metadata": {
                 "build_date": np.datetime64("now").astype(str),
                 "num_embeddings": eva02_index.ntotal,
                 "eva02_dim": d_eva,
-                "blip2_dim": d_blip,
+                "clip32_dim": d_clip,
                 "index_type": index_type,
                 "weight_eva02": w_eva,
-                "weight_blip2": w_blip,
+                "weight_clip32": w_clip,
             },
         }
 
@@ -155,7 +155,7 @@ class IndexBuilder:
         return {
             "embeddings_loaded": eva02_index.ntotal,
             "eva02_dim": d_eva,
-            "blip2_dim": d_blip,
+            "clip32_dim": d_clip,
             "index_type": index_type,
             "output_path": output_path,
             "file_size_mb": file_size_mb,

@@ -5,6 +5,7 @@ Centralizes all neural network model loading to ensure:
 - Single initialization (avoids duplicate loading bugs)
 - GPU/CPU device management
 - Consistent interfaces
+- Lazy loading of heavy models to save VRAM
 
 Migrated from: core/models.py
 """
@@ -29,18 +30,18 @@ class ModelRegistry:
     
     Guarantees single-initialization of each model.
     Provides unified access to:
-    - EVA-02 CLIP (text + image encoder)
-    - Faster R-CNN (object detector)
-    - BLIP ITM (image-text matching reranker)
+    - EVA-02 CLIP (text + image encoder) — eager loaded
+    - CLIP ViT-B-32 (dual-stream) — lazy loaded on first use
+    - Faster R-CNN (object detector) — lazy loaded on first use
+    - BLIP ITM (image-text matching reranker) — lazy loaded on first use
     
     Usage:
         models = ModelRegistry()
         text_emb = models.clip_model.encode_text(tokens)
-        objects = models.detector([image_tensor])
     """
     
     def __init__(self) -> None:
-        """Initialize all models on the appropriate device."""
+        """Initialize core models on the appropriate device."""
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Using device: {self.device}")
         
@@ -48,18 +49,20 @@ class ModelRegistry:
             logger.info(f"GPU: {torch.cuda.get_device_name(0)}")
             logger.info(f"VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
         
+        # Eager: always needed for search
         self._load_clip()
-        self._load_detector()
-        self._load_reranker()
 
-        # BLIP-2 is heavy (~1.2B params). Lazy-load on first encode_blip2
-        # call to keep startup time and base VRAM low.
-        self.blip2_model = None
-        self.blip2_processor = None
+        # Lazy: only loaded on first access (saves ~1.3GB VRAM)
+        self._detector = None
+        self._detection_transform = None
+        self._blip_processor = None
+        self._blip_model = None
+        self.clip32_model = None
+        self.clip32_processor = None
 
-        logger.info("All eager models loaded successfully.")
+        logger.info("Core models loaded (EVA-02). Detector/BLIP/CLIP-32 are lazy-loaded.")
     
-    # ── CLIP / EVA-02 ──────────────────────────────────────────────
+    # ── CLIP / EVA-02 (eager) ─────────────────────────────────────
     
     def _load_clip(self) -> None:
         """Load the EVA-02 CLIP model for text and image encoding."""
@@ -78,145 +81,156 @@ class ModelRegistry:
         total_params = sum(p.numel() for p in self.clip_model.parameters())
         logger.info(f"EVA-02 CLIP loaded. Parameters: {total_params / 1e6:.1f}M")
     
-    # ── Object detector ───────────────────────────────────────────
+    # ── Object detector (lazy) ────────────────────────────────────
     
+    @property
+    def detector(self):
+        """Lazy-load Faster R-CNN on first access."""
+        if self._detector is None:
+            self._load_detector()
+        return self._detector
+
+    @property
+    def detection_transform(self):
+        """Get detection transform, loading detector if needed."""
+        if self._detection_transform is None:
+            self._load_detector()
+        return self._detection_transform
+
     def _load_detector(self) -> None:
         """Load Faster R-CNN for object detection."""
-        logger.info("Loading Faster R-CNN detector...")
+        logger.info("Lazy-loading Faster R-CNN detector...")
         
-        self.detector = torchvision.models.detection.fasterrcnn_resnet50_fpn(
+        self._detector = torchvision.models.detection.fasterrcnn_resnet50_fpn(
             pretrained=True
         )
-        self.detector.to(self.device).eval()
-        self.detection_transform = Compose([ToTensor()])
+        self._detector.to(self.device).eval()
+        self._detection_transform = Compose([ToTensor()])
         
         logger.info("Faster R-CNN ready.")
     
-    # ── BLIP reranker ─────────────────────────────────────────────
+    # ── BLIP reranker (lazy) ──────────────────────────────────────
     
+    @property
+    def blip_processor(self):
+        """Lazy-load BLIP processor on first access."""
+        if self._blip_processor is None:
+            self._load_reranker()
+        return self._blip_processor
+
+    @property
+    def blip_model(self):
+        """Lazy-load BLIP ITM model on first access."""
+        if self._blip_model is None:
+            self._load_reranker()
+        return self._blip_model
+
     def _load_reranker(self) -> None:
         """Load BLIP Image-Text Matching model for reranking."""
-        logger.info(f"Loading BLIP ITM: {settings.blip_model_name}")
+        logger.info(f"Lazy-loading BLIP ITM: {settings.blip_model_name}")
         
-        self.blip_processor = BlipProcessor.from_pretrained(settings.blip_model_name)
-        self.blip_model = BlipForImageTextRetrieval.from_pretrained(
+        self._blip_processor = BlipProcessor.from_pretrained(settings.blip_model_name)
+        self._blip_model = BlipForImageTextRetrieval.from_pretrained(
             settings.blip_model_name
         ).to(self.device)
 
         logger.info("BLIP ITM ready.")
 
-    # ── BLIP-2 (Q-Former) for dual-embedding pipeline ─────────────
+    # ── CLIP ViT-B-32 for dual-embedding pipeline (lazy) ─────────
 
-    def _load_blip2(self) -> None:
+    def _load_clip32(self) -> None:
         """
-        Lazy-load BLIP-2 model and processor for dual-embedding extraction.
+        Lazy-load CLIP ViT-B-32 model and processor for dual-embedding.
 
-        BLIP-2 here is used as an image+text embedding source (Q-Former pooled
-        query embeddings), NOT for text generation. We expose encode_text_blip2
-        and encode_image_blip2 returning L2-normalized 768-d vectors compatible
-        with cosine similarity.
+        Unlike BLIP-2 Q-Former (image-only), CLIP ViT-B-32 natively encodes
+        both text and images into a shared 512-d embedding space. This
+        eliminates the black-image hack previously required for text queries.
         """
-        from transformers import Blip2Model, Blip2Processor
+        from transformers import CLIPModel, CLIPProcessor
 
-        if getattr(self, "blip2_model", None) is not None:
+        if getattr(self, "clip32_model", None) is not None:
             return
 
-        logger.info(f"Loading BLIP-2 (Q-Former): {settings.blip2_model_name}")
-        self.blip2_processor = Blip2Processor.from_pretrained(settings.blip2_model_name)
-        self.blip2_model = (
-            Blip2Model.from_pretrained(settings.blip2_model_name)
+        logger.info(f"Loading CLIP ViT-B-32: {settings.clip32_model_name}")
+        self.clip32_processor = CLIPProcessor.from_pretrained(
+            settings.clip32_model_name
+        )
+        self.clip32_model = (
+            CLIPModel.from_pretrained(settings.clip32_model_name)
             .to(self.device)
             .eval()
         )
-        # Q-Former hidden size lives in the nested config in transformers 5.x
-        qcfg = getattr(self.blip2_model.config, "qformer_config", None)
-        if qcfg is not None and getattr(qcfg, "hidden_size", None):
-            self.blip2_embed_dim = int(qcfg.hidden_size)
-        else:
-            self.blip2_embed_dim = int(
-                getattr(self.blip2_model.config, "image_text_hidden_size", 768) or 768
-            )
+        self.clip32_embed_dim = int(self.clip32_model.config.projection_dim)
         logger.info(
-            f"BLIP-2 ready. Q-Former hidden size: {self.blip2_embed_dim}"
+            f"CLIP ViT-B-32 ready. Projection dim: {self.clip32_embed_dim}"
         )
 
-    def _pool_blip2_query(self, query_out) -> "torch.Tensor":
+    def encode_text_clip32(self, text: str) -> "np.ndarray":
         """
-        Reduce a (batch, num_query_tokens, hidden) Q-Former output to a
-        single vector per item. We use the first query token (CLS-style)
-        followed by L2-normalize, matching the BLIP-2 retrieval recipe.
-        """
-        # Newer transformers returns Tensor directly; older returns ModelOutput-like
-        if isinstance(query_out, torch.Tensor):
-            feats = query_out[:, 0, :]
-        else:
-            hidden = getattr(query_out, "last_hidden_state", None)
-            if hidden is None:
-                hidden = query_out[0]
-            feats = hidden[:, 0, :]
-        return torch.nn.functional.normalize(feats, dim=-1)
-
-    def encode_image_blip2(self, image_path: str) -> "np.ndarray":
-        """
-        Encode a single image via BLIP-2 Q-Former.
+        Encode text via CLIP ViT-B-32 natively.
 
         Returns:
-            Float32 array of shape (1, blip2_embed_dim) — L2-normalized.
+            Float32 array of shape (1, 512) — L2-normalized.
+        """
+        import numpy as np
+
+        if getattr(self, "clip32_model", None) is None:
+            self._load_clip32()
+
+        # Use tokenizer directly (avoids forward() requiring pixel_values
+        # in newer transformers versions).
+        text_inputs = self.clip32_processor.tokenizer(
+            [text], return_tensors="pt", padding=True, truncation=True,
+        ).to(self.device)
+        with torch.no_grad():
+            text_outputs = self.clip32_model.text_model(**text_inputs)
+            pooled = text_outputs.pooler_output
+            feats = self.clip32_model.text_projection(pooled)
+            feats = F.normalize(feats, dim=-1)
+        return feats.cpu().numpy().astype(np.float32)
+
+    def encode_image_clip32(self, image_path: str) -> "np.ndarray":
+        """
+        Encode a single image via CLIP ViT-B-32.
+
+        Returns:
+            Float32 array of shape (1, 512) — L2-normalized.
         """
         import numpy as np
         from PIL import Image
 
-        if getattr(self, "blip2_model", None) is None:
-            self._load_blip2()
+        if getattr(self, "clip32_model", None) is None:
+            self._load_clip32()
 
         image = Image.open(image_path).convert("RGB")
-        inputs = self.blip2_processor(images=image, return_tensors="pt").to(self.device)
+        inputs = self.clip32_processor(
+            images=image, return_tensors="pt",
+        ).to(self.device)
         with torch.no_grad():
-            query_out = self.blip2_model.get_qformer_features(**inputs)
-        feats = self._pool_blip2_query(query_out)
+            feats = self.clip32_model.get_image_features(**inputs)
+            feats = F.normalize(feats, dim=-1)
         return feats.cpu().numpy().astype(np.float32)
 
-    def encode_text_blip2(self, text: str, image_path: str | None = None) -> "np.ndarray":
+    def encode_images_clip32_batch(self, image_paths: list[str]) -> "np.ndarray":
         """
-        Encode text via BLIP-2 Q-Former.
+        Batch-encode images via CLIP ViT-B-32.
 
-        BLIP-2's Q-Former is image-conditioned (`get_qformer_features` only
-        accepts pixel_values). For pure text queries we pass a 224x224 black
-        image so the Q-Former still produces a stable embedding. If a real
-        image is available (combined text+image query) pass image_path.
+        Returns:
+            Float32 array of shape (B, 512) — L2-normalized.
         """
         import numpy as np
         from PIL import Image
 
-        if getattr(self, "blip2_model", None) is None:
-            self._load_blip2()
-
-        if image_path is not None:
-            image = Image.open(image_path).convert("RGB")
-        else:
-            image = Image.new("RGB", (224, 224), color=(0, 0, 0))
-
-        inputs = self.blip2_processor(images=image, return_tensors="pt").to(self.device)
-        with torch.no_grad():
-            query_out = self.blip2_model.get_qformer_features(**inputs)
-        feats = self._pool_blip2_query(query_out)
-        return feats.cpu().numpy().astype(np.float32)
-
-    def encode_images_blip2_batch(self, image_paths: list[str]) -> "np.ndarray":
-        """
-        Batch-encode images via BLIP-2. Returns float32 array of shape (B, 768).
-        """
-        import numpy as np
-        from PIL import Image
-
-        if getattr(self, "blip2_model", None) is None:
-            self._load_blip2()
+        if getattr(self, "clip32_model", None) is None:
+            self._load_clip32()
 
         images = [Image.open(p).convert("RGB") for p in image_paths]
-        inputs = self.blip2_processor(images=images, return_tensors="pt").to(self.device)
+        inputs = self.clip32_processor(
+            images=images, return_tensors="pt",
+        ).to(self.device)
         with torch.no_grad():
-            query_out = self.blip2_model.get_qformer_features(**inputs)
-        feats = self._pool_blip2_query(query_out)
+            feats = self.clip32_model.get_image_features(**inputs)
+            feats = F.normalize(feats, dim=-1)
         return feats.cpu().numpy().astype(np.float32)
     
     # ── Utility ──────────────────────────────────────────────────

@@ -41,7 +41,7 @@ VIDEO_EXTENSIONS: Final[tuple[str, ...]] = (
 EVA02_EMBEDDING_DIM: Final[int] = 768
 BLIP_ITM_DIM: Final[int] = 768
 DINOV2_EMBEDDING_DIM: Final[int] = 384
-BLIP2_EMBEDDING_DIM: Final[int] = 768  # blip2-itm-vit-g Q-Former pooled query output
+CLIP32_EMBEDDING_DIM: Final[int] = 512  # openai/clip-vit-base-patch32 projection dim
 
 # ── FAISS index types ───────────────────────────────────────────────────
 FAISS_INDEX_TYPES: Final[dict[str, str]] = {

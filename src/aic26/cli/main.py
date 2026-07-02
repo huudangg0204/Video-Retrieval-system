@@ -286,9 +286,25 @@ def build_index(input: str, output: str | None, index_type: str) -> None:
 @click.option("--skip-embeddings", is_flag=True, help="Skip embedding extraction")
 @click.option("--skip-index", is_flag=True, help="Skip FAISS index building")
 @click.option(
-    "--extract-metadata",
+    "--skip-metadata",
     is_flag=True,
-    help="Also run metadata extraction (detections+scene+scene-graph) — opt-in per AD-5",
+    help="Skip metadata extraction (sidecars + OCR merge). Default: run metadata.",
+)
+@click.option(
+    "--skip-scene",
+    is_flag=True,
+    help="Skip Places365 scene classification in metadata",
+)
+@click.option(
+    "--skip-scene-graph",
+    is_flag=True,
+    default=True,
+    help="Skip Qwen scene-graph extraction in metadata (default: skip — heavy model)",
+)
+@click.option(
+    "--skip-captions",
+    is_flag=True,
+    help="Skip BLIP caption generation in metadata (default: run captions)",
 )
 def run_all_pipeline(
     video_dir: str,
@@ -296,7 +312,10 @@ def run_all_pipeline(
     skip_ocr: bool,
     skip_embeddings: bool,
     skip_index: bool,
-    extract_metadata: bool,
+    skip_metadata: bool,
+    skip_scene: bool,
+    skip_scene_graph: bool,
+    skip_captions: bool,
 ) -> None:
     """Run the complete data processing pipeline."""
     from aic26.pipeline.orchestrator import PipelineOrchestrator
@@ -308,7 +327,10 @@ def run_all_pipeline(
         skip_ocr=skip_ocr,
         skip_embeddings=skip_embeddings,
         skip_index=skip_index,
-        extract_metadata=extract_metadata,
+        skip_metadata=skip_metadata,
+        skip_scene=skip_scene,
+        skip_scene_graph=skip_scene_graph,
+        skip_captions=skip_captions,
     )
 
     stats = results.get("_pipeline_stats", {})
@@ -337,39 +359,39 @@ def run_all_pipeline(
     help="Output dir for EVA-02 .npy (default: settings.embedding_dir)",
 )
 @click.option(
-    "--blip2-out",
+    "--clip32-out",
     type=click.Path(),
     default=None,
-    help="Output dir for BLIP-2 .npy (default: settings.blip2_embedding_dir)",
+    help="Output dir for CLIP-32 .npy (default: settings.clip32_embedding_dir)",
 )
 @click.option(
     "--batch-size",
     "-b",
     type=int,
     default=8,
-    help="Batch size (smaller than single-stream — BLIP-2 is heavy)",
+    help="Batch size for dual GPU processing",
 )
 def extract_dual_embeddings(
     input: str,
     eva02_out: str | None,
-    blip2_out: str | None,
+    clip32_out: str | None,
     batch_size: int,
 ) -> None:
-    """Run EVA-02 + BLIP-2 dual embedding extraction over keyframes."""
+    """Run EVA-02 + CLIP ViT-B-32 dual embedding extraction over keyframes."""
     from aic26.pipeline.embedding import EmbeddingExtractor
 
     extractor = EmbeddingExtractor(settings)
     stats = extractor.process_images_dual(
         input_dir=input,
         eva02_output_dir=eva02_out,
-        blip2_output_dir=blip2_out,
+        clip32_output_dir=clip32_out,
         batch_size=batch_size,
     )
     click.echo("\n✅ Dual embedding extraction complete!")
     click.echo(f"   Folders processed: {stats['folders_processed']}/{stats['folders_total']}")
     click.echo(f"   Images total:      {stats['images_total']}")
     click.echo(f"   EVA-02 output:     {eva02_out or settings.embedding_dir}")
-    click.echo(f"   BLIP-2 output:     {blip2_out or settings.blip2_embedding_dir}")
+    click.echo(f"   CLIP-32 output:    {clip32_out or settings.clip32_embedding_dir}")
 
 
 @pipeline_group.command(name="build-dual-index")
@@ -380,10 +402,10 @@ def extract_dual_embeddings(
     help="Dir with EVA-02 .npy (default: settings.embedding_dir)",
 )
 @click.option(
-    "--blip2-dir",
+    "--clip32-dir",
     type=click.Path(exists=True),
     default=None,
-    help="Dir with BLIP-2 .npy (default: settings.blip2_embedding_dir)",
+    help="Dir with CLIP-32 .npy (default: settings.clip32_embedding_dir)",
 )
 @click.option(
     "--output",
@@ -399,26 +421,68 @@ def extract_dual_embeddings(
 )
 def build_dual_index(
     eva02_dir: str | None,
-    blip2_dir: str | None,
+    clip32_dir: str | None,
     output: str | None,
     index_type: str,
 ) -> None:
-    """Build a 2-stream FAISS index (EVA-02 + BLIP-2) into one pickle."""
+    """Build a 2-stream FAISS index (EVA-02 + CLIP-32) into one pickle."""
     from aic26.pipeline.indexer import IndexBuilder
 
     builder = IndexBuilder(settings)
     stats = builder.build_dual(
         eva02_dir=eva02_dir or str(settings.embedding_dir),
-        blip2_dir=blip2_dir or str(settings.blip2_embedding_dir),
+        clip32_dir=clip32_dir or str(settings.clip32_embedding_dir),
         output_path=output,
         index_type=index_type,
     )
     click.echo("\n✅ Dual FAISS index built!")
     click.echo(f"   Vectors:    {stats['embeddings_loaded']}")
     click.echo(f"   EVA-02 dim: {stats['eva02_dim']}")
-    click.echo(f"   BLIP-2 dim: {stats['blip2_dim']}")
+    click.echo(f"   CLIP-32 dim: {stats['clip32_dim']}")
     click.echo(f"   Index type: {stats['index_type']}")
     click.echo(f"   Output:     {stats['output_path']} ({stats['file_size_mb']:.1f} MB)")
+
+
+@pipeline_group.command(name="import-ocr")
+@click.option(
+    "--csv",
+    required=True,
+    type=click.Path(exists=True),
+    help="Path to external OCR CSV file (e.g., from PaddleOCR)",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    default=None,
+    help="Output CSV path (default: settings.ocr_output_path)",
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    help="Overwrite existing rows for the same (video, file) pair",
+)
+def import_ocr_cmd(
+    csv: str,
+    output: str | None,
+    overwrite: bool,
+) -> None:
+    """Import external OCR results into the pipeline.
+
+    Merges an external OCR CSV (e.g., from PaddleOCR) with the existing
+    pipeline OCR results. The external CSV must have at least columns:
+    video, file, text_full.
+    """
+    from aic26.pipeline.ocr import OCRExtractor
+
+    existing_csv = output or str(settings.ocr_csv_path)
+    result_path = OCRExtractor.merge_external_csv(
+        existing_csv=existing_csv,
+        external_csv=csv,
+        output_csv=existing_csv,
+        overwrite=overwrite,
+    )
+    click.echo(f"\n✅ OCR import complete! Output: {result_path}")
 
 
 # ── Metadata extraction subcommands (per docs/specs/metadata-extraction.md AD-4) ─
@@ -859,7 +923,7 @@ def serve_api(host: str | None, port: int | None, debug: bool | None) -> None:
     logger.info(f"Starting API server on http://{host}:{port}")
 
     app = create_app(settings)
-    app.run(host=host, port=port, debug=debug)
+    app.run(host=host, port=port, debug=debug, threaded=True)
 
 
 @serve_group.command(name="gui")

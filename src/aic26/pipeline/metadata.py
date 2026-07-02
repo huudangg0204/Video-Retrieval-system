@@ -493,6 +493,25 @@ def load_ocr_lookup(csv_path: Path) -> OcrLookup:
             if not video or not file_:
                 continue
             stem = _P(str(file_)).stem  # strip ".jpg"
+
+            # Handle heterogeneous naming conventions:
+            # - Pipeline-produced CSV:  001.jpg (1-indexed, 3-digit)
+            # - External/Kaggle CSV:    0000.jpg (0-indexed, 4-digit)
+            # We register *both* the original stem and a normalised
+            # stem so that apply_ocr_merging (which looks up by the
+            # sidecar JSON name, e.g. "001") always finds a match.
+            normalized_stems: list[str] = [stem]
+            if stem.isdigit():
+                idx = int(stem)
+                # 0-indexed → 1-indexed, 3-digit (pipeline convention)
+                alt_1idx = str(idx + 1).zfill(3)
+                # 1-indexed → 0-indexed, 4-digit (Kaggle convention)
+                alt_0idx = str(idx - 1).zfill(4) if idx > 0 else None
+                if alt_1idx != stem:
+                    normalized_stems.append(alt_1idx)
+                if alt_0idx is not None and alt_0idx != stem:
+                    normalized_stems.append(alt_0idx)
+
             n_boxes = int(row.get("num_boxes") or 0)
             if n_boxes <= 0:
                 continue
@@ -512,10 +531,10 @@ def load_ocr_lookup(csv_path: Path) -> OcrLookup:
                     "confidence": float(conf),
                 }
             )
-        # If multiple rows exist for the same (video, stem), keep the
-        # first non-empty one (the CSV is supposed to have one row per
-        # frame, but guard against duplicates).
-        lookup.setdefault((str(video), str(stem)), records)
+        # Register under all normalised stems so both
+        # "0000" and "001" map to the same records.
+        for ns in normalized_stems:
+            lookup.setdefault((str(video), ns), records)
 
     logger.info("Loaded OCR lookup: %d (video, stem) entries from %s", len(lookup), csv_path)
     return lookup

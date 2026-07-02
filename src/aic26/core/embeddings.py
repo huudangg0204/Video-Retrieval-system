@@ -43,7 +43,7 @@ class EmbeddingIndex:
         models: ModelRegistry,
         embedding_dir: str,
         keyframes_dir: str,
-        blip2_dir: str | None = None,
+        clip32_dir: str | None = None,
     ) -> None:
         """
         Initialize the embedding index.
@@ -52,15 +52,16 @@ class EmbeddingIndex:
             models: ModelRegistry with loaded EVA-02 model
             embedding_dir: Directory containing .npy embedding files (EVA-02)
             keyframes_dir: Directory containing keyframe images
-            blip2_dir: Optional directory with BLIP-2 .npy files. If present
-                       and loadable, self.blip2_embeddings is populated and
-                       self.is_dual becomes True.
+            clip32_dir: Optional directory with CLIP ViT-B-32 .npy files.
+                        If present and loadable (row count matches EVA-02),
+                        self.clip32_embeddings is populated and
+                        self.is_dual becomes True.
         """
         self.models = models
         self.embedding_dir = embedding_dir
         self.keyframes_dir = keyframes_dir
-        self.blip2_dir = blip2_dir
-        self.blip2_embeddings: np.ndarray = np.array([])
+        self.clip32_dir = clip32_dir
+        self.clip32_embeddings: np.ndarray = np.array([])
         self.is_dual = False
 
         logger.info("Loading embeddings...")
@@ -73,27 +74,27 @@ class EmbeddingIndex:
             f"Embedding shape: {self.embeddings.shape}"
         )
 
-        if blip2_dir:
+        if clip32_dir:
             try:
-                self.blip2_embeddings, _, _ = self._load_all(blip2_dir)
+                self.clip32_embeddings, _, _ = self._load_all(clip32_dir)
                 if (
-                    self.blip2_embeddings.shape == self.embeddings.shape
-                    and self.blip2_embeddings.size > 0
+                    self.clip32_embeddings.shape[0] == self.embeddings.shape[0]
+                    and self.clip32_embeddings.size > 0
                 ):
                     self.is_dual = True
                     logger.info(
-                        f"Dual stream loaded: BLIP-2 shape={self.blip2_embeddings.shape}"
+                        f"Dual stream loaded: CLIP-32 shape={self.clip32_embeddings.shape}"
                     )
                 else:
                     logger.warning(
-                        f"BLIP-2 stream shape mismatch "
-                        f"({self.blip2_embeddings.shape} vs {self.embeddings.shape}); "
+                        f"CLIP-32 stream row count mismatch "
+                        f"({self.clip32_embeddings.shape[0]} vs {self.embeddings.shape[0]}); "
                         f"falling back to single-stream search."
                     )
-                    self.blip2_embeddings = np.array([])
+                    self.clip32_embeddings = np.array([])
             except Exception as e:
-                logger.warning(f"Failed to load BLIP-2 stream: {e}")
-                self.blip2_embeddings = np.array([])
+                logger.warning(f"Failed to load CLIP-32 stream: {e}")
+                self.clip32_embeddings = np.array([])
     
     # ── Encoders ──────────────────────────────────────────────────
     
@@ -136,29 +137,29 @@ class EmbeddingIndex:
             logger.error(f"Failed to encode image {image_path}: {e}")
             raise
 
-    # ── Dual-stream encoders (BLIP-2 Q-Former) ──────────────────
+    # ── Dual-stream encoders (CLIP ViT-B-32) ──────────────────
 
-    def encode_text_blip2(self, text: str, image_path: str | None = None) -> np.ndarray:
-        """Encode a text query through BLIP-2. See ModelRegistry.encode_text_blip2."""
-        return self.models.encode_text_blip2(text, image_path=image_path)
+    def encode_text_clip32(self, text: str) -> np.ndarray:
+        """Encode text via CLIP ViT-B-32. See ModelRegistry.encode_text_clip32."""
+        return self.models.encode_text_clip32(text)
 
-    def encode_image_blip2(self, image_path: str) -> np.ndarray:
-        """Encode an image through BLIP-2. See ModelRegistry.encode_image_blip2."""
-        return self.models.encode_image_blip2(image_path)
+    def encode_image_clip32(self, image_path: str) -> np.ndarray:
+        """Encode image via CLIP ViT-B-32. See ModelRegistry.encode_image_clip32."""
+        return self.models.encode_image_clip32(image_path)
 
-    def get_embedding_blip2(self, image_path: str) -> Optional[np.ndarray]:
+    def get_embedding_clip32(self, image_path: str) -> Optional[np.ndarray]:
         """
-        Retrieve the pre-computed BLIP-2 embedding for an image path, or
-        None if unavailable. Mirrors get_embedding() for the second stream.
+        Retrieve the pre-computed CLIP ViT-B-32 embedding for an image path,
+        or None if unavailable. Mirrors get_embedding() for the second stream.
         """
-        if not self.is_dual or self.blip2_embeddings.size == 0:
+        if not self.is_dual or self.clip32_embeddings.size == 0:
             return None
         try:
             if image_path in self._path_to_idx:
                 idx = self._path_to_idx[image_path]
-                return self.blip2_embeddings[idx : idx + 1].astype(np.float32)
+                return self.clip32_embeddings[idx : idx + 1].astype(np.float32)
         except Exception as e:
-            logger.error(f"Error getting BLIP-2 embedding for {image_path}: {e}")
+            logger.error(f"Error getting CLIP-32 embedding for {image_path}: {e}")
         return None
 
     def get_embedding(self, image_path: str) -> Optional[np.ndarray]:
@@ -274,7 +275,7 @@ class EmbeddingIndex:
 
         Args:
             override_dir: If provided, load from this directory instead of
-                          self.embedding_dir. Used to load the BLIP-2 stream
+                          self.embedding_dir. Used to load the CLIP-32 stream
                           with the same path-mapping logic.
 
         Returns:

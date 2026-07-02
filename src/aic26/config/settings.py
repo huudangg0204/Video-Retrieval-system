@@ -112,18 +112,18 @@ class Settings(BaseSettings):
         description="BLIP Image-Text Matching model identifier",
     )
 
-    blip2_model_name: str = Field(
-        default="Salesforce/blip2-itm-vit-g",
-        description="BLIP-2 (Q-Former) model identifier for dual-embedding pipeline",
+    clip32_model_name: str = Field(
+        default="openai/clip-vit-base-patch32",
+        description="CLIP ViT-B-32 model identifier (HuggingFace) for dual-embedding pipeline",
     )
 
-    blip2_embedding_dir: Path = Field(
-        default_factory=lambda: Path("data/blip2_embeddings"),
-        description="Directory containing .npy BLIP-2 embedding files",
+    clip32_embedding_dir: Path = Field(
+        default_factory=lambda: Path("data/clip32_embeddings"),
+        description="Directory containing .npy CLIP ViT-B-32 embedding files",
     )
 
     use_dual_embedding: bool = Field(
-        default=False,
+        default=True,
         description="If true, encode with EVA-02 + BLIP-2 and weighted-blend cosine similarity at search time",
     )
 
@@ -134,11 +134,11 @@ class Settings(BaseSettings):
         description="Weight of EVA-02 cosine similarity in the dual-embedding blend",
     )
 
-    blip2_search_weight: float = Field(
+    clip32_search_weight: float = Field(
         default=0.4,
         ge=0.0,
         le=1.0,
-        description="Weight of BLIP-2 cosine similarity in the dual-embedding blend",
+        description="Weight of CLIP ViT-B-32 cosine similarity in the dual-embedding blend",
     )
 
     dual_search_pool_multiplier: int = Field(
@@ -157,8 +157,8 @@ class Settings(BaseSettings):
     )
 
     yolo_model_name: str = Field(
-        default="yolov8x-oiv7.pt",
-        description="YOLOv8 model filename or path",
+        default="yolo26x.pt",
+        description="YOLOv26 model filename or path (ultralytics format)",
     )
 
     oid_mapping_csv: str = Field(
@@ -417,7 +417,7 @@ class Settings(BaseSettings):
             self.media_info_dir,
             self.upload_dir,
             self.detection_dir,
-            self.blip2_embedding_dir,
+            self.clip32_embedding_dir,
             self.metadata_dir,
         ]
         for directory in directories:

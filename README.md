@@ -40,19 +40,18 @@ AIC-26 là một hệ thống truy xuất video đa phương thức được xâ
 
 | Thành phần | Công nghệ | Mục đích |
 |---|---|---|
-| Vision-Language Model | EVA-02 CLIP (768-dim) | Embedding text và hình ảnh (stream chính) |
-| Vision-Language Model (phụ) | BLIP-2 Q-Former (768-dim) | Stream thứ hai cho dual-embedding blend |
+| Vision-Language Model | EVA-02 CLIP (768-dim) | Embedding text và hình ảnh (stream chính, eager-load) |
+| Dual-Stream Encoder | CLIP ViT-B-32 (512-dim) | Stream thứ hai cho weighted blend (lazy-load) |
+| Text Retrieval | BM25 (rank_bm25) | Keyword match trên captions (stream thứ ba) |
 | Vector Search | FAISS IndexFlatIP × 2 streams | Tìm kiếm tương đồng dưới một giây |
 | Temporal Reasoning | TRAKE (custom DP) | Truy xuất sự kiện có thứ tự |
-| Object Detection | YOLOv8 (Open Images V7) | Bbox + 3×3 grid position cho metadata sidecar |
-| Scene Recognition | Places365 ResNet50 | 365 scene classes cho metadata sidecar |
-| Scene Graph | Qwen2.5-VL-7B 4-bit | `(s, p, o)` triple extraction |
+| Object Detection | **YOLOv26x** (COCO 80 classes) | Bbox + label cho metadata sidecar |
 | Caption Generation | BLIP image captioning | English caption cho mỗi keyframe |
-| Reranking | BLIP ITM | Cải thiện độ chính xác |
-| OCR | EasyOCR | Trích xuất văn bản tiếng Việt/tiếng Anh |
+| Reranking | BLIP ITM (lazy-load) | Cải thiện độ chính xác TRAKE |
+| OCR | EasyOCR (pre-extracted CSV) | Trích xuất văn bản tiếng Việt/tiếng Anh |
 | Keyframe Extraction | DINOv2 + cosine similarity | Phát hiện thay đổi cảnh |
-| API Server | Flask + Flask-CORS | REST endpoints |
-| Web UI Metadata Filter | Fuse.js (client-side) | Filter tức thì trên kết quả trả về |
+| API Server | Flask + Flask-CORS (threaded) | REST endpoints |
+| Web UI Filtering | Fuse.js (client-side) | Fuzzy filter OCR/Scene/Caption tức thì |
 | Desktop GUI | CustomTkinter | Giao diện desktop |
 
 ---
@@ -152,11 +151,15 @@ Tất cả cài đặt cũng có thể được truyền qua biến môi trườ
 aic26 pipeline run-all --video-dir data/videos
 ```
 
-Pipeline thực hiện năm bước tuần tự:
+Pipeline thực hiện **7 bước tuần tự** với GPU memory cleanup giữa mỗi bước:
 
 ```
-Videos → Keyframes → Object Detection → OCR → Embeddings → FAISS Index
+Videos → Keyframes → Detection (YOLOv26) → Embeddings (EVA-02 + CLIP-32)
+       → FAISS Index → Metadata (merge OCR + Captions) → Ready
 ```
+
+> **Lưu ý VRAM**: Pipeline được tối ưu cho GPU 4GB (RTX 3050). Mỗi model được load/unload tuần tự
+> với `torch.cuda.empty_cache()` giữa các bước để tránh OOM.
 
 Từng bước có thể chạy riêng lẻ hoặc bỏ qua:
 
@@ -180,7 +183,7 @@ aic26 pipeline run-all --video-dir data/videos --skip-detection --skip-ocr
 aic26 serve api --port 5000
 ```
 
-*Lưu ý: API Server sử dụng cơ chế **Eager Loading**, quá trình khởi động sẽ mất khoảng 15-20 giây để nạp hoàn chỉnh các AI model (EVA-02, BLIP-2) và Vector Index vào VRAM. Lệnh sẽ không trả về `Running on http://0.0.0.0:5000` cho đến khi hệ thống sẵn sàng 100%. Nhờ đó, tốc độ truy vấn lần đầu sẽ được tối ưu tuyệt đối.*
+*Lưu ý: Server sử dụng **Lazy Loading** — chỉ EVA-02 CLIP được eager-load (~10s). Các model phụ (CLIP-32, BLIP ITM, Faster R-CNN) chỉ load khi cần, tiết kiệm ~1.4GB VRAM. Metadata được cache in-memory (~3MB) cho lookup tức thì.*
 
 Mở [http://localhost:5000](http://localhost:5000) để sử dụng giao diện web Multi-modal Query Builder tích hợp sẵn (Hỗ trợ Fuse.js Filtering, TRAKE, và Modal Metadata Inspector).
 
@@ -245,13 +248,18 @@ aic26 pipeline merge-captions --metadata-dir data/metadata
 }
 ```
 
-**Quy ước**: `detections = []` khi YOLO không tìm được object; `scene` / `scene_graph` là `null` khi model bị skip, `[]` / `{...}` khi chạy nhưng trống. Bbox < 5% diện tích ảnh → `position: null`.
+**Quy ước**: `detections = []` khi YOLO không tìm được object; `scene` / `scene_graph` là `null` khi model bị skip, `[]` / `{...}` khi chạy nhưng trống.
 
-**Models**:
-- **YOLOv8x-OIV7** (`pipeline/detection.py`) — bbox + 3×3 grid position.
-- **Places365 ResNet50** (`pipeline/places365.py`) — 365 scene classes, ~9 MB, chạy CPU được; có `_infer_scene_group()` để nhóm leaves.
-- **Qwen2.5-VL-7B-Instruct 4-bit** (`pipeline/scene_graph.py`) — scene graph `(s, p, o)`, ~5 GB VRAM.
-- **BLIP image captioning** (`pipeline/captioning.py`) — tiếng Anh, ~446M params, ~2 GB VRAM.
+**Pipeline Models**:
+- **YOLOv26x** (`pipeline/detection.py`) — 80 COCO classes, `num_workers=1` cho low VRAM.
+- **BLIP image captioning** (`pipeline/captioning.py`) — tiếng Anh, ~446M params.
+- **EasyOCR** (pre-extracted CSV) — merge từ `data/raw/ocr_results.csv`.
+
+**Serving Models** (lazy-loaded):
+- **EVA-02 CLIP** — always loaded (~1.7GB VRAM), text + image encoding.
+- **CLIP ViT-B-32** — lazy-loaded on first search (~0.5GB VRAM).
+- **BLIP ITM** — lazy-loaded for TRAKE reranking only (~0.9GB VRAM).
+- **Faster R-CNN** — lazy fallback, only if metadata missing (~0.2GB VRAM).
 
 **Kết quả trên K05_V004** (theo [docs/plans/metadata-improvement-plan.md](docs/plans/metadata-improvement-plan.md)):
 
@@ -273,28 +281,32 @@ aic26 pipeline merge-captions --metadata-dir data/metadata
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        Interfaces                           │
-│          REST API (Flask)  ·  Desktop GUI  ·  CLI           │
+│     REST API (Flask, threaded)  ·  Desktop GUI  ·  CLI      │
 └────────────────────────┬────────────────────────────────────┘
                          │
 ┌────────────────────────▼────────────────────────────────────┐
-│                  EVA02ImageRetrieval (Facade)                │
+│              EVA02ImageRetrieval (Facade)                    │
+│         Metadata Cache (in-memory, ~3MB)                    │
 └──┬──────────┬──────────┬──────────┬──────────┬─────────────┘
    │          │          │          │          │
 ┌──▼──┐  ┌───▼───┐  ┌───▼──┐  ┌───▼───┐  ┌───▼────┐
 │Model│  │Embed- │  │Search│  │ TRAKE │  │Exporter│
 │Reg- │  │ding   │  │Engine│  │Engine │  │        │
-│istry│  │Index  │  │      │  │       │  │        │
-└──┬──┘  └───┬───┘  └───┬──┘  └───┬───┘  └────────┘
-   │          │          │          │
-┌──▼──────────▼──────────▼──────────▼───────────────────────┐
-│                     Core Models                             │
-│      EVA-02 CLIP  ·  Faster R-CNN  ·  BLIP ITM             │
-└────────────────────────────────────────────────────────────┘
+│istry│  │Index  │  │(3-way│  │(batch │  │        │
+│(lazy│  │(dual) │  │blend)│  │rerank)│  │        │
+│load)│  └───┬───┘  └───┬──┘  └───┬───┘  └────────┘
+└──┬──┘      │          │          │
+   │    ┌────▼──────────▼──────────▼──────────────────────┐
+   └───▶│              Core Models (GPU)                  │
+        │  EVA-02 (eager)  ·  CLIP-32 (lazy)              │
+        │  BLIP ITM (lazy) ·  Faster R-CNN (lazy fallback)│
+        └─────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────┐
-│                   Data Pipeline                             │
-│  KeyframeExtractor → ObjectDetector → OCRExtractor         │
-│       → EmbeddingExtractor → IndexBuilder                  │
+│             Data Pipeline (GPU-safe, sequential)            │
+│  Keyframes → YOLOv26 Detection → EVA-02 + CLIP-32 Embed   │
+│       → FAISS Index → Metadata (OCR merge + Captions)      │
+│  [GPU cleanup between each step for 4GB VRAM safety]       │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -305,19 +317,21 @@ aic26/
 ├── src/aic26/
 │   ├── config/          # Pydantic settings và hằng số
 │   ├── core/            # Retrieval engine
-│   │   ├── models.py    # ModelRegistry (EVA-02, Faster R-CNN, BLIP)
-│   │   ├── embeddings.py# EmbeddingIndex với O(1) lookup
-│   │   ├── search.py    # Text/image search engine
+│   │   ├── models.py    # ModelRegistry (lazy-load: EVA-02 eager, others lazy)
+│   │   ├── embeddings.py# EmbeddingIndex (dual: EVA-02 768d + CLIP-32 512d)
+│   │   ├── search.py    # 3-way blend search (EVA-02 + CLIP-32 + BM25)
 │   │   ├── trake.py     # Temporal retrieval (thuật toán TRAKE)
 │   │   ├── rerank.py    # BLIP ITM reranker
 │   │   ├── database.py  # Persistent query store (FAISS + pickle)
 │   │   ├── export.py    # CSV submission exporter
 │   │   └── retrieval.py # Public facade (EVA02ImageRetrieval)
-│   ├── pipeline/        # Xử lý dữ liệu
+│   ├── pipeline/        # Xử lý dữ liệu (GPU-safe sequential)
 │   │   ├── keyframe.py  # Trích xuất keyframe bằng DINOv2
-│   │   ├── detection.py # Object detection bằng YOLOv8
+│   │   ├── detection.py # Object detection bằng YOLOv26x (num_workers=1)
 │   │   ├── ocr.py       # Trích xuất text bằng EasyOCR
-│   │   ├── embedding.py # Trích xuất embedding bằng EVA-02
+│   │   ├── embedding.py # Dual embedding (EVA-02 768d + CLIP-32 512d)
+│   │   ├── metadata.py  # Metadata sidecar builder (merge OCR + captions)
+│   │   ├── captioning.py# BLIP caption generation
 │   │   ├── indexer.py   # FAISS index builder
 │   │   └── orchestrator.py # Điều phối pipeline
 │   ├── api/             # Flask REST API
@@ -331,7 +345,9 @@ aic26/
 │   ├── videos/          # File video đầu vào
 │   ├── keyframes/       # Ảnh keyframe đã trích xuất
 │   ├── embeddings/      # File embedding .npy đã tính trước
-│   ├── detections/      # JSON kết quả detection của YOLOv8
+│   ├── detections/      # JSON kết quả detection (YOLOv26)
+│   ├── metadata/        # JSON sidecars (detections + OCR + captions)
+│   ├── raw/             # Dữ liệu thô (ocr_results.csv)
 │   └── submissions/     # Output CSV để nộp bài
 ├── tests/
 ├── docker/
@@ -443,6 +459,124 @@ TRAKE (Temporal Retrieval and Alignment of Key Events) tìm các chuỗi keyfram
 2. Các sự kiện kết thúc bằng `*` được rerank bằng BLIP ITM để tăng độ chính xác
 3. Với mỗi video ứng viên, dynamic programming xây dựng các chuỗi có thứ tự
 4. Kết quả được xếp hạng theo điểm và trả về
+
+---
+
+## Chiến Thuật Truy Vấn (Query Strategies)
+
+### Cách hệ thống xử lý một truy vấn
+
+```
+User query "a man talking on stage"
+     │
+     ├─→ EVA-02 encode (768d) ─→ cosine sim vs 1360 vectors ─→ top pool (w=0.6)
+     ├─→ CLIP-32 encode (512d) ─→ cosine sim vs 1360 vectors ─→ top pool (w=0.4)
+     ├─→ BM25 keyword match on captions ─→ top pool (w=0.2)
+     │
+     └─→ Union candidates → Weighted blend → Top-K results
+                                                  │
+                                            ┌─────▼─────┐
+                                            │ Metadata   │
+                                            │ attach:    │
+                                            │ OCR, scene,│
+                                            │ caption,   │
+                                            │ detections │
+                                            └─────┬─────┘
+                                                  │
+                                           Fuse.js filter
+                                           (client-side)
+```
+
+### Chiến thuật 1: Text Search đơn giản
+
+Dùng cho câu hỏi mô tả trực tiếp cảnh vật.
+
+```
+Query: "a woman wearing a red dress walking on the street"
+Top-K: 50-100
+Objects: (trống)
+```
+
+> **Mẹo**: Viết query bằng tiếng Anh, mô tả cụ thể. CLIP hiểu tốt nhất các câu có cấu trúc `<subject> <action> <context>`.
+
+### Chiến thuật 2: Text + Object Filter
+
+Dùng khi biết rõ đối tượng xuất hiện trong frame.
+
+```
+Query: "traffic accident on highway"
+Objects: "car, truck"          // Giữ frame có ít nhất 1 object
+Threshold: 0.5                 // Ngưỡng confidence
+```
+
+```
+Objects: "person"              // Loại bỏ frame có người
+Threshold: -0.5                // Threshold âm = exclude mode
+```
+
+> **Lưu ý**: Object filter sử dụng precomputed YOLOv26 detections từ metadata (không chạy model realtime).
+
+### Chiến thuật 3: Fuzzy Filter (Fuse.js) — Lọc OCR/Caption/Scene
+
+Sau khi nhận kết quả, dùng thanh filter trên cùng để lọc theo **OCR text**, **caption**, hoặc **scene**.
+
+```
+Ví dụ: Search "a news presenter" → 100 results
+Fuse.js filter: "HTV"     → Chỉ giữ frame có chữ "HTV" trên màn hình
+Fuse.js filter: "TP.HCM"  → Chỉ giữ frame có OCR chứa "TP.HCM"
+Fuse.js filter: "sunset"  → Chỉ giữ frame có caption chứa "sunset"
+```
+
+> **Đây là tính năng mạnh nhất** cho cuộc thi AIC — kết hợp visual search + OCR text filtering.
+
+### Chiến thuật 4: TRAKE — Temporal Search
+
+Dùng khi cần tìm **chuỗi sự kiện theo thứ tự thời gian** trong cùng 1 video.
+
+```
+Events:
+  E1: "a news anchor sitting at desk"
+  E2: "a reporter standing outside"
+  E3: "aerial view of a city"
+
+Mode: Highest (tối đa similarity tổng thể)
+Top-K: 200, Candidates: 200
+```
+
+> **Tip**: Thêm `*` cuối event (e.g. `"a reporter standing outside*"`) để trigger BLIP ITM reranking cho event đó — tăng precision nhưng chậm hơn (~3-5s/event).
+
+### Chiến thuật 5: Image Search
+
+Dùng khi có ảnh mẫu muốn tìm frame tương tự.
+
+```
+Upload ảnh query → Hệ thống encode bằng EVA-02
+→ Cosine similarity vs toàn bộ index
+→ Trả về top-K frames tương tự nhất
+```
+
+### Tips nâng cao
+
+| # | Tip | Lý do |
+|---|-----|-------|
+| 1 | **Viết query tiếng Anh, ngắn gọn** | EVA-02 + CLIP trained trên English text |
+| 2 | **Dùng `top_k=100`** rồi lọc Fuse.js | Server trả kết quả trong ~0.1s, lọc client-side tức thì |
+| 3 | **Kết hợp Text Search + Fuse.js OCR** | Visual search tìm cảnh, OCR filter tìm text cụ thể |
+| 4 | **Dùng TRAKE cho câu hỏi temporal** | "Trước cảnh X có cảnh gì?" → TRAKE tìm chuỗi |
+| 5 | **Object filter exclude mode** | `threshold: -0.5` loại bỏ frame có object không mong muốn |
+| 6 | **Xem modal Metadata Inspector** | Click vào kết quả để xem OCR text, detections, caption đầy đủ |
+
+### Performance Benchmarks (RTX 3050 4GB, 1360 keyframes)
+
+| Thao tác | Thời gian | Ghi chú |
+|----------|-----------|---------|
+| Text Search (top_k=100) | **~0.1s** | 3-way blend: EVA-02 + CLIP-32 + BM25 |
+| Image Search (top_k=100) | **~0.3s** | EVA-02 encode + cosine sim |
+| TRAKE (3 events) | **~1-5s** | Phụ thuộc số events và reranking |
+| Fuse.js Filter | **~0ms** | Client-side, không call server |
+| Metadata attach | **~0ms** | In-memory cache (1360 entries) |
+| Server startup | **~10s** | Chỉ load EVA-02 (lazy-load phần còn lại) |
+| VRAM usage (idle) | **~2.5GB** | EVA-02 + CLIP-32 (sau lần search đầu) |
 
 ---
 

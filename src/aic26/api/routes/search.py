@@ -12,9 +12,35 @@ from pathlib import Path
 from loguru import logger
 import json
 
-def _attach_metadata(results):
+# ── In-memory metadata cache (PA4) ─────────────────────────────
+_META_CACHE: dict[str, dict] | None = None
+
+
+def _get_meta_cache() -> dict[str, dict]:
+    """Lazy-load all metadata JSON files into memory (~3MB for 1360 files)."""
+    global _META_CACHE
+    if _META_CACHE is not None:
+        return _META_CACHE
+
     from aic26.config import settings
     meta_dir = Path(settings.metadata_dir)
+    cache: dict[str, dict] = {}
+
+    if meta_dir.exists():
+        for json_path in meta_dir.rglob("*.json"):
+            key = f"{json_path.parent.name}/{json_path.stem}"
+            try:
+                cache[key] = json.loads(json_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+
+    _META_CACHE = cache
+    logger.info(f"Metadata cache loaded: {len(cache)} entries")
+    return cache
+
+
+def _attach_metadata(results):
+    cache = _get_meta_cache()
     for r in results:
         video = r.get("video_name")
         frame = r.get("frame_idx")
@@ -23,17 +49,13 @@ def _attach_metadata(results):
         r["caption"] = ""
         r["detections"] = []
         if video and frame:
-            json_path = meta_dir / video / f"{frame}.json"
-            if json_path.exists():
-                try:
-                    with open(json_path, "r", encoding="utf-8") as f:
-                        meta = json.load(f)
-                        r["ocr_text"] = meta.get("ocr_text", "")
-                        r["scene"] = meta.get("scene", "")
-                        r["caption"] = meta.get("caption", "")
-                        r["detections"] = meta.get("detections", [])
-                except Exception:
-                    pass
+            key = f"{video}/{frame}"
+            meta = cache.get(key)
+            if meta:
+                r["ocr_text"] = meta.get("ocr_text", "")
+                r["scene"] = meta.get("scene", "")
+                r["caption"] = meta.get("caption", "")
+                r["detections"] = meta.get("detections", [])
     return results
 
 
@@ -109,7 +131,6 @@ def search_text():
         save_to_db=True,
         objects=objects,
         threshold=threshold,
-        caption_weight=caption_weight,
     )
     elapsed = time.time() - start
     
@@ -221,7 +242,6 @@ def upload_and_search():
         text_results = retriever.search_text(
             query, top_k=top_k * 2, save_to_db=False,
             objects=objects, threshold=threshold,
-            caption_weight=caption_weight,
         )
         
         if not text_results:
@@ -313,7 +333,6 @@ def search_text_with_image():
     text_results = retriever.search_text(
         query, top_k=top_k * 2, save_to_db=False,
         objects=objects, threshold=threshold,
-        caption_weight=caption_weight,
     )
     
     if not text_results:

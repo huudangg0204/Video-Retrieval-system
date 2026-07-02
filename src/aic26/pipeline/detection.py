@@ -1,5 +1,5 @@
 """
-Object detection on keyframes using YOLOv8.
+Object detection on keyframes using YOLOv26.
 
 Processes keyframe images to detect objects and saves
 detection results as JSON files with MID/Entity mappings.
@@ -27,7 +27,7 @@ from aic26.utils.file_utils import ensure_dir
 
 class ObjectDetector:
     """
-    Detect objects in keyframe images using YOLOv8.
+    Detect objects in keyframe images using YOLOv26.
 
     Supports Open Images V7 class mapping and batch processing
     with multi-threading support.
@@ -63,12 +63,12 @@ class ObjectDetector:
         if self._model is None:
             from ultralytics import YOLO
 
-            logger.info(f"Loading YOLOv8 model on {self.device}...")
+            logger.info(f"Loading YOLOv26 model on {self.device}...")
             model_path = self.config.yolo_model_name
 
             self._model = YOLO(model_path)
             self._model.overrides["verbose"] = False
-            logger.info("YOLOv8 model ready.")
+            logger.info("YOLOv26 model ready.")
 
     def _load_mapping(self) -> tuple[dict[str, str], dict[str, str]]:
         """
@@ -104,7 +104,7 @@ class ObjectDetector:
         self,
         input_dir: str,
         output_dir: str | None = None,
-        num_workers: int = 4,
+        num_workers: int = 1,
     ) -> dict:
         """
         Process all video folders in the keyframes directory.

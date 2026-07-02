@@ -382,12 +382,22 @@
         
         showInfo(`${title} — Time: ${data.elapsed?.toFixed(2)}s | Found: ${window.lastResults.length}`);
         
-        // Setup Fuse.js for client side filtering
+        // Flatten OCR arrays into searchable text for Fuse.js
+        window.lastResults.forEach(r => {
+            if (Array.isArray(r.ocr_text)) {
+                r._ocr_flat = r.ocr_text.map(o => (typeof o === 'string') ? o : (o.text || '')).join(' ');
+            } else {
+                r._ocr_flat = r.ocr_text || '';
+            }
+            r._scene_flat = (typeof r.scene === 'object' && r.scene) ? (r.scene.category || '') : (r.scene || '');
+        });
+
+        // Setup Fuse.js for client side filtering (now includes OCR + Scene)
         const fuseOptions = {
             keys: [
-                { name: 'ocr_text', weight: 0.4 },
-                { name: 'scene', weight: 0.3 },
-                { name: 'caption', weight: 0.2 },
+                { name: 'caption', weight: 0.3 },
+                { name: '_ocr_flat', weight: 0.4 },
+                { name: '_scene_flat', weight: 0.2 },
                 { name: 'video_name', weight: 0.1 }
             ],
             threshold: 0.4, // 0.0 is perfect match, 1.0 matches anything
@@ -466,17 +476,42 @@
             document.getElementById("modalFrameInfo").innerText = `Frame: ${r.frame_idx_video || r.frame_idx} | Time: ${r.time_str || '?'} | Sim: ${r.similarity?.toFixed(3) || '?'}`;
             
             document.getElementById("modalCaption").innerText = r.caption || "No caption available.";
-            document.getElementById("modalOCR").innerText = r.ocr_text || "No text detected.";
-            document.getElementById("modalScene").innerText = r.scene || "Unknown scene.";
             
-            // Detections tags
+            // OCR: may be a string or array of {text, bbox, confidence} objects
+            let ocrDisplay = "No text detected.";
+            if (r.ocr_text) {
+                if (typeof r.ocr_text === 'string') {
+                    ocrDisplay = r.ocr_text || "No text detected.";
+                } else if (Array.isArray(r.ocr_text) && r.ocr_text.length > 0) {
+                    ocrDisplay = r.ocr_text.map(o => (typeof o === 'string') ? o : (o.text || '')).filter(Boolean).join(' | ');
+                }
+            }
+            document.getElementById("modalOCR").innerText = ocrDisplay;
+            
+            // Scene: may be a string or {category, confidence, ...} object
+            let sceneDisplay = "Unknown scene.";
+            if (r.scene) {
+                if (typeof r.scene === 'string') {
+                    sceneDisplay = r.scene;
+                } else if (typeof r.scene === 'object' && r.scene.category) {
+                    sceneDisplay = r.scene.confidence 
+                        ? `${r.scene.category} (${(r.scene.confidence * 100).toFixed(1)}%)`
+                        : r.scene.category;
+                }
+            }
+            document.getElementById("modalScene").innerText = sceneDisplay;
+            
+            // Detections: array of {label, score, bbox, position} objects
             const detContainer = document.getElementById("modalDetections");
             let detHtml = "";
             if (r.detections && r.detections.length > 0) {
-                // show top 10 unique detections
-                const uniqueDets = [...new Set(r.detections)].slice(0, 10);
-                uniqueDets.forEach(d => {
-                    detHtml += `<span class="bg-gray-100 border text-gray-600 text-xs px-2 py-1 rounded-full">${d}</span>`;
+                // Extract labels, deduplicate, show top 10
+                const labels = r.detections.map(d => (typeof d === 'string') ? d : (d.label || '?'));
+                const uniqueLabels = [...new Set(labels)].slice(0, 10);
+                uniqueLabels.forEach(label => {
+                    const count = labels.filter(l => l === label).length;
+                    const badge = count > 1 ? ` ×${count}` : '';
+                    detHtml += `<span class="bg-gray-100 border text-gray-600 text-xs px-2 py-1 rounded-full">${label}${badge}</span>`;
                 });
             } else {
                 detHtml = `<span class="text-xs text-gray-400 italic">No objects detected.</span>`;

@@ -12,11 +12,13 @@ Migrated from: (new module - orchestrates previous scripts)
 """
 from __future__ import annotations
 
+import gc
 import os
 import time
 from pathlib import Path
 from typing import Optional, Dict, Any
 
+import torch
 from loguru import logger
 
 
@@ -27,6 +29,27 @@ from aic26.pipeline.detection import ObjectDetector
 from aic26.pipeline.ocr import OCRExtractor
 from aic26.pipeline.embedding import EmbeddingExtractor
 from aic26.pipeline.indexer import IndexBuilder
+
+
+def _cleanup_gpu(*objs: object) -> None:
+    """Delete objects holding GPU tensors and release CUDA cache.
+
+    Call between pipeline steps to avoid VRAM accumulation on
+    memory-constrained GPUs (e.g. RTX 3050 4 GB).
+    """
+    for obj in objs:
+        try:
+            del obj
+        except Exception:  # noqa: BLE001
+            pass
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        allocated = torch.cuda.memory_allocated() / 1024**2
+        reserved = torch.cuda.memory_reserved() / 1024**2
+        logger.debug(
+            f"GPU cleanup: allocated={allocated:.0f}MiB, reserved={reserved:.0f}MiB"
+        )
 
 
 class PipelineOrchestrator:
@@ -68,7 +91,10 @@ class PipelineOrchestrator:
         skip_ocr: bool = False,
         skip_embeddings: bool = False,
         skip_index: bool = False,
-        extract_metadata: bool = False,
+        skip_metadata: bool = False,
+        skip_scene: bool = False,
+        skip_scene_graph: bool = True,
+        skip_captions: bool = False,
     ) -> Dict[str, Any]:
         """
         Run the complete data processing pipeline.
@@ -79,7 +105,10 @@ class PipelineOrchestrator:
         3. OCR text extraction (optional)
         4. Extract EVA-02 embeddings (optional)
         5. Build FAISS index (optional)
-        6. Metadata extraction (optional, opt-in per AD-5)
+        6. Metadata extraction (default on, skip with --skip-metadata)
+           6a. Build sidecars (reuses detection JSON from step 2 + Places365 + BLIP caption)
+           6b. Merge OCR text into sidecars (reuses ocr_results.csv from step 3)
+           6c. Caption status log
 
         Args:
             video_dir: Directory containing video files
@@ -87,8 +116,10 @@ class PipelineOrchestrator:
             skip_ocr: Skip OCR step
             skip_embeddings: Skip embedding extraction
             skip_index: Skip FAISS index building
-            extract_metadata: Run per-keyframe metadata extraction
-                (detections + scene + scene-graph). Off by default.
+            skip_metadata: Skip metadata extraction step (default: run)
+            skip_scene: Skip Places365 scene classification in metadata
+            skip_scene_graph: Skip Qwen scene-graph extraction (heavy)
+            skip_captions: Skip BLIP caption generation (default: run)
 
         Returns:
             Dict with pipeline results and timing info
@@ -155,12 +186,15 @@ class PipelineOrchestrator:
             logger.error(f"❌ Keyframe extraction failed: {e}")
             self.steps_failed.append("keyframe_extraction")
             raise
+        finally:
+            _cleanup_gpu(extractor)
         
         # ── Step 2: Object Detection ─────────────────────────────
         if not skip_detection:
             logger.info("Step 2/5: Detecting objects in keyframes...")
             step_start = time.time()
             
+            detector = None
             try:
                 detector = ObjectDetector(self.config)
                 results['detections'] = detector.process(
@@ -174,6 +208,9 @@ class PipelineOrchestrator:
             except Exception as e:
                 logger.warning(f"⚠️  Object detection failed (continuing): {e}")
                 self.steps_failed.append("object_detection")
+            finally:
+                _cleanup_gpu(detector)
+                logger.info("  🧹 GPU memory released after detection")
         else:
             logger.info("Step 2/5: Object detection SKIPPED")
             self.steps_skipped.append("object_detection")
@@ -183,6 +220,7 @@ class PipelineOrchestrator:
             logger.info("Step 3/5: Extracting text with OCR...")
             step_start = time.time()
             
+            ocr = None
             try:
                 ocr = OCRExtractor(self.config)
                 results['ocr'] = ocr.process(
@@ -196,6 +234,9 @@ class PipelineOrchestrator:
             except Exception as e:
                 logger.warning(f"⚠️  OCR extraction failed (continuing): {e}")
                 self.steps_failed.append("ocr_extraction")
+            finally:
+                _cleanup_gpu(ocr)
+                logger.info("  🧹 GPU memory released after OCR")
         else:
             logger.info("Step 3/5: OCR extraction SKIPPED")
             self.steps_skipped.append("ocr_extraction")
@@ -203,18 +244,19 @@ class PipelineOrchestrator:
         # ── Step 4: Embedding Extraction ─────────────────────────
         if not skip_embeddings:
             if self.config.use_dual_embedding:
-                logger.info("Step 4/5: Extracting DUAL (EVA-02 + BLIP-2) embeddings...")
+                logger.info("Step 4/5: Extracting DUAL (EVA-02 + CLIP-32) embeddings...")
             else:
                 logger.info("Step 4/5: Extracting EVA-02 embeddings...")
             step_start = time.time()
 
+            embedder = None
             try:
                 embedder = EmbeddingExtractor(self.config)
                 if self.config.use_dual_embedding:
                     results['embeddings'] = embedder.process_images_dual(
                         input_dir=str(self.config.keyframes_dir),
                         eva02_output_dir=str(self.config.embedding_dir),
-                        blip2_output_dir=str(self.config.blip2_embedding_dir),
+                        clip32_output_dir=str(self.config.clip32_embedding_dir),
                         batch_size=8,
                     )
                 else:
@@ -230,6 +272,9 @@ class PipelineOrchestrator:
                 logger.error(f"❌ Embedding extraction failed: {e}")
                 self.steps_failed.append("embedding_extraction")
                 raise
+            finally:
+                _cleanup_gpu(embedder)
+                logger.info("  🧹 GPU memory released after embeddings")
         else:
             logger.info("Step 4/5: Embedding extraction SKIPPED")
             self.steps_skipped.append("embedding_extraction")
@@ -243,12 +288,13 @@ class PipelineOrchestrator:
                 logger.info("Step 4b/5: Extracting caption embeddings...")
                 step_start = time.time()
                 
+                cap_embedder = None
                 try:
-                    embedder = EmbeddingExtractor(self.config)
+                    cap_embedder = EmbeddingExtractor(self.config)
                     caption_output = str(self.config.embedding_dir).replace(
                         "embeddings", "caption_embeddings"
                     )
-                    results['caption_embeddings'] = embedder.process_captions(
+                    results['caption_embeddings'] = cap_embedder.process_captions(
                         input_dir=caption_dir,
                         output_dir=caption_output,
                     )
@@ -260,6 +306,9 @@ class PipelineOrchestrator:
                 except Exception as e:
                     logger.warning(f"⚠️  Caption embedding failed (continuing): {e}")
                     self.steps_failed.append("caption_embedding_extraction")
+                finally:
+                    _cleanup_gpu(cap_embedder)
+                    logger.info("  🧹 GPU memory released after caption embeddings")
             else:
                 logger.info(f"Step 4b/5: Caption data not found at {caption_dir}, skipping")
                 self.steps_skipped.append("caption_embedding_extraction")
@@ -267,7 +316,7 @@ class PipelineOrchestrator:
         # ── Step 5: FAISS Index Building ─────────────────────────
         if not skip_index:
             if self.config.use_dual_embedding:
-                logger.info("Step 5/5: Building DUAL FAISS index (EVA-02 + BLIP-2)...")
+                logger.info("Step 5/5: Building DUAL FAISS index (EVA-02 + CLIP-32)...")
             else:
                 logger.info("Step 5/5: Building FAISS index...")
             step_start = time.time()
@@ -277,7 +326,7 @@ class PipelineOrchestrator:
                 if self.config.use_dual_embedding:
                     results['index'] = builder.build_dual(
                         eva02_dir=str(self.config.embedding_dir),
-                        blip2_dir=str(self.config.blip2_embedding_dir),
+                        clip32_dir=str(self.config.clip32_embedding_dir),
                     )
                 else:
                     results['index'] = builder.build(
@@ -296,14 +345,16 @@ class PipelineOrchestrator:
             logger.info("Step 5/5: FAISS index building SKIPPED")
             self.steps_skipped.append("index_building")
 
-        # ── Step 6: Metadata Extraction (optional, opt-in per AD-5) ─
-        if extract_metadata:
+        # ── Step 6: Metadata Extraction (default on, skip with --skip-metadata) ─
+        if not skip_metadata:
             logger.info("Step 6/6: Extracting per-keyframe metadata...")
             step_start = time.time()
             try:
                 from aic26.pipeline.metadata import (
                     MetadataExtractor,
                     build_metadata_callables,
+                    load_ocr_lookup,
+                    apply_ocr_merging,
                 )
 
                 # Resolve Places365 weights path — auto-detect from
@@ -314,39 +365,88 @@ class PipelineOrchestrator:
                     if candidate.exists():
                         p365_weights = candidate
 
-                # Build real callables: precomputed detections + Places365 + Qwen
-                detector_fn, scene_fn, scene_graph_fn = build_metadata_callables(
+                # Build real callables: precomputed detections + Places365 + Qwen + Caption
+                detector_fn, scene_fn, scene_graph_fn, caption_fn = build_metadata_callables(
                     detection_dir=Path(self.config.detection_dir),
-                    places365_weights_path=p365_weights,
+                    places365_weights_path=(
+                        p365_weights if not skip_scene else None
+                    ),
                     scene_graph_model_name=(
                         self.config.scene_graph_model
-                        if self.config.extract_scene_graph
+                        if not skip_scene_graph
                         else None
                     ),
                     device=self.config.device,
                     scene_graph_max_triples=self.config.scene_graph_max_triples,
                     scene_graph_max_new_tokens=self.config.scene_graph_max_new_tokens,
+                    caption_model_name=(
+                        self.config.caption_model_name
+                        if not skip_captions
+                        else None
+                    ),
+                    caption_max_new_tokens=self.config.caption_max_new_tokens,
+                    caption_min_length=self.config.caption_min_length,
+                    caption_quantization=self.config.caption_quantization,
                 )
 
+                # ── Step 6a: Build metadata sidecars ──────────────────
+                logger.info("  Step 6a: Building metadata sidecars (reusing detection JSON from step 2)...")
                 extractor = MetadataExtractor(
                     detector_fn=detector_fn,
                     scene_fn=scene_fn,
                     scene_graph_fn=scene_graph_fn,
+                    caption_fn=caption_fn if not skip_captions else None,
                 )
                 results['metadata'] = extractor.process_all(
-                    keyframes_root=str(self.config.keyframes_dir),
-                    output_root=str(self.config.metadata_dir),
-                    skip_scene_graph=not self.config.extract_scene_graph,
+                    keyframes_root=Path(str(self.config.keyframes_dir)),
+                    output_root=Path(str(self.config.metadata_dir)),
+                    skip_detections=False,
+                    skip_scene=skip_scene,
+                    skip_scene_graph=skip_scene_graph,
+                    skip_caption=skip_captions,
                     overwrite=True,
                 )
                 self.steps_completed.append("metadata_extraction")
                 duration = time.time() - step_start
-                logger.info(f"✅ Metadata extraction complete ({duration:.1f}s)")
+                logger.info(f"✅ Metadata sidecars created ({duration:.1f}s)")
+                _cleanup_gpu(extractor)
+                logger.info("  🧹 GPU memory released after metadata")
+
+                # ── Step 6b: Merge OCR text into sidecars ─────────────
+                # Always merge if the CSV exists — even when --skip-ocr
+                # was passed — because the CSV may have been produced
+                # externally (e.g. a pre-computed ocr_results.csv).
+                ocr_csv = Path(str(self.config.ocr_csv_path))
+                if ocr_csv.exists():
+                    logger.info("  Step 6b: Merging OCR text into metadata sidecars...")
+                    ocr_start = time.time()
+                    try:
+                        ocr_lookup = load_ocr_lookup(ocr_csv)
+                        ocr_stats = apply_ocr_merging(
+                            metadata_dir=Path(str(self.config.metadata_dir)),
+                            ocr_lookup=ocr_lookup,
+                            overwrite_files=True,
+                        )
+                        logger.info(
+                            f"✅ OCR merged: {ocr_stats['frames_with_text']} frames with text, "
+                            f"{ocr_stats['frames_empty']} empty ({time.time() - ocr_start:.1f}s)"
+                        )
+                    except Exception as e:
+                        logger.warning(f"⚠️  OCR merging failed (continuing): {e}")
+                else:
+                    logger.info(f"  Step 6b: OCR merge SKIPPED (no CSV at {ocr_csv})")
+
+                # ── Step 6c: Caption status ───────────────────────────
+                if not skip_captions and caption_fn is not None:
+                    logger.info("  Step 6c: Captions generated (applied in 6a)")
+                else:
+                    logger.info("  Step 6c: Captions SKIPPED (--skip-captions)")
+
             except Exception as e:
                 logger.warning(f"⚠️  Metadata extraction failed (continuing): {e}")
                 self.steps_failed.append("metadata_extraction")
         else:
-            logger.info("Step 6/6: Metadata extraction SKIPPED (opt-in: --extract-metadata)")
+            logger.info("Step 6/6: Metadata extraction SKIPPED (--skip-metadata)")
             self.steps_skipped.append("metadata_extraction")
 
         # ── Summary ──────────────────────────────────────────────

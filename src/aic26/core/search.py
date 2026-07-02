@@ -59,7 +59,7 @@ class SearchEngine:
         index: EmbeddingIndex,
         vector_db: VectorDatabase,
         weight_eva02: float = 0.6,
-        weight_blip2: float = 0.4,
+        weight_clip32: float = 0.4,
         weight_bm25: float = 0.2,
         pool_multiplier: int = 5,
     ) -> None:
@@ -71,7 +71,7 @@ class SearchEngine:
             index: EmbeddingIndex with pre-computed embeddings
             vector_db: VectorDatabase for storing query history
             weight_eva02: Weight of EVA-02 cosine similarity in the dual blend
-            weight_blip2: Weight of BLIP-2 cosine similarity in the dual blend
+            weight_clip32: Weight of CLIP ViT-B-32 cosine similarity in the dual blend
             pool_multiplier: top_k * multiplier candidates are pulled from each
                              stream before weighted blending
         """
@@ -79,7 +79,7 @@ class SearchEngine:
         self.index = index
         self.vector_db = vector_db
         self.weight_eva02 = float(weight_eva02)
-        self.weight_blip2 = float(weight_blip2)
+        self.weight_clip32 = float(weight_clip32)
         self.weight_bm25 = float(weight_bm25)
         self.pool_multiplier = max(1, int(pool_multiplier))
 
@@ -89,7 +89,7 @@ class SearchEngine:
 
         streams = ["eva02"]
         if self.index.is_dual:
-            streams.append("blip2")
+            streams.append("clip32")
         if self.bm25_index and self.bm25_index.bm25 is not None:
             streams.append("bm25")
         logger.debug(
@@ -134,13 +134,13 @@ class SearchEngine:
 
         # Encode query and compute similarities
         text_emb = self.index.encode_text(query)
-        text_emb_blip: Optional[np.ndarray] = None
-        if self.index.is_dual and self._blip2_text_query_usable():
-            text_emb_blip = self.index.encode_text_blip2(query)
+        text_emb_clip32: Optional[np.ndarray] = None
+        if self.index.is_dual:
+            text_emb_clip32 = self.index.encode_text_clip32(query)
 
-        # Multi-stream blend: EVA-02 always, BLIP-2/BM25 when usable
+        # Multi-stream blend: EVA-02 always, CLIP-32/BM25 when usable
         idx, scores = self._multi_stream_topk_indices(
-            query, text_emb, text_emb_blip, top_k
+            query, text_emb, text_emb_clip32, top_k
         )
 
         # Build results
@@ -194,12 +194,12 @@ class SearchEngine:
 
         text_emb = self.index.encode_text(query)
         sims = self.index.cosine_similarity(text_emb, self.index.embeddings)[0]
-        if self.index.is_dual and self._blip2_text_query_usable():
-            text_emb_blip = self.index.encode_text_blip2(query)
-            sims_blip = self.index.cosine_similarity(
-                text_emb_blip, self.index.blip2_embeddings
+        if self.index.is_dual:
+            text_emb_clip32 = self.index.encode_text_clip32(query)
+            sims_clip32 = self.index.cosine_similarity(
+                text_emb_clip32, self.index.clip32_embeddings
             )[0]
-            sims = sims * self.weight_eva02 + sims_blip * self.weight_blip2
+            sims = sims * self.weight_eva02 + sims_clip32 * self.weight_clip32
 
         idx, scores = self.index.threshold_indices(sims, score)
 
@@ -242,8 +242,8 @@ class SearchEngine:
 
         img_emb = self.index.encode_image(image_path)
         if self.index.is_dual:
-            img_emb_blip = self.index.encode_image_blip2(image_path)
-            idx, scores = self._dual_topk_indices(img_emb, img_emb_blip, top_k)
+            img_emb_clip32 = self.index.encode_image_clip32(image_path)
+            idx, scores = self._dual_topk_indices(img_emb, img_emb_clip32, top_k)
         else:
             sims = self.index.cosine_similarity(img_emb, self.index.embeddings)[0]
             idx, scores = self.index.topk_indices(sims, top_k)
@@ -326,34 +326,6 @@ class SearchEngine:
     
     # ── Private helpers ───────────────────────────────────────────
 
-    def _blip2_text_query_usable(self) -> bool:
-        """
-        Decide whether to use the BLIP-2 stream for text queries.
-
-        BLIP-2 Q-Former in the `Salesforce/blip2-itm-vit-g` checkpoint is
-        image-only — calling `get_qformer_features` with a black image and no
-        text input returns a constant vector regardless of the text query.
-        That makes the weighted blend uninformative: it adds the same constant
-        to every row. We detect this by computing two distinct text queries and
-        checking whether their BLIP-2 embeddings differ. If they are
-        near-identical, the text-query branch is skipped and we trust EVA-02.
-        Image queries are unaffected — Q-Former is correctly conditioned on the
-        real image.
-
-        Cached after the first probe so we don't pay the encode cost twice.
-        """
-        cached = getattr(self, "_blip2_text_ok", None)
-        if cached is not None:
-            return cached
-        try:
-            a = self.index.encode_text_blip2("probe query alpha")
-            b = self.index.encode_text_blip2("probe query beta distinct words")
-            self._blip2_text_ok = bool(
-                float(np.linalg.norm(a - b)) > 1e-3
-            )
-        except Exception:
-            self._blip2_text_ok = False
-        return self._blip2_text_ok
 
     def _build_results(
         self,
@@ -399,7 +371,7 @@ class SearchEngine:
     def _dual_topk_indices(
         self,
         query_emb_eva: np.ndarray,
-        query_emb_blip: np.ndarray,
+        query_emb_clip32: np.ndarray,
         top_k: int,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -412,12 +384,12 @@ class SearchEngine:
         self,
         query: str,
         query_emb_eva: np.ndarray,
-        query_emb_blip: np.ndarray | None,
+        query_emb_clip32: np.ndarray | None,
         top_k: int,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Weighted-average top-k over any combination of the available embedding
-        streams (EVA-02, BLIP-2).
+        streams (EVA-02, CLIP ViT-B-32).
 
         Implements the MemoriEase 3.0 (LSC'25) recipe generalized to N
         streams: pull a wider candidate pool from each stream, union them,
@@ -426,7 +398,7 @@ class SearchEngine:
 
         Active streams:
           - EVA-02: always (768-dim, encodes query text)
-          - BLIP-2: only when `self.index.is_dual and query_emb_blip is not None`
+          - CLIP-32: only when `self.index.is_dual and query_emb_clip32 is not None`
 
         Returns:
             (indices, blended_scores) — both 1-D arrays of length top_k (or
@@ -445,13 +417,13 @@ class SearchEngine:
                 lambda: self.index.cosine_similarity(query_emb_eva, self.index.embeddings)[0],
             )
         ]
-        if self.index.is_dual and query_emb_blip is not None:
+        if self.index.is_dual and query_emb_clip32 is not None:
             streams.append(
                 (
-                    "blip2",
-                    self.weight_blip2,
+                    "clip32",
+                    self.weight_clip32,
                     self.pool_multiplier,
-                    lambda: self.index.cosine_similarity(query_emb_blip, self.index.blip2_embeddings)[0],
+                    lambda: self.index.cosine_similarity(query_emb_clip32, self.index.clip32_embeddings)[0],
                 )
             )
         if query and self.bm25_index and self.bm25_index.bm25 is not None and self.weight_bm25 > 0:
@@ -494,7 +466,10 @@ class SearchEngine:
         threshold: float,
     ) -> Tuple[List[Dict[str, Any]], np.ndarray]:
         """
-        Filter results by detected objects.
+        Filter results by detected objects using precomputed detections.
+        
+        Uses YOLOv26 detection data from metadata sidecars instead of
+        running Faster R-CNN in real-time (saves ~170MB VRAM).
         
         Args:
             results: Search results to filter
@@ -511,7 +486,11 @@ class SearchEngine:
         filtered_emb: List[np.ndarray] = []
         
         for res, emb in zip(results, sel_embs):
-            detected = self.detect_objects(res["image_path"], abs(threshold))
+            detected = self._get_precomputed_objects(
+                res.get("video_name", ""),
+                res.get("frame_idx", ""),
+                abs(threshold),
+            )
             
             if threshold >= 0:
                 keep = any(obj in detected for obj in desired)
@@ -524,6 +503,33 @@ class SearchEngine:
         
         emb_arr = np.asarray(filtered_emb, dtype=np.float32) if filtered_emb else np.array([])
         return filtered_res, emb_arr
+
+    def _get_precomputed_objects(
+        self, video_name: str, frame_idx: str, threshold: float
+    ) -> List[str]:
+        """
+        Get detected object labels from precomputed metadata sidecars.
+
+        Falls back to Faster R-CNN if no metadata exists (lazy-loaded).
+        """
+        import json as _json
+        meta_path = os.path.join(
+            str(settings.metadata_dir), video_name, f"{frame_idx}.json"
+        )
+        try:
+            with open(meta_path, "r", encoding="utf-8") as f:
+                meta = _json.load(f)
+            return [
+                d["label"].lower()
+                for d in meta.get("detections", [])
+                if d.get("score", 0) >= threshold
+            ]
+        except (FileNotFoundError, KeyError):
+            # Fallback: run Faster R-CNN (lazy-loaded, only if no metadata)
+            img_path = os.path.join(
+                str(settings.keyframes_dir), video_name, f"{frame_idx}.jpg"
+            )
+            return self.detect_objects(img_path, threshold)
     
     def _enrich_with_timing(self, res: Dict[str, Any]) -> None:
         """
