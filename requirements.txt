@@ -32,3 +32,4 @@ customtkinter>=5.2.0
 # ── Utilities ─────────────────────────────────────────────────────────────────
 requests>=2.31.0
 tqdm>=4.66.0
+rank-bm25>=0.2.2          # BM25 text search cho caption index
