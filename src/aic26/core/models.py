@@ -207,7 +207,9 @@ class ModelRegistry:
             images=image, return_tensors="pt",
         ).to(self.device)
         with torch.no_grad():
-            feats = self.clip32_model.get_image_features(**inputs)
+            image_outputs = self.clip32_model.vision_model(**inputs)
+            pooled = image_outputs.pooler_output
+            feats = self.clip32_model.visual_projection(pooled)
             feats = F.normalize(feats, dim=-1)
         return feats.cpu().numpy().astype(np.float32)
 
@@ -229,7 +231,9 @@ class ModelRegistry:
             images=images, return_tensors="pt",
         ).to(self.device)
         with torch.no_grad():
-            feats = self.clip32_model.get_image_features(**inputs)
+            image_outputs = self.clip32_model.vision_model(**inputs)
+            pooled = image_outputs.pooler_output
+            feats = self.clip32_model.visual_projection(pooled)
             feats = F.normalize(feats, dim=-1)
         return feats.cpu().numpy().astype(np.float32)
     

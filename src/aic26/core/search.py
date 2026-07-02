@@ -378,7 +378,7 @@ class SearchEngine:
         Backward-compatible wrapper for the dual-stream blend. Internally
         delegates to `_multi_stream_topk_indices`.
         """
-        return self._multi_stream_topk_indices("", query_emb_eva, query_emb_blip, top_k)
+        return self._multi_stream_topk_indices("", query_emb_eva, query_emb_clip32, top_k)
 
     def _multi_stream_topk_indices(
         self,

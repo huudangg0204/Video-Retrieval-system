@@ -389,7 +389,7 @@
             } else {
                 r._ocr_flat = r.ocr_text || '';
             }
-            r._scene_flat = (typeof r.scene === 'object' && r.scene) ? (r.scene.category || '') : (r.scene || '');
+            r._scene_flat = (typeof r.scene === 'object' && r.scene) ? (r.scene.category + ' ' + (r.scene.scene_group || '')) : (r.scene || '');
         });
 
         // Setup Fuse.js for client side filtering (now includes OCR + Scene)
