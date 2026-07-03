@@ -216,6 +216,10 @@ class ObjectDetector:
             json_name = f"{Path(image_file).stem}.json"
             json_path = os.path.join(output_folder, json_name)
 
+            if os.path.exists(json_path):
+                processed += 1
+                continue
+
             try:
                 detection = self._detect_single(image_path)
 

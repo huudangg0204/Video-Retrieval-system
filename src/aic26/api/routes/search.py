@@ -17,26 +17,54 @@ _META_CACHE: dict[str, dict] | None = None
 
 
 def _get_meta_cache() -> dict[str, dict]:
-    """Lazy-load all metadata JSON files into memory (~3MB for 1360 files)."""
+    """Return the shared metadata cache.
+
+    Tries to reuse the cache that BM25CaptionIndex already loaded from
+    the pre-built ``_cache.pkl``.  Falls back to loading the pickle
+    directly, or scanning individual JSON files as a last resort.
+    """
     global _META_CACHE
     if _META_CACHE is not None:
         return _META_CACHE
 
+    # Try to grab the cache from the retriever's BM25 index (already loaded)
+    try:
+        from flask import current_app
+        retriever = current_app.config.get('AIC26_RETRIEVER')
+        if retriever is not None:
+            bm25_idx = getattr(retriever, '_searcher', None)
+            if bm25_idx is not None:
+                bm25_idx = getattr(bm25_idx, 'bm25_index', None)
+            if bm25_idx is not None and getattr(bm25_idx, '_meta_cache', None):
+                _META_CACHE = bm25_idx._meta_cache
+                logger.info(f"Metadata cache shared from BM25: {len(_META_CACHE)} entries")
+                return _META_CACHE
+    except RuntimeError:
+        pass  # Outside Flask request context
+
+    # Fallback: load from pickle or scan JSON
+    import pickle
     from aic26.config import settings
-    meta_dir = Path(settings.metadata_dir)
-    cache: dict[str, dict] = {}
+    cache_path = Path(settings.metadata_dir) / "_cache.pkl"
+    if cache_path.exists():
+        with open(cache_path, "rb") as f:
+            _META_CACHE = pickle.load(f)
+        logger.info(f"Metadata cache loaded from pickle: {len(_META_CACHE)} entries")
+    else:
+        # Last resort: read individual JSON files
+        meta_dir = Path(settings.metadata_dir)
+        cache: dict[str, dict] = {}
+        if meta_dir.exists():
+            for json_path in meta_dir.rglob("*.json"):
+                key = f"{json_path.parent.name}/{json_path.stem}"
+                try:
+                    cache[key] = json.loads(json_path.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+        _META_CACHE = cache
+        logger.info(f"Metadata cache loaded (JSON scan): {len(_META_CACHE)} entries")
 
-    if meta_dir.exists():
-        for json_path in meta_dir.rglob("*.json"):
-            key = f"{json_path.parent.name}/{json_path.stem}"
-            try:
-                cache[key] = json.loads(json_path.read_text(encoding="utf-8"))
-            except Exception:
-                pass
-
-    _META_CACHE = cache
-    logger.info(f"Metadata cache loaded: {len(cache)} entries")
-    return cache
+    return _META_CACHE
 
 
 def _attach_metadata(results):

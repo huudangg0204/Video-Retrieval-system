@@ -32,8 +32,8 @@ AIC-26 là một hệ thống truy xuất video đa phương thức được xâ
 | **TRAKE Temporal Search** | Xác định các chuỗi sự kiện có thứ tự trong video bằng dynamic programming |
 | **Object Filtering** | Thu hẹp kết quả theo các đối tượng được phát hiện với ngưỡng confidence |
 | **OCR Search** | Lập chỉ mục và tìm kiếm văn bản xuất hiện trong các frame video |
-| **Dual-Embedding Retrieval** | Kết hợp EVA-02 + BLIP-2 Q-Former (weighted blend 0.6/0.4) theo MemoriEase 3.0 §3.2 — xem [docs/dual-embedding.md](docs/dual-embedding.md) |
-| **Metadata Sidecars** | Enrich mỗi keyframe với bbox position (3×3 grid), Places365 scene + scene_group, scene graph (Qwen2.5-VL), OCR text và BLIP caption — xem [docs/specs/metadata-extraction.md](docs/specs/metadata-extraction.md) |
+| **Dual-Embedding Retrieval** | Kết hợp EVA-02 (w=0.6) + CLIP-32 (w=0.4) + BM25 captions (w=0.2) — 3-way weighted blend |
+| **Metadata Sidecars** | Enrich mỗi keyframe với bbox position (3×3 grid), Places365 scene + scene_group, OCR text và BLIP caption — xem [docs/specs/metadata-extraction.md](docs/specs/metadata-extraction.md) |
 | **Client-side Filtering** | Giao diện hỗ trợ lọc Metadata (OCR, Scene, Caption) tức thì bằng `Fuse.js`, tối ưu hóa trải nghiệm truy vấn |
 
 ### Công Nghệ Sử Dụng
@@ -41,7 +41,7 @@ AIC-26 là một hệ thống truy xuất video đa phương thức được xâ
 | Thành phần | Công nghệ | Mục đích |
 |---|---|---|
 | Vision-Language Model | EVA-02 CLIP (768-dim) | Embedding text và hình ảnh (stream chính, eager-load) |
-| Dual-Stream Encoder | CLIP ViT-B-32 (512-dim) | Stream thứ hai cho weighted blend (lazy-load) |
+| Dual-Stream Encoder | CLIP ViT-B-32 (512-dim) | Stream thứ hai cho weighted blend (eager-load) |
 | Text Retrieval | BM25 (rank_bm25) | Keyword match trên captions (stream thứ ba) |
 | Vector Search | FAISS IndexFlatIP × 2 streams | Tìm kiếm tương đồng dưới một giây |
 | Temporal Reasoning | TRAKE (custom DP) | Truy xuất sự kiện có thứ tự |
@@ -183,7 +183,7 @@ aic26 pipeline run-all --video-dir data/videos --skip-detection --skip-ocr
 aic26 serve api --port 5000
 ```
 
-*Lưu ý: Server sử dụng **Lazy Loading** — chỉ EVA-02 CLIP được eager-load (~10s). Các model phụ (CLIP-32, BLIP ITM, Faster R-CNN) chỉ load khi cần, tiết kiệm ~1.4GB VRAM. Metadata được cache in-memory (~3MB) cho lookup tức thì.*
+*Lưu ý: Server eager-load **EVA-02 CLIP + CLIP ViT-B-32** (~22s startup). Metadata được load từ pre-built pickle cache (~48MB, < 1s). BLIP ITM và Faster R-CNN chỉ lazy-load khi cần. Chạy `py -3.10 scripts/build_meta_cache.py` sau mỗi lần pipeline chạy xong để cập nhật cache.*
 
 Mở [http://localhost:5000](http://localhost:5000) để sử dụng giao diện web Multi-modal Query Builder tích hợp sẵn (Hỗ trợ Fuse.js Filtering, TRAKE, và Modal Metadata Inspector).
 
@@ -255,9 +255,9 @@ aic26 pipeline merge-captions --metadata-dir data/metadata
 - **BLIP image captioning** (`pipeline/captioning.py`) — tiếng Anh, ~446M params.
 - **EasyOCR** (pre-extracted CSV) — merge từ `data/raw/ocr_results.csv`.
 
-**Serving Models** (lazy-loaded):
-- **EVA-02 CLIP** — always loaded (~1.7GB VRAM), text + image encoding.
-- **CLIP ViT-B-32** — lazy-loaded on first search (~0.5GB VRAM).
+**Serving Models**:
+- **EVA-02 CLIP** — eager-loaded at startup (~1.7GB VRAM), text + image encoding.
+- **CLIP ViT-B-32** — eager-loaded at startup (~0.5GB VRAM), dual-stream search.
 - **BLIP ITM** — lazy-loaded for TRAKE reranking only (~0.9GB VRAM).
 - **Faster R-CNN** — lazy fallback, only if metadata missing (~0.2GB VRAM).
 
@@ -286,19 +286,19 @@ aic26 pipeline merge-captions --metadata-dir data/metadata
                          │
 ┌────────────────────────▼────────────────────────────────────┐
 │              EVA02ImageRetrieval (Facade)                    │
-│         Metadata Cache (in-memory, ~3MB)                    │
+│    Metadata Cache (shared pickle, ~48MB, 41675 entries)     │
 └──┬──────────┬──────────┬──────────┬──────────┬─────────────┘
    │          │          │          │          │
 ┌──▼──┐  ┌───▼───┐  ┌───▼──┐  ┌───▼───┐  ┌───▼────┐
 │Model│  │Embed- │  │Search│  │ TRAKE │  │Exporter│
 │Reg- │  │ding   │  │Engine│  │Engine │  │        │
 │istry│  │Index  │  │(3-way│  │(batch │  │        │
-│(lazy│  │(dual) │  │blend)│  │rerank)│  │        │
-│load)│  └───┬───┘  └───┬──┘  └───┬───┘  └────────┘
+│     │  │(dual) │  │blend)│  │rerank)│  │        │
+│     │  └───┬───┘  └───┬──┘  └───┬───┘  └────────┘
 └──┬──┘      │          │          │
    │    ┌────▼──────────▼──────────▼──────────────────────┐
    └───▶│              Core Models (GPU)                  │
-        │  EVA-02 (eager)  ·  CLIP-32 (lazy)              │
+        │  EVA-02 (eager)  ·  CLIP-32 (eager)             │
         │  BLIP ITM (lazy) ·  Faster R-CNN (lazy fallback)│
         └─────────────────────────────────────────────────┘
 
@@ -469,8 +469,8 @@ TRAKE (Temporal Retrieval and Alignment of Key Events) tìm các chuỗi keyfram
 ```
 User query "a man talking on stage"
      │
-     ├─→ EVA-02 encode (768d) ─→ cosine sim vs 1360 vectors ─→ top pool (w=0.6)
-     ├─→ CLIP-32 encode (512d) ─→ cosine sim vs 1360 vectors ─→ top pool (w=0.4)
+     ├─→ EVA-02 encode (768d) ─→ cosine sim vs 41675 vectors ─→ top pool (w=0.6)
+     ├─→ CLIP-32 encode (512d) ─→ cosine sim vs 41675 vectors ─→ top pool (w=0.4)
      ├─→ BM25 keyword match on captions ─→ top pool (w=0.2)
      │
      └─→ Union candidates → Weighted blend → Top-K results
@@ -566,7 +566,7 @@ Upload ảnh query → Hệ thống encode bằng EVA-02
 | 5 | **Object filter exclude mode** | `threshold: -0.5` loại bỏ frame có object không mong muốn |
 | 6 | **Xem modal Metadata Inspector** | Click vào kết quả để xem OCR text, detections, caption đầy đủ |
 
-### Performance Benchmarks (RTX 3050 4GB, 1360 keyframes)
+### Performance Benchmarks (RTX 3050 4GB, 41,675 keyframes)
 
 | Thao tác | Thời gian | Ghi chú |
 |----------|-----------|---------|
@@ -574,9 +574,9 @@ Upload ảnh query → Hệ thống encode bằng EVA-02
 | Image Search (top_k=100) | **~0.3s** | EVA-02 encode + cosine sim |
 | TRAKE (3 events) | **~1-5s** | Phụ thuộc số events và reranking |
 | Fuse.js Filter | **~0ms** | Client-side, không call server |
-| Metadata attach | **~0ms** | In-memory cache (1360 entries) |
-| Server startup | **~10s** | Chỉ load EVA-02 (lazy-load phần còn lại) |
-| VRAM usage (idle) | **~2.5GB** | EVA-02 + CLIP-32 (sau lần search đầu) |
+| Metadata attach | **~0ms** | Shared pickle cache (41,675 entries) |
+| Server startup | **~22s** | EVA-02 + CLIP-32 eager-load + pickle cache |
+| VRAM usage (idle) | **~2.5GB** | EVA-02 + CLIP-32 (both eager-loaded) |
 
 ---
 

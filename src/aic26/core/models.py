@@ -60,7 +60,12 @@ class ModelRegistry:
         self.clip32_model = None
         self.clip32_processor = None
 
-        logger.info("Core models loaded (EVA-02). Detector/BLIP/CLIP-32 are lazy-loaded.")
+        # Eager-load CLIP-32 for dual-stream search (avoids 8s delay on first query)
+        from aic26.config import settings as _settings
+        if _settings.use_dual_embedding:
+            self._load_clip32()
+
+        logger.info("Core models loaded (EVA-02 + CLIP-32). Detector/BLIP are lazy-loaded.")
     
     # ── CLIP / EVA-02 (eager) ─────────────────────────────────────
     

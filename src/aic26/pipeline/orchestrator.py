@@ -404,7 +404,7 @@ class PipelineOrchestrator:
                     skip_scene=skip_scene,
                     skip_scene_graph=skip_scene_graph,
                     skip_caption=skip_captions,
-                    overwrite=True,
+                    overwrite=False,
                 )
                 self.steps_completed.append("metadata_extraction")
                 duration = time.time() - step_start
