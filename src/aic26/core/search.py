@@ -455,8 +455,12 @@ class SearchEngine:
             blend += weight * per_stream_sims[label][cand_idx].astype(np.float32)
 
         # Top-k of the blended set
-        order = np.argsort(blend)[::-1][:top_k]
-        return cand_idx[order], blend[order]
+        k = min(top_k, len(blend))
+        if k <= 0:
+            return np.array([], dtype=int), np.array([], dtype=np.float32)
+        part = np.argpartition(blend, -k)[-k:]
+        order = np.argsort(blend[part])[::-1]
+        return cand_idx[part[order]], blend[part[order]]
     
     def _apply_object_filter(
         self,

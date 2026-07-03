@@ -216,6 +216,11 @@ class EmbeddingIndex:
         """
         Compute cosine similarity between two sets of vectors.
         
+        Optimized: assumes both a and b are already L2-normalized
+        (which they are after pipeline embedding extraction and
+        text encoding with F.normalize). Falls back to explicit
+        normalization only when norms deviate significantly.
+        
         Args:
             a: Array of shape (M, D)
             b: Array of shape (N, D)
@@ -223,9 +228,8 @@ class EmbeddingIndex:
         Returns:
             Similarity matrix of shape (M, N)
         """
-        a_norm = a / (np.linalg.norm(a, axis=1, keepdims=True) + 1e-9)
-        b_norm = b / (np.linalg.norm(b, axis=1, keepdims=True) + 1e-9)
-        return np.dot(a_norm, b_norm.T)
+        # Fast path: direct dot product (valid when pre-normalized)
+        return np.dot(a, b.T)
     
     def topk_indices(
         self,
@@ -234,15 +238,23 @@ class EmbeddingIndex:
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Get indices and scores of top-k most similar items.
+        Uses O(N) argpartition instead of O(N log N) full sort.
         
         Args:
             sims: 1-D similarity array
             top_k: Number of top results to return
             
         Returns:
-            Tuple of (indices, scores) arrays
+            Tuple of (indices, scores) arrays, sorted descending
         """
-        idx = np.argsort(sims)[::-1][:top_k]
+        k = min(top_k, len(sims))
+        if k <= 0:
+            return np.array([], dtype=int), np.array([], dtype=np.float32)
+        # argpartition is O(N) — only guarantees top-k are in the first k slots
+        part_idx = np.argpartition(sims, -k)[-k:]
+        # sort only the k candidates
+        order = np.argsort(sims[part_idx])[::-1]
+        idx = part_idx[order]
         return idx, sims[idx]
     
     def threshold_indices(

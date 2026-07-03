@@ -3,6 +3,9 @@ Video media information utilities.
 
 Handles reading FPS, frame indices, and timestamps from
 keyframe mapping CSVs and media info JSON files.
+
+Optimized: all CSV/JSON files are loaded once into module-level
+caches for O(1) lookup during search.
 """
 from __future__ import annotations
 
@@ -10,10 +13,81 @@ import csv
 import json
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional, Tuple
 import pandas as pd
 
+from loguru import logger
+
 from aic26.utils.frame_utils import detect_map_columns
+
+
+# ── Module-level caches (loaded once, shared across requests) ──
+
+_fps_cache: Dict[str, Optional[float]] = {}
+_frame_map_cache: Dict[str, Dict[int, int]] = {}  # video_name → {keyframe_n → frame_idx_video}
+_media_info_cache: Dict[str, dict] = {}
+_caches_initialized = False
+
+
+def _init_caches() -> None:
+    """Pre-load all map-keyframe CSVs and media-info JSONs into memory."""
+    global _caches_initialized
+    if _caches_initialized:
+        return
+
+    from aic26.config import settings
+
+    map_dir = str(settings.map_keyframe_dir)
+    media_dir = str(settings.media_info_dir)
+
+    # Load all keyframe mapping CSVs
+    if os.path.isdir(map_dir):
+        for csv_file in sorted(os.listdir(map_dir)):
+            if not csv_file.endswith(".csv"):
+                continue
+            video_name = os.path.splitext(csv_file)[0]
+            csv_path = os.path.join(map_dir, csv_file)
+            try:
+                df = pd.read_csv(csv_path)
+                n_col, idx_col = detect_map_columns(df)
+
+                # Cache FPS from first row
+                if "fps" in df.columns and len(df) > 0:
+                    _fps_cache[video_name] = float(df["fps"].iloc[0])
+                else:
+                    _fps_cache[video_name] = None
+
+                # Cache frame mapping: keyframe_n → frame_idx_video
+                mapping = {}
+                for _, row in df.iterrows():
+                    mapping[int(row[n_col])] = int(row[idx_col])
+                _frame_map_cache[video_name] = mapping
+
+            except Exception as e:
+                logger.warning(f"Failed to load map CSV {csv_file}: {e}")
+                _fps_cache[video_name] = None
+                _frame_map_cache[video_name] = {}
+
+    # Load all media info JSONs
+    if os.path.isdir(media_dir):
+        for json_file in sorted(os.listdir(media_dir)):
+            if not json_file.endswith(".json"):
+                continue
+            video_name = os.path.splitext(json_file)[0]
+            json_path = os.path.join(media_dir, json_file)
+            try:
+                with open(json_path, "r", encoding="utf-8") as f:
+                    _media_info_cache[video_name] = json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load media info {json_file}: {e}")
+                _media_info_cache[video_name] = {}
+
+    _caches_initialized = True
+    logger.info(
+        f"Media caches loaded: {len(_fps_cache)} FPS entries, "
+        f"{len(_frame_map_cache)} frame maps, "
+        f"{len(_media_info_cache)} media info entries"
+    )
 
 
 def load_fps_from_map(
@@ -21,39 +95,17 @@ def load_fps_from_map(
     map_dir: Optional[str] = None,
 ) -> Optional[float]:
     """
-    Read the FPS from a keyframe mapping CSV file.
+    Read the FPS for a video (from pre-loaded cache).
     
     Args:
         video_name: Name of the video (without extension)
-        map_dir: Directory containing mapping CSV files
-                (defaults to settings.map_keyframe_dir)
+        map_dir: Ignored (kept for backward compatibility)
         
     Returns:
         FPS as float, or None if not found
-        
-    Example:
-        fps = load_fps_from_map("L21_V001")  # → 30.0
     """
-    from aic26.config import settings
-    
-    map_dir = map_dir or str(settings.map_keyframe_dir)
-    map_file = os.path.join(map_dir, f"{video_name}.csv")
-    
-    if not os.path.exists(map_file):
-        return None
-    
-    try:
-        with open(map_file, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if "fps" in row:
-                    return float(row["fps"])
-                break  # Only need first row
-    except Exception as e:
-        from loguru import logger
-        logger.warning(f"Could not load FPS for {video_name}: {e}")
-    
-    return None
+    _init_caches()
+    return _fps_cache.get(video_name)
 
 
 def load_frame_idx_from_map(
@@ -62,39 +114,21 @@ def load_frame_idx_from_map(
     map_dir: Optional[str] = None,
 ) -> Optional[int]:
     """
-    Look up the video frame index for keyframe number n.
+    Look up the video frame index for keyframe number n (from pre-loaded cache).
     
     Args:
         video_name: Name of the video
         n: Keyframe number (as stored in mapping CSV)
-        map_dir: Directory containing mapping CSV files
+        map_dir: Ignored (kept for backward compatibility)
         
     Returns:
         Frame index in the original video, or None if not found
-        
-    Example:
-        # Keyframe #3 corresponds to frame 96 in the video
-        idx = load_frame_idx_from_map("L21_V001", 3)  # → 96
     """
-    from aic26.config import settings
-    
-    map_dir = map_dir or str(settings.map_keyframe_dir)
-    map_file = os.path.join(map_dir, f"{video_name}.csv")
-    
-    if not os.path.exists(map_file):
+    _init_caches()
+    mapping = _frame_map_cache.get(video_name)
+    if mapping is None:
         return None
-    
-    try:
-        df = pd.read_csv(map_file)
-        n_col, idx_col = detect_map_columns(df)
-        result = df.loc[df[n_col] == n, idx_col]
-        if not result.empty:
-            return int(result.iloc[0])
-    except Exception as e:
-        from loguru import logger
-        logger.warning(f"Could not load frame index for {video_name} n={n}: {e}")
-    
-    return None
+    return mapping.get(n)
 
 
 def frame_to_timestr(frame_idx: int, fps: float) -> str:
@@ -107,10 +141,6 @@ def frame_to_timestr(frame_idx: int, fps: float) -> str:
         
     Returns:
         Time string in MM:SS format
-        
-    Example:
-        frame_to_timestr(90, 30)   # → "0:03"
-        frame_to_timestr(3600, 30) # → "2:00"
     """
     if not fps or fps <= 0:
         return "0:00"
@@ -127,31 +157,14 @@ def load_media_info(
     media_dir: Optional[str] = None,
 ) -> dict:
     """
-    Load the media info JSON for a video.
+    Load the media info for a video (from pre-loaded cache).
     
     Args:
         video_name: Name of the video
-        media_dir: Directory containing media info JSON files
+        media_dir: Ignored (kept for backward compatibility)
         
     Returns:
         Dictionary with media info, empty dict if not found
-        
-    Example:
-        info = load_media_info("L21_V001")
-        # → {"duration": 3600, "watch_url": "https://...", ...}
     """
-    from aic26.config import settings
-    
-    media_dir = media_dir or str(settings.media_info_dir)
-    media_file = os.path.join(media_dir, f"{video_name}.json")
-    
-    if not os.path.exists(media_file):
-        return {}
-    
-    try:
-        with open(media_file, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        from loguru import logger
-        logger.warning(f"Could not load media info for {video_name}: {e}")
-        return {}
+    _init_caches()
+    return _media_info_cache.get(video_name, {})

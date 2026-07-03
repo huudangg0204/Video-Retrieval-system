@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import pickle
+import threading
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -57,6 +58,8 @@ class VectorDatabase:
         self.db_path = db_path
         self._reset_data()
         self.index: Optional[faiss.IndexFlatIP] = None
+        self._dirty = False
+        self._save_lock = threading.Lock()
         self._load()
     
     # ── Public API ────────────────────────────────────────────────
@@ -93,15 +96,34 @@ class VectorDatabase:
         self.index.add(embs_f32)
         
         logger.debug(f"Added query '{query[:50]}...' with {len(results)} results")
+        self._dirty = True
+        # Debounced save: only save if no save is pending (avoids 326MB pickle on every query)
+        self._schedule_save()
     
     def save(self) -> None:
-        """Save the database to disk."""
-        try:
-            with open(self.db_path, "wb") as f:
-                pickle.dump(self.data, f)
-            logger.info(f"Database saved to {self.db_path}")
-        except Exception as e:
-            logger.error(f"Failed to save database: {e}")
+        """Save the database to disk (thread-safe)."""
+        if not self._dirty:
+            return
+        with self._save_lock:
+            try:
+                with open(self.db_path, "wb") as f:
+                    pickle.dump(self.data, f, protocol=pickle.HIGHEST_PROTOCOL)
+                self._dirty = False
+                logger.info(f"Database saved to {self.db_path}")
+            except Exception as e:
+                logger.error(f"Failed to save database: {e}")
+
+    def _schedule_save(self) -> None:
+        """Debounced save: waits 10s before saving to batch multiple queries.
+        
+        This avoids serializing ~326MB on every single query. If another
+        query arrives within the 10s window, the timer resets.
+        """
+        if hasattr(self, '_save_timer') and self._save_timer is not None:
+            self._save_timer.cancel()
+        self._save_timer = threading.Timer(10.0, self.save)
+        self._save_timer.daemon = True
+        self._save_timer.start()
     
     def get_all_queries(self) -> List[str]:
         """Get list of all stored query strings."""
