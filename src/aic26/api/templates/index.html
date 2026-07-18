@@ -2,686 +2,1000 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>AIC-26 Multi-modal Query Builder</title>
+  <title>AIC-26 Explorer</title>
+  <meta name="description" content="AIC-26 Multi-modal Video Retrieval System — search keyframes by text, image, OCR or temporal sequence.">
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    /* Custom scrollbar for a cleaner look */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: #f1f1f1; }
-    ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
-    
-    .frame-image {
-        width: 100%;
-        height: auto;
-        border-radius: 0.5rem;
-        cursor: pointer;
-        transition: transform 0.2s;
-    }
-    .frame-image:hover {
-        transform: scale(1.02);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: #1e1e2e; }
+    ::-webkit-scrollbar-thumb { background: #44475a; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #6272a4; }
+
+    body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+
+    /* Block selector bar */
+    .block-tab { display:flex; align-items:center; gap:6px; padding:8px 18px; border-radius:9999px; cursor:pointer;
+                 font-size:13px; font-weight:600; transition:all .18s; color:#8892a4; white-space:nowrap; border:2px solid transparent; }
+    .block-tab:hover { background:#1e2230; color:#c9d1e9; }
+    .block-tab.active { background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; box-shadow:0 4px 15px rgba(99,102,241,.35); }
+
+    /* Block panels */
+    .block-panel { display:none; }
+    .block-panel.active { display:flex; flex-direction:column; height:100%; }
+
+    /* Input styles */
+    .aic-input { background:#1a1d27; border:1px solid #2d3146; border-radius:8px; color:#e2e8f0; padding:8px 12px; font-size:13px; width:100%; outline:none; transition:border .15s; }
+    .aic-input:focus { border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.15); }
+    .aic-textarea { background:#1a1d27; border:1px solid #2d3146; border-radius:8px; color:#e2e8f0; padding:8px 12px; font-size:13px; width:100%; outline:none; resize:vertical; transition:border .15s; }
+    .aic-textarea:focus { border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.15); }
+    .aic-select { background:#1a1d27; border:1px solid #2d3146; border-radius:8px; color:#e2e8f0; padding:8px 12px; font-size:13px; width:100%; outline:none; cursor:pointer; }
+    .aic-select:focus { border-color:#6366f1; }
+
+    /* Buttons */
+    .btn-primary { background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; border:none; border-radius:8px; padding:9px 18px; font-size:13px; font-weight:600; cursor:pointer; transition:all .15s; width:100%; }
+    .btn-primary:hover { filter:brightness(1.12); box-shadow:0 4px 12px rgba(99,102,241,.3); }
+    .btn-primary:active { transform:scale(.98); }
+    .btn-secondary { background:#1e2230; color:#c9d1e9; border:1px solid #2d3146; border-radius:8px; padding:7px 14px; font-size:12px; font-weight:500; cursor:pointer; transition:all .15s; }
+    .btn-secondary:hover { background:#252840; border-color:#4f4f7a; }
+    .btn-ocr { background:linear-gradient(135deg,#f59e0b,#ef4444); }
+    .btn-browse { background:linear-gradient(135deg,#10b981,#06b6d4); }
+    .btn-trake { background:linear-gradient(135deg,#8b5cf6,#ec4899); }
+
+    /* Tags */
+    .obj-tag { display:inline-flex; align-items:center; gap:5px; background:#1e3a5f; border:1px solid #2563eb; color:#93c5fd;
+               border-radius:20px; padding:3px 10px; font-size:12px; font-weight:500; margin:2px; }
+    .obj-tag .rm { cursor:pointer; color:#60a5fa; font-size:11px; }
+    .obj-tag .rm:hover { color:#fff; }
+
+    /* Autocomplete dropdown */
+    #objAutocomplete { position:absolute; background:#1a1d27; border:1px solid #4f4f7a; border-radius:8px; max-height:200px; overflow-y:auto;
+                       z-index:100; width:100%; top:100%; left:0; margin-top:2px; }
+    #objAutocomplete .ac-item { padding:7px 12px; font-size:12px; cursor:pointer; color:#c9d1e9; }
+    #objAutocomplete .ac-item:hover { background:#252840; color:#fff; }
+
+    /* Frame card */
+    .frame-card { background:#161926; border:1px solid #252840; border-radius:12px; overflow:hidden; cursor:pointer;
+                  transition:all .18s; position:relative; }
+    .frame-card:hover { border-color:#6366f1; box-shadow:0 8px 24px rgba(99,102,241,.2); transform:translateY(-2px); }
+    .frame-card.center-frame { border-color:#f59e0b; box-shadow:0 0 0 3px rgba(245,158,11,.25); }
+    .frame-card img { width:100%; height:auto; display:block; object-fit:cover; }
+    .frame-card .sim-badge { position:absolute; top:8px; right:8px; background:rgba(0,0,0,.75); color:#fbbf24;
+                              font-size:11px; padding:2px 7px; border-radius:20px; backdrop-filter:blur(4px); }
+    .frame-card .card-footer { padding:8px 10px; background:#161926; }
+    .frame-card .card-footer .vid-name { font-weight:700; font-size:12px; color:#c9d1e9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .frame-card .card-footer .meta-row { display:flex; justify-content:space-between; font-size:11px; color:#4a5568; margin-top:3px; }
+
+    /* Info bar */
+    #infoBar { background:#1a2035; border-bottom:1px solid #252840; padding:8px 20px; font-size:12px; color:#8892a4; display:flex; justify-content:space-between; align-items:center; }
+
+    /* Section label */
+    .sec-label { font-size:11px; font-weight:700; color:#6272a4; text-transform:uppercase; letter-spacing:.08em; margin-bottom:5px; }
+
+    /* Modal */
+    #inspectorModal { position:fixed; inset:0; background:rgba(0,0,0,.85); display:none; z-index:200; align-items:center; justify-content:center; padding:16px; }
+    #inspectorModal.open { display:flex; }
+    .modal-box { background:#161926; border:1px solid #252840; border-radius:16px; overflow:hidden; max-width:960px; width:100%;
+                 display:flex; flex-direction:row; max-height:92vh; box-shadow:0 25px 60px rgba(0,0,0,.6); }
+    .modal-img-panel { flex:1; background:#0d0f1a; display:flex; align-items:center; justify-content:center; padding:16px; min-height:320px; }
+    .modal-meta-panel { width:340px; flex-shrink:0; display:flex; flex-direction:column; border-left:1px solid #252840; }
+    .meta-section { margin-bottom:14px; }
+    .meta-label { font-size:10px; font-weight:700; color:#6272a4; text-transform:uppercase; letter-spacing:.08em; margin-bottom:5px; }
+    .meta-value { font-size:13px; color:#c9d1e9; background:#1a1d27; padding:8px 10px; border-radius:8px; line-height:1.5; }
+
+    /* Toggle */
+    .mode-toggle { display:inline-flex; border:1px solid #2d3146; border-radius:20px; overflow:hidden; }
+    .mode-toggle label { padding:4px 12px; font-size:11px; font-weight:600; cursor:pointer; color:#6272a4; transition:all .15s; }
+    .mode-toggle input[type=radio] { display:none; }
+    .mode-toggle input[type=radio]:checked + label { background:#6366f1; color:#fff; }
+
+    /* Browse tabs */
+    .browse-subtab { padding:5px 14px; font-size:12px; border-radius:20px; cursor:pointer; color:#6272a4; font-weight:600; transition:all .15s; border:1px solid transparent; }
+    .browse-subtab.active { background:#1e3a5f; color:#93c5fd; border-color:#2563eb; }
+    .browse-subpanel { display:none; }
+    .browse-subpanel.active { display:block; }
+
+    /* Responsive */
+    @media (max-width:768px) {
+      .modal-box { flex-direction:column; }
+      .modal-meta-panel { width:100%; border-left:none; border-top:1px solid #252840; }
     }
   </style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans h-screen overflow-hidden flex">
+<body class="h-screen overflow-hidden flex flex-col">
 
-  <!-- Sidebar -->
-  <aside class="w-80 bg-white border-r border-gray-200 shadow-sm flex flex-col h-full z-10 shrink-0">
-    <div class="p-4 border-b bg-indigo-600 text-white">
-        <h1 class="text-xl font-bold flex items-center gap-2">
-            <i class="fa fa-search"></i> AIC-26 Explorer
-        </h1>
-        <div id="statsBox" class="text-xs mt-1 opacity-80">{{ stats }}</div>
+<!-- ═══════════════ HEADER ═══════════════ -->
+<header style="background:#0d0f1a; border-bottom:1px solid #1e2230;" class="flex items-center gap-3 px-5 py-3 shrink-0">
+  <!-- Logo -->
+  <div class="flex items-center gap-2 mr-2 shrink-0">
+    <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6); border-radius:8px; padding:6px 10px;" class="text-white font-bold text-sm">
+      <i class="fa fa-search-plus"></i> AIC
     </div>
-    
-    <div class="flex-1 overflow-y-auto p-4 space-y-6">
-        
-        <!-- Text Search -->
-        <div class="space-y-3">
-            <h2 class="font-semibold text-gray-700 flex items-center gap-2">
-                <i class="fa fa-keyboard"></i> Text Search
-            </h2>
-            <textarea id="queryInput" class="w-full text-sm border border-gray-300 rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none" rows="2" placeholder="Free-text query..."></textarea>
-            
-            <div class="flex gap-2">
-                <input id="topkInput" class="w-1/2 text-sm border border-gray-300 rounded p-2 focus:ring-indigo-500 outline-none" placeholder="Top-K (100)">
-                <input id="thresholdInput" class="w-1/2 text-sm border border-gray-300 rounded p-2 focus:ring-indigo-500 outline-none" placeholder="Thresh (0.5)">
-            </div>
-            
-            <input id="objectInput" class="w-full text-sm border border-gray-300 rounded p-2 focus:ring-indigo-500 outline-none" placeholder="Objects (comma separated)">
-            
-            <div class="text-xs text-gray-500">Optional: Image Reranking</div>
-            <input type="file" id="textSearchImage" class="w-full text-xs" accept="image/*">
-            
-            <button onclick="searchText()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded py-2 text-sm font-medium transition shadow-sm">
-                Search
-            </button>
-        </div>
-
-        <hr>
-
-        <!-- Image Search -->
-        <div class="space-y-3">
-            <h2 class="font-semibold text-gray-700 flex items-center gap-2">
-                <i class="fa fa-image"></i> Image Search
-            </h2>
-            <input type="file" id="uploadFile" class="w-full text-xs" accept="image/*">
-            <input id="imgTopk" class="w-full text-sm border border-gray-300 rounded p-2 focus:ring-indigo-500 outline-none" placeholder="Top-K (100)">
-            <button onclick="uploadAndSearch()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded py-2 text-sm font-medium transition shadow-sm">
-                Upload & Search
-            </button>
-        </div>
-
-        <hr>
-
-        <!-- TRAKE -->
-        <div class="space-y-3">
-            <h2 class="font-semibold text-gray-700 flex items-center gap-2">
-                <i class="fa fa-clock"></i> TRAKE (Temporal)
-            </h2>
-            <textarea id="eventsBox" rows="3" class="w-full text-sm border border-gray-300 rounded p-2 focus:ring-indigo-500 outline-none" placeholder="E1: ...&#10;E2: ..."></textarea>
-            <div class="flex gap-2">
-                <input id="trakeTopk" class="w-1/2 text-sm border border-gray-300 rounded p-2" placeholder="Top-K (200)">
-                <input id="trakeCandidates" class="w-1/2 text-sm border border-gray-300 rounded p-2" placeholder="Cand (200)">
-            </div>
-            <select id="trakeOption" class="w-full text-sm border border-gray-300 rounded p-2">
-                <option value="Closest">Closest</option>
-                <option value="Highest">Highest</option>
-                <option value="All">All</option>
-            </select>
-            <button onclick="runTrake()" class="w-full bg-purple-600 hover:bg-purple-700 text-white rounded py-2 text-sm font-medium transition shadow-sm">
-                Run TRAKE
-            </button>
-        </div>
-
-        <hr>
-
-        <!-- Submission / Export -->
-        <div class="space-y-3">
-            <h2 class="font-semibold text-gray-700 flex items-center gap-2">
-                <i class="fa fa-file-export"></i> Submission
-            </h2>
-            <input id="subVideoName" class="w-full text-sm border border-gray-300 rounded p-2" placeholder="Video (video_0001)">
-            <div class="flex gap-2">
-                <input id="subFrameId" class="w-1/2 text-sm border border-gray-300 rounded p-2" placeholder="Frame ID">
-                <input id="subGap" class="w-1/2 text-sm border border-gray-300 rounded p-2" placeholder="GAP (15)">
-            </div>
-            <input id="subExportName" class="w-full text-sm border border-gray-300 rounded p-2" placeholder="CSV Name">
-            <button onclick="makeSubmission()" class="w-full bg-green-600 hover:bg-green-700 text-white rounded py-2 text-sm font-medium transition shadow-sm">
-                Export Submission
-            </button>
-            <div id="subMsg" class="text-xs text-green-700 mt-1"></div>
-        </div>
-
-    </div>
-  </aside>
-
-  <!-- Main Content -->
-  <main class="flex-1 flex flex-col h-full overflow-hidden bg-gray-100">
-    
-    <!-- Topbar: Client-side Filters -->
-    <header class="bg-white p-4 border-b border-gray-200 shadow-sm flex gap-4 items-center shrink-0">
-        <div class="flex-1 relative">
-            <i class="fa fa-filter absolute left-3 top-2.5 text-gray-400"></i>
-            <input type="text" id="fuseSearchInput" oninput="applyFuseFilter()" class="w-full pl-10 pr-4 py-2 border border-indigo-200 rounded-full text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="Fuzzy filter results by OCR, Scene, Caption (Fuse.js)...">
-        </div>
-        <div class="flex items-center gap-2 text-sm bg-gray-50 px-3 py-1.5 rounded-lg border">
-            <i class="fa fa-search-plus text-gray-500"></i>
-            <input type="range" id="gridSize" min="150" max="400" value="220" oninput="updateGridSize()" class="w-24">
-        </div>
-        
-        <!-- Quick Export Buttons -->
-        <button onclick="exportResults()" class="text-sm border bg-white hover:bg-gray-50 px-3 py-1.5 rounded shadow-sm text-gray-700" title="Export Current Results">
-            <i class="fa fa-download"></i> Export
-        </button>
-        <button onclick="groupByVideoText()" class="text-sm border bg-white hover:bg-gray-50 px-3 py-1.5 rounded shadow-sm text-gray-700" title="Group by Video">
-            <i class="fa fa-layer-group"></i> Group
-        </button>
-    </header>
-
-    <!-- Info Bar -->
-    <div id="infoBar" class="bg-indigo-50 border-b border-indigo-100 px-6 py-2 text-sm text-indigo-800 flex justify-between items-center hidden">
-        <span id="infoStatus"></span>
-        <button onclick="clearResults()" class="text-indigo-600 hover:text-indigo-800 font-medium">Clear</button>
-    </div>
-
-    <!-- Results Area -->
-    <div id="mainResultsContainer" class="flex-1 overflow-y-auto p-6">
-        <div id="resultsGrid" class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
-            <!-- Items injected by JS -->
-            <div class="col-span-full text-center text-gray-400 mt-20">
-                <i class="fa fa-image text-4xl mb-3 opacity-50"></i>
-                <p>Run a search from the sidebar to see results here.</p>
-            </div>
-        </div>
-    </div>
-  </main>
-
-  <!-- Modal Inspector -->
-  <div id="inspectorModal" class="fixed inset-0 bg-black bg-opacity-80 hidden z-50 flex justify-center items-center p-4 transition-opacity" onclick="closeModal(event)">
-      <div class="bg-white rounded-xl shadow-2xl overflow-hidden max-w-5xl w-full flex flex-col md:flex-row max-h-[90vh]" onclick="event.stopPropagation()">
-          
-          <!-- Image Section -->
-          <div class="flex-1 bg-gray-900 flex items-center justify-center p-4 relative min-h-[300px]">
-              <img id="modalImg" class="max-w-full max-h-full object-contain shadow-lg" src="">
-              <button onclick="closeModal()" class="absolute top-4 right-4 text-white bg-black bg-opacity-50 hover:bg-opacity-80 rounded-full w-8 h-8 flex items-center justify-center">
-                  <i class="fa fa-times"></i>
-              </button>
-          </div>
-
-          <!-- Metadata Section -->
-          <div class="w-full md:w-96 bg-white flex flex-col h-full border-l border-gray-200">
-              <div class="p-4 border-b bg-gray-50">
-                  <h3 id="modalVideoName" class="font-bold text-lg text-gray-800">Video Name</h3>
-                  <p id="modalFrameInfo" class="text-sm text-gray-500">Frame: ? | Time: ? | Sim: ?</p>
-              </div>
-              <div class="flex-1 overflow-y-auto p-5 space-y-5">
-                  <div>
-                      <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"><i class="fa fa-align-left mr-1"></i> Caption</h4>
-                      <p id="modalCaption" class="text-sm text-gray-800 bg-blue-50 p-3 rounded border border-blue-100 italic"></p>
-                  </div>
-                  <div>
-                      <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"><i class="fa fa-font mr-1"></i> OCR Text</h4>
-                      <p id="modalOCR" class="text-sm text-gray-800 bg-yellow-50 p-3 rounded border border-yellow-100 font-mono"></p>
-                  </div>
-                  <div>
-                      <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"><i class="fa fa-map-marker-alt mr-1"></i> Scene</h4>
-                      <p id="modalScene" class="text-sm text-gray-800 bg-green-50 p-3 rounded border border-green-100 font-medium"></p>
-                  </div>
-                  <div>
-                      <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1"><i class="fa fa-cubes mr-1"></i> Detections (Top 10)</h4>
-                      <div id="modalDetections" class="flex flex-wrap gap-2"></div>
-                  </div>
-              </div>
-              <div class="p-4 border-t bg-gray-50 flex justify-between">
-                  <a id="modalWatchUrl" href="#" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
-                      <i class="fa fa-external-link-alt"></i> Watch Video
-                  </a>
-                  <!-- Action to find context -->
-                  <button id="modalContextBtn" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded transition">
-                      Explore Context
-                  </button>
-              </div>
-          </div>
-      </div>
+    <span class="text-xs text-gray-500 font-medium hidden sm:block">Explorer '26</span>
   </div>
 
-  <!-- JavaScript -->
-  <script>
-    // --- State Management ---
-    window.lastResults = [];     // Raw results from backend
-    window.filteredResults = []; // Results after Fuse.js filtering
-    let fuse = null;             // Fuse instance
+  <!-- Block Tabs -->
+  <div id="blockBar" class="flex gap-1 overflow-x-auto flex-1" style="scrollbar-width:none;">
+    <button id="tab-text"    class="block-tab active" onclick="switchBlock('text')">    <i class="fa fa-keyboard"></i>   Text   </button>
+    <button id="tab-image"   class="block-tab"        onclick="switchBlock('image')">   <i class="fa fa-image"></i>     Image  </button>
+    <button id="tab-trake"   class="block-tab"        onclick="switchBlock('trake')">   <i class="fa fa-clock"></i>     TRAKE  </button>
+    <button id="tab-ocr"     class="block-tab"        onclick="switchBlock('ocr')">     <i class="fa fa-font"></i>      OCR    </button>
+    <button id="tab-browse"  class="block-tab"        onclick="switchBlock('browse')">  <i class="fa fa-folder-open"></i> Browse </button>
+  </div>
 
-    // Path resolution
-    function getImgUrl(path) {
-        if (!path) return "";
-        const fixedPath = path.replace(/\\/g, "/");
-        return "/api/image?path=" + encodeURIComponent(fixedPath);
+  <!-- Global top-bar controls -->
+  <div class="flex items-center gap-2 shrink-0">
+    <div class="relative">
+      <i class="fa fa-filter absolute left-3 top-2 text-gray-500 text-xs"></i>
+      <input id="fuseSearchInput" oninput="applyFuseFilter()" class="aic-input pl-8 text-xs" style="width:220px;" placeholder="Fuzzy filter results…">
+    </div>
+    <input type="range" id="gridSize" min="150" max="420" value="220" oninput="updateGridSize()" class="w-20 accent-indigo-500" title="Grid size">
+    <button onclick="exportResults()" class="btn-secondary" title="Export CSV"><i class="fa fa-download"></i></button>
+    <button onclick="groupByVideoUI()" class="btn-secondary" title="Group by video"><i class="fa fa-layer-group"></i></button>
+  </div>
+</header>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<div class="flex flex-1 overflow-hidden">
+
+<!-- ────────── LEFT: Block Input Panel ────────── -->
+<aside id="blockInputPanel" style="width:300px; min-width:300px; background:#0d0f1a; border-right:1px solid #1e2230; overflow-y:auto;" class="flex flex-col">
+
+  <!-- BLOCK: TEXT -->
+  <div id="block-text" class="block-panel active p-4 gap-4 flex-col">
+    <div class="sec-label">Text Search</div>
+
+    <!-- Scene Group filter -->
+    <div>
+      <div class="sec-label">🌍 Scene Group</div>
+      <select id="textSceneGroup" class="aic-select">
+        <option value="">Any Scene</option>
+        <option value="indoor_residential">🏠 Indoor — Residential</option>
+        <option value="indoor_commercial">🛍️ Indoor — Commercial</option>
+        <option value="indoor_public">🏛️ Indoor — Public</option>
+        <option value="outdoor_urban">🏙️ Outdoor — Urban</option>
+        <option value="outdoor_nature">🌲 Outdoor — Nature</option>
+        <option value="outdoor_garden">🌸 Outdoor — Garden/Park</option>
+        <option value="transportation">🚗 Transportation</option>
+        <option value="sports_leisure">⚽ Sports &amp; Leisure</option>
+        <option value="entertainment_culture">🎭 Entertainment &amp; Culture</option>
+        <option value="workspace_industrial">🏭 Workspace &amp; Industrial</option>
+        <option value="accommodation">🏨 Accommodation</option>
+        <option value="historic_religious">⛪ Historic &amp; Religious</option>
+        <option value="other">❓ Other</option>
+      </select>
+    </div>
+
+    <!-- Object Presence filter -->
+    <div>
+      <div class="flex items-center justify-between mb-1">
+        <div class="sec-label mb-0">📦 Object Presence</div>
+        <div class="mode-toggle">
+          <input type="radio" name="objMode" id="modeAnd" value="and" checked><label for="modeAnd">ALL</label>
+          <input type="radio" name="objMode" id="modeOr"  value="or"><label for="modeOr">ANY</label>
+        </div>
+      </div>
+      <!-- Tag display -->
+      <div id="objTags" class="flex flex-wrap gap-1 mb-2 min-h-[28px]"></div>
+      <!-- Autocomplete input -->
+      <div class="relative">
+        <input id="objInput" class="aic-input text-xs" placeholder="Type object (e.g. Person)…" autocomplete="off"
+               oninput="filterObjAC()" onkeydown="handleObjKey(event)">
+        <div id="objAutocomplete" class="hidden"></div>
+      </div>
+    </div>
+
+    <hr style="border-color:#1e2230;">
+
+    <!-- Text query -->
+    <div>
+      <div class="sec-label">💬 Query</div>
+      <textarea id="queryInput" class="aic-textarea" rows="3" placeholder="Free-text description…"></textarea>
+    </div>
+    <div class="flex gap-2">
+      <input id="topkInput"     class="aic-input" placeholder="Top-K (100)">
+      <input id="thresholdInput" class="aic-input" placeholder="Thresh (0.5)">
+    </div>
+
+    <!-- Optional image reranking -->
+    <div>
+      <div class="sec-label">🖼️ Image Reranking (optional)</div>
+      <input type="file" id="textSearchImage" class="aic-input text-xs" accept="image/*">
+    </div>
+
+    <button onclick="searchText()" class="btn-primary">
+      <i class="fa fa-search mr-1"></i> Search
+    </button>
+  </div>
+
+  <!-- BLOCK: IMAGE -->
+  <div id="block-image" class="block-panel p-4 gap-4 flex-col">
+    <div class="sec-label">Image Search</div>
+    <div>
+      <div class="sec-label">Upload Image</div>
+      <input type="file" id="uploadFile" class="aic-input text-xs" accept="image/*">
+    </div>
+    <input id="imgTopk" class="aic-input" placeholder="Top-K (100)">
+    <button onclick="uploadAndSearch()" class="btn-primary">
+      <i class="fa fa-upload mr-1"></i> Upload &amp; Search
+    </button>
+  </div>
+
+  <!-- BLOCK: TRAKE -->
+  <div id="block-trake" class="block-panel p-4 gap-4 flex-col">
+    <div class="sec-label">TRAKE — Temporal Search</div>
+    <div>
+      <div class="sec-label">Events (one per line)</div>
+      <textarea id="eventsBox" rows="5" class="aic-textarea" placeholder="E1: person walking in park&#10;E2: driving a car&#10;E3: eating at restaurant"></textarea>
+    </div>
+    <div class="flex gap-2">
+      <input id="trakeTopk"       class="aic-input" placeholder="Top-K (200)">
+      <input id="trakeCandidates" class="aic-input" placeholder="Cand (200)">
+    </div>
+    <select id="trakeOption" class="aic-select">
+      <option value="Closest">Closest</option>
+      <option value="Highest">Highest</option>
+      <option value="All">All</option>
+    </select>
+    <button onclick="runTrake()" class="btn-primary btn-trake">
+      <i class="fa fa-clock mr-1"></i> Run TRAKE
+    </button>
+  </div>
+
+  <!-- BLOCK: OCR -->
+  <div id="block-ocr" class="block-panel p-4 gap-4 flex-col">
+    <div class="sec-label">OCR Text Search</div>
+    <div>
+      <div class="sec-label">Search Text in Images</div>
+      <textarea id="ocrQuery" rows="3" class="aic-textarea" placeholder="Text to find in frames…"></textarea>
+    </div>
+    <select id="ocrMode" class="aic-select">
+      <option value="contains">Contains (default)</option>
+      <option value="any_word">Any Word</option>
+      <option value="exact">Exact Match</option>
+    </select>
+    <div class="flex items-center gap-2 text-xs text-gray-400">
+      <input type="checkbox" id="ocrCaseInsensitive" checked class="accent-indigo-500">
+      <label for="ocrCaseInsensitive">Case-insensitive</label>
+    </div>
+    <input id="ocrTopk" class="aic-input" placeholder="Top-K (50)">
+    <button onclick="searchOCR()" class="btn-primary btn-ocr">
+      <i class="fa fa-font mr-1"></i> Search OCR
+    </button>
+  </div>
+
+  <!-- BLOCK: BROWSE -->
+  <div id="block-browse" class="block-panel p-4 gap-4 flex-col">
+
+    <!-- Section: Folder View -->
+    <div class="sec-label">📁 Folder View</div>
+    <div class="flex flex-col gap-2">
+      <input id="browseFolder" class="aic-input" placeholder="Video name (e.g. L26_V001)">
+      <button onclick="browseFolder()" class="btn-primary btn-browse">
+        <i class="fa fa-images mr-1"></i> Load All Frames
+      </button>
+    </div>
+
+    <hr style="border-color:#1e2230;">
+
+    <!-- Section: Context View -->
+    <div class="sec-label">🔍 Context View</div>
+    <div class="flex flex-col gap-2">
+      <input id="ctxFolder" class="aic-input" placeholder="Video name (e.g. L26_V001)">
+      <div class="flex gap-2">
+        <input id="ctxFrameId" class="aic-input" placeholder="Frame ID">
+        <input id="ctxRange" class="aic-input" placeholder="Range ± (5)">
+      </div>
+      <button onclick="loadContext()" class="btn-primary btn-browse">
+        <i class="fa fa-expand-arrows-alt mr-1"></i> Load Context
+      </button>
+    </div>
+
+    <hr style="border-color:#1e2230;">
+
+    <!-- Section: Submission -->
+    <div class="sec-label">📤 Export Submission</div>
+    <div class="flex flex-col gap-2">
+      <input id="subVideoName" class="aic-input" placeholder="Video name (e.g. L26_V001)">
+      <div class="flex gap-2">
+        <input id="subFrameId" class="aic-input" placeholder="Frame ID">
+        <input id="subGap"     class="aic-input" placeholder="GAP (15)">
+      </div>
+      <input id="subExportName" class="aic-input" placeholder="CSV name">
+      <button onclick="makeSubmission()" class="btn-primary btn-browse">
+        <i class="fa fa-file-export mr-1"></i> Export
+      </button>
+      <div id="subMsg" class="text-xs mt-1"></div>
+    </div>
+
+  </div>
+
+</aside>
+
+<!-- ────────── RIGHT: Results Area ────────── -->
+<main class="flex-1 flex flex-col overflow-hidden">
+  <!-- Info bar -->
+  <div id="infoBar" class="hidden shrink-0">
+    <span id="infoStatus">Ready</span>
+    <button onclick="clearActiveResults()" class="text-indigo-400 hover:text-indigo-200 font-medium text-xs">Clear</button>
+  </div>
+
+  <!-- Results container — each block has its own scroll context -->
+  <div class="flex-1 overflow-y-auto p-5" id="resultsArea">
+    <div id="resultsGrid-text"   class="results-grid grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+    <div id="resultsGrid-image"  class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+    <div id="resultsGrid-trake"  class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+    <div id="resultsGrid-ocr"    class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+    <div id="resultsGrid-browse" class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+    <!-- Initial empty state -->
+    <div id="emptyState" class="flex flex-col items-center justify-center py-24 text-center">
+      <i class="fa fa-search text-5xl mb-4" style="color:#2d3146;"></i>
+      <p style="color:#4a5568;" class="text-sm">Choose a block and run a search to see results.</p>
+      <p style="color:#2d3146;" class="text-xs mt-1">{{ stats }}</p>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- ═══════════════ MODAL INSPECTOR ═══════════════ -->
+<div id="inspectorModal" onclick="closeModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <!-- Image -->
+    <div class="modal-img-panel">
+      <img id="modalImg" class="max-w-full max-h-full object-contain rounded-lg" src="" alt="">
+    </div>
+    <!-- Meta -->
+    <div class="modal-meta-panel">
+      <div class="p-4 border-b" style="border-color:#252840;">
+        <h3 id="modalVideoName" class="font-bold text-base" style="color:#c9d1e9;"></h3>
+        <p id="modalFrameInfo" class="text-xs mt-1" style="color:#6272a4;"></p>
+      </div>
+      <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+        <div class="meta-section">
+          <div class="meta-label"><i class="fa fa-align-left mr-1"></i> Caption</div>
+          <div id="modalCaption" class="meta-value italic"></div>
+        </div>
+        <div class="meta-section">
+          <div class="meta-label"><i class="fa fa-font mr-1"></i> OCR Text</div>
+          <div id="modalOCR" class="meta-value font-mono text-xs" style="white-space:pre-wrap;"></div>
+        </div>
+        <div class="meta-section">
+          <div class="meta-label"><i class="fa fa-map-marker-alt mr-1"></i> Scene</div>
+          <div id="modalScene" class="meta-value"></div>
+        </div>
+        <div class="meta-section">
+          <div class="meta-label"><i class="fa fa-cubes mr-1"></i> Detections</div>
+          <div id="modalDetections" class="flex flex-wrap gap-1"></div>
+        </div>
+      </div>
+      <div class="p-4 border-t flex justify-between items-center" style="border-color:#252840;">
+        <a id="modalWatchUrl" href="#" target="_blank" class="text-xs font-medium" style="color:#6366f1;">
+          <i class="fa fa-external-link-alt mr-1"></i> Watch Video
+        </a>
+        <button id="modalContextBtn" class="btn-secondary text-xs">
+          <i class="fa fa-expand-arrows-alt mr-1"></i> Context
+        </button>
+      </div>
+    </div>
+    <!-- Close btn -->
+    <button onclick="closeModal()" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:14px;">
+      <i class="fa fa-times"></i>
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════ JAVASCRIPT ═══════════════ -->
+<script>
+// ─────────────────────────────────────────────
+// OIV7 Object Labels (601 classes, Open Images V7)
+// ─────────────────────────────────────────────
+const OIV7_LABELS = [
+  "Accordion","Adhesive tape","Aircraft","Airplane","Alarm clock","Alpaca","Ambulance","Animal","Ant","Antelope",
+  "Apple","Armadillo","Artichoke","Auto part","Axe","Backpack","Balloon","Banana","Barrel","Baseball bat",
+  "Baseball glove","Bat","Bathroom accessory","Bathroom cabinet","Bathtub","Beaker","Bear","Bed","Bee",
+  "Beer","Beetle","Bell pepper","Belt","Bench","Bicycle","Bicycle helmet","Bicycle wheel","Bidet","Billboard",
+  "Billiard table","Bird","Blender","Blue jay","Book","Bookcase","Boot","Bottle","Bottle cap","Bowl","Box",
+  "Boy","Brassiere","Bread","Briefcase","Broccoli","Bronze sculpture","Brown bear","Building","Bull","Burrito",
+  "Bus","Butterfly","Cabinetry","Cake","Cake stand","Calculator","Camel","Camera","Can opener","Candle",
+  "Candy","Canoe","Car","Carrot","Cart","Castle","Cat","Caterpillar","Cattle","Ceiling fan","Cell phone",
+  "Chair","Cheetah","Chest of drawers","Chicken","Chopsticks","Christmas ornament","Christmas tree","Clock",
+  "Coat","Cocktail","Cocktail shaker","Coffee","Coffee cup","Coffee maker","Coffeemaker","Coin","Computer keyboard",
+  "Computer monitor","Computer mouse","Convenience store","Cookie","Cooking spray","Cormorant","Couch","Countertop",
+  "Crab","Cricket ball","Crocodile","Croissant","Crown","Crutch","Cucumber","Cupboard","Curtain","Deer",
+  "Desk","Dinosaur","Dishwasher","Dog","Dolphin","Door","Door handle","Doughnut","Dragonfly","Drawer",
+  "Dress","Drum","Duck","Dumbbell","Eagle","Earrings","Egg","Elephant","Envelope","Eraser",
+  "Face","Falcon","Fedora","Filing cabinet","Fire hydrant","Fireplace","Fish","Flashlight","Flower","Flowerpot",
+  "Flying disc","Food","Food processor","Fork","Fountain","Fox","French fries","Frog","Frying pan","Furniture",
+  "Gas stove","Gift wrapping","Giraffe","Girl","Glasses","Glove","Goat","Gold","Goldfish","Goose",
+  "Grapes","Guitar","Gun","Hair dryer","Hair spray","Hamburger","Hammer","Hamster","Hat","Headphones",
+  "Helicopter","High heels","Hiking equipment","Horse","House","Houseplant","Human arm","Human beard","Human body",
+  "Human ear","Human eye","Human face","Human foot","Human hair","Human hand","Human head","Human leg","Human mouth",
+  "Human nose","Infant bed","Jacket","Jeans","Juice","Kangaroo","Kettle","Kitchen appliance","Knife",
+  "Ladder","Lamp","Lantern","Laptop","Lavender","Lemon","Leopard","Lifejacket","Light bulb","Lighthouse",
+  "Limousine","Lion","Lizard","Lobster","Mango","Man","Medical equipment","Microphone","Microwave oven","Mirror",
+  "Mixing bowl","Mobile phone","Money","Monkey","Motorcycle","Mouse","Mug","Mushroom","Musical keyboard",
+  "Musical instrument","Nail","Necklace","Nightstand","Oboe","Office building","Orange","Ostrich","Oven","Owl",
+  "Oyster","Paddle","Palm tree","Parachute","Parrot","Pasta","Peach","Pear","Pen","Person",
+  "Piano","Pillow","Pizza","Plastic bag","Plate","Polar bear","Popcorn","Poster","Potato","Power plugs and sockets",
+  "Pressure cooker","Pretzel","Printer","Pumpkin","Rabbit","Raccoon","Refrigerator","Remote control","Rifle","Roller skates",
+  "Salad","Sandwich","Saucer","Scissors","Scoreboard","Sea turtle","Seahorse","Sheep","Shelf","Shirt",
+  "Shorts","Sink","Skateboard","Ski","Skull","Skyscraper","Slow cooker","Snail","Snake","Sock",
+  "Sofa bed","Spatula","Spider","Spoon","Sports equipment","Squirrel","Stairs","Strawberry","Street light","Submarine",
+  "Suit","Sunglasses","Surfboard","Sushi","Swan","Swimming pool","Sword","Table","Table tennis racket","Tablet computer",
+  "Tea","Teddy bear","Telephone","Television","Tennis ball","Tennis racket","Tent","Tie","Tiger","Toilet",
+  "Toilet paper","Tomato","Toothbrush","Towel","Toy","Traffic light","Train","Tripod","Truck","Umbrella",
+  "Van","Vase","Violin","Volleyball","Waffle","Watch","Watermelon","Weapon","Whale","Wheelchair",
+  "Window","Wine","Wine glass","Woman","Worm","Zebra","Zucchini"
+];
+
+// ─────────────────────────────────────────────
+// State Management
+// ─────────────────────────────────────────────
+const workspace = {
+  activeBlock: 'text',
+  text:   { results:[], filtered:[], fuse:null, scroll:0 },
+  image:  { results:[], filtered:[], fuse:null, scroll:0 },
+  trake:  { results:[], filtered:[], fuse:null, scroll:0 },
+  ocr:    { results:[], filtered:[], fuse:null, scroll:0 },
+  browse: { results:[], filtered:[], fuse:null, scroll:0 },
+};
+let objTags = []; // selected object tags for text block
+
+// ─────────────────────────────────────────────
+// Block Switching
+// ─────────────────────────────────────────────
+function switchBlock(name) {
+  // Save scroll of current block
+  const area = document.getElementById('resultsArea');
+  workspace[workspace.activeBlock].scroll = area.scrollTop;
+
+  // Deactivate current
+  document.getElementById(`block-${workspace.activeBlock}`).classList.remove('active');
+  document.getElementById(`tab-${workspace.activeBlock}`).classList.remove('active');
+  document.getElementById(`resultsGrid-${workspace.activeBlock}`).classList.add('hidden');
+
+  // Activate new
+  workspace.activeBlock = name;
+  document.getElementById(`block-${name}`).classList.add('active');
+  document.getElementById(`tab-${name}`).classList.add('active');
+  document.getElementById(`resultsGrid-${name}`).classList.remove('hidden');
+
+  // Restore scroll
+  area.scrollTop = workspace[name].scroll;
+
+  // Sync info bar
+  const st = workspace[name];
+  if (st.results.length > 0) {
+    showInfo(`${name.toUpperCase()} — ${st.filtered.length} / ${st.results.length} results`);
+  } else {
+    document.getElementById('infoBar').classList.add('hidden');
+  }
+
+  // Hide empty state if results
+  document.getElementById('emptyState').style.display = st.results.length > 0 ? 'none' : 'flex';
+}
+
+// ─────────────────────────────────────────────
+// Browse Sub-tabs
+// ─────────────────────────────────────────────
+function switchBrowseTab(tab) {
+  ['folder','context','submit'].forEach(t => {
+    document.getElementById(`btab-${t}`).classList.toggle('active', t === tab);
+    document.getElementById(`bpanel-${t}`).classList.toggle('active', t === tab);
+  });
+}
+
+// ─────────────────────────────────────────────
+// Object Autocomplete
+// ─────────────────────────────────────────────
+function filterObjAC() {
+  const val = document.getElementById('objInput').value.trim().toLowerCase();
+  const ac = document.getElementById('objAutocomplete');
+  if (!val) { ac.classList.add('hidden'); return; }
+  const matches = OIV7_LABELS.filter(l => l.toLowerCase().startsWith(val) && !objTags.includes(l)).slice(0, 10);
+  if (!matches.length) { ac.classList.add('hidden'); return; }
+  ac.innerHTML = matches.map(m => `<div class="ac-item" onclick="addObjTag('${m}')">${m}</div>`).join('');
+  ac.classList.remove('hidden');
+}
+
+function handleObjKey(e) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = document.getElementById('objInput').value.trim();
+    const match = OIV7_LABELS.find(l => l.toLowerCase() === val.toLowerCase());
+    if (match) addObjTag(match);
+    else if (val) addObjTag(val); // allow free-text
+    document.getElementById('objAutocomplete').classList.add('hidden');
+  }
+}
+
+function addObjTag(label) {
+  if (objTags.includes(label)) return;
+  objTags.push(label);
+  document.getElementById('objInput').value = '';
+  document.getElementById('objAutocomplete').classList.add('hidden');
+  renderObjTags();
+}
+
+function removeObjTag(label) {
+  objTags = objTags.filter(t => t !== label);
+  renderObjTags();
+}
+
+function renderObjTags() {
+  document.getElementById('objTags').innerHTML = objTags.map(t =>
+    `<span class="obj-tag">${t}<span class="rm" onclick="removeObjTag('${t}')">✕</span></span>`
+  ).join('');
+}
+
+// Close autocomplete on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('#objInput') && !e.target.closest('#objAutocomplete')) {
+    document.getElementById('objAutocomplete').classList.add('hidden');
+  }
+});
+
+// ─────────────────────────────────────────────
+// Utility
+// ─────────────────────────────────────────────
+function getImgUrl(path) {
+  if (!path) return '';
+  return '/api/image?path=' + encodeURIComponent(path.replace(/\\/g, '/'));
+}
+
+function updateGridSize() {
+  const sz = document.getElementById('gridSize').value;
+  document.querySelectorAll('.results-grid').forEach(g => {
+    g.style.gridTemplateColumns = `repeat(auto-fill,minmax(${sz}px,1fr))`;
+  });
+}
+
+function showLoading(block) {
+  const grid = document.getElementById(`resultsGrid-${block || workspace.activeBlock}`);
+  grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-20">
+    <i class="fa fa-spinner fa-spin text-4xl mb-4" style="color:#6366f1;"></i>
+    <p style="color:#6272a4;" class="text-sm animate-pulse">Searching…</p></div>`;
+  document.getElementById('emptyState').style.display = 'none';
+}
+
+function showInfo(text) {
+  document.getElementById('infoBar').classList.remove('hidden');
+  document.getElementById('infoStatus').innerText = text;
+}
+
+function clearActiveResults() {
+  const name = workspace.activeBlock;
+  workspace[name] = { results:[], filtered:[], fuse:null, scroll:0 };
+  document.getElementById(`resultsGrid-${name}`).innerHTML = '';
+  document.getElementById('infoBar').classList.add('hidden');
+  document.getElementById('emptyState').style.display = 'flex';
+}
+
+// ─────────────────────────────────────────────
+// Result Rendering
+// ─────────────────────────────────────────────
+function handleBackendResponse(data, title, blockName) {
+  const block = blockName || workspace.activeBlock;
+  const results = data.results || [];
+  workspace[block].results = results;
+
+  // Flatten for Fuse.js
+  results.forEach(r => {
+    r._ocr_flat = Array.isArray(r.ocr_text)
+      ? r.ocr_text.map(o => (typeof o === 'string' ? o : (o.text || ''))).join(' ')
+      : (r.ocr_text || '');
+    r._scene_flat = (typeof r.scene === 'object' && r.scene)
+      ? ((r.scene.category || '') + ' ' + (r.scene_group || ''))
+      : ((r.scene || '') + ' ' + (r.scene_group || ''));
+  });
+
+  workspace[block].fuse = new Fuse(results, {
+    keys: [
+      { name:'caption', weight:0.3 },
+      { name:'_ocr_flat', weight:0.4 },
+      { name:'_scene_flat', weight:0.2 },
+      { name:'video_name', weight:0.1 }
+    ],
+    threshold: 0.4, ignoreLocation: true
+  });
+
+  // Apply any existing fuse filter
+  const fuseQ = document.getElementById('fuseSearchInput').value.trim();
+  if (fuseQ && workspace[block].fuse) {
+    workspace[block].filtered = workspace[block].fuse.search(fuseQ).map(r => r.item);
+  } else {
+    workspace[block].filtered = [...results];
+  }
+
+  renderResults(workspace[block].filtered, block);
+  showInfo(`${title} — ${data.elapsed ? data.elapsed.toFixed(2)+'s | ' : ''}${results.length} results`);
+  document.getElementById('emptyState').style.display = 'none';
+}
+
+function renderResults(results, block, opts={}) {
+  block = block || workspace.activeBlock;
+  const grid = document.getElementById(`resultsGrid-${block}`);
+  if (!results.length) {
+    grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-16 text-center">
+      <i class="fa fa-folder-open text-4xl mb-3" style="color:#2d3146;"></i>
+      <p style="color:#4a5568;" class="text-sm">No results found.</p></div>`;
+    return;
+  }
+  grid.innerHTML = results.map((r, i) => {
+    const sim = typeof r.similarity === 'number' ? r.similarity.toFixed(3) : '—';
+    const fvid = r.frame_idx_video || r.frame_idx || '?';
+    const ts = r.time_str || '';
+    const isCenter = opts.centerId !== undefined && (r.frame_idx == opts.centerId || r.frame_idx_video == opts.centerId);
+    const encoded = encodeURIComponent(JSON.stringify(r));
+    return `<div class="frame-card ${isCenter ? 'center-frame' : ''}" onclick="openModal('${encoded}')">
+      <div class="relative">
+        <img src="${getImgUrl(r.image_path)}" loading="lazy" class="w-full object-cover" style="max-height:200px;">
+        <div class="sim-badge"><i class="fa fa-star" style="color:#fbbf24;"></i> ${sim}</div>
+        ${isCenter ? '<div style="position:absolute;bottom:6px;left:6px;background:#f59e0b;color:#000;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">CENTER</div>' : ''}
+      </div>
+      <div class="card-footer">
+        <div class="vid-name">${r.video_name}</div>
+        <div class="meta-row"><span><i class="fa fa-film" style="color:#4f4f7a;"></i> ${fvid}</span><span>${ts}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────
+// Fuse.js client-side filter (global)
+// ─────────────────────────────────────────────
+function applyFuseFilter() {
+  const q = document.getElementById('fuseSearchInput').value.trim();
+  const name = workspace.activeBlock;
+  const st = workspace[name];
+  if (!q) {
+    st.filtered = [...st.results];
+  } else if (st.fuse) {
+    st.filtered = st.fuse.search(q).map(r => r.item);
+  }
+  renderResults(st.filtered, name);
+  document.getElementById('infoStatus').innerText = `Showing ${st.filtered.length} / ${st.results.length}`;
+}
+
+// ─────────────────────────────────────────────
+// TEXT SEARCH
+// ─────────────────────────────────────────────
+async function searchText() {
+  const q = document.getElementById('queryInput').value.trim();
+  if (!q) { alert('Please enter a text query'); return; }
+
+  const topk      = parseInt(document.getElementById('topkInput').value) || 100;
+  const threshold = parseFloat(document.getElementById('thresholdInput').value) || 0.5;
+  const sceneGroup = document.getElementById('textSceneGroup').value;
+  const objectMode = document.querySelector('input[name="objMode"]:checked')?.value || 'and';
+  const imageInput = document.getElementById('textSearchImage');
+
+  showLoading('text');
+
+  try {
+    let res;
+    if (imageInput.files && imageInput.files[0]) {
+      const fd = new FormData();
+      fd.append('file', imageInput.files[0]);
+      fd.append('query', q);
+      fd.append('top_k', topk);
+      fd.append('threshold', threshold);
+      res = await fetch('/api/search_text_with_image', { method:'POST', body:fd });
+    } else {
+      res = await fetch('/api/search_text', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          query: q,
+          top_k: topk,
+          threshold: threshold,
+          required_objects: objTags,
+          object_mode: objectMode,
+          scene_group: sceneGroup,
+        })
+      });
+    }
+    const data = await res.json();
+    handleBackendResponse(data, `Text: "${q}"`, 'text');
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+// ─────────────────────────────────────────────
+// IMAGE SEARCH
+// ─────────────────────────────────────────────
+async function uploadAndSearch() {
+  const input = document.getElementById('uploadFile');
+  if (!input.files.length) { alert('Choose an image'); return; }
+  const fd = new FormData();
+  fd.append('file', input.files[0]);
+  fd.append('top_k', parseInt(document.getElementById('imgTopk').value) || 100);
+  showLoading('image');
+  try {
+    const res = await fetch('/api/upload_image', { method:'POST', body:fd });
+    handleBackendResponse(await res.json(), 'Image Search', 'image');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ─────────────────────────────────────────────
+// TRAKE
+// ─────────────────────────────────────────────
+async function runTrake() {
+  const events = document.getElementById('eventsBox').value.trim().split('\n').filter(x => x);
+  if (!events.length) { alert('Enter at least one event'); return; }
+  const topk       = parseInt(document.getElementById('trakeTopk').value) || 200;
+  const candidates = parseInt(document.getElementById('trakeCandidates').value) || 200;
+  const option     = document.getElementById('trakeOption').value;
+
+  showLoading('trake');
+
+  try {
+    const res = await fetch('/api/trake', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ events, top_k:topk, candidates, option })
+    });
+    const data = await res.json();
+
+    if (!data.result || !data.result.length) {
+      document.getElementById('resultsGrid-trake').innerHTML =
+        `<div class="col-span-full text-center py-10" style="color:#6272a4;">No sequence found.</div>`;
+      showInfo(`TRAKE — No results (${data.elapsed?.toFixed(2)}s)`);
+      return;
     }
 
-    // Update Grid Size dynamically
-    function updateGridSize() {
-        const size = document.getElementById("gridSize").value;
-        document.getElementById("resultsGrid").style.gridTemplateColumns = `repeat(auto-fill, minmax(${size}px, 1fr))`;
-    }
-
-    // Clear Results
-    function clearResults() {
-        window.lastResults = [];
-        window.filteredResults = [];
-        document.getElementById("fuseSearchInput").value = "";
-        renderResults([]);
-        document.getElementById("infoBar").classList.add("hidden");
-    }
-
-    // --- Search Core ---
-    async function searchText() {
-        const q = document.getElementById("queryInput").value.trim();
-        if (!q) { alert("Please enter a text query"); return; }
-        
-        const topk = document.getElementById("topkInput").value || 100;
-        const obj = document.getElementById("objectInput").value.trim();
-        const threshold = parseFloat(document.getElementById("thresholdInput").value) || 0.5;
-        const imageInput = document.getElementById("textSearchImage");
-        let formData = null;
-
-        if (imageInput.files && imageInput.files[0]) {
-            formData = new FormData();
-            formData.append("file", imageInput.files[0]);
-            formData.append("query", q);
-            formData.append("top_k", topk);
-            formData.append("objects", obj);
-            formData.append("threshold", threshold);
-        }
-
-        showLoading();
-
-        try {
-            let res;
-            if (formData) {
-                res = await fetch("/api/search_text_with_image", { method: "POST", body: formData });
-            } else {
-                res = await fetch("/api/search_text", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ query: q, top_k: parseInt(topk), objects: obj, threshold: threshold })
-                });
-            }
-
-            const data = await res.json();
-            handleBackendResponse(data, `Text Search: "${q}"`);
-        } catch(e) {
-            alert("Error: " + e.message);
-            hideLoading();
-        }
-    }
-
-    async function uploadAndSearch() {
-        const input = document.getElementById("uploadFile");
-        if (!input.files.length) { alert("Choose an image file first"); return; }
-        
-        const fd = new FormData();
-        fd.append("file", input.files[0]);
-        fd.append("top_k", document.getElementById("imgTopk").value || 100);
-        
-        showLoading();
-        
-        try {
-            const res = await fetch("/api/upload_image", { method: "POST", body: fd });
-            const data = await res.json();
-            handleBackendResponse(data, `Image Search`);
-        } catch(e) {
-            alert("Error: " + e.message);
-            hideLoading();
-        }
-    }
-
-    async function runTrake() {
-        const events = document.getElementById("eventsBox").value.trim().split("\n").filter(x => x);
-        if (!events.length) { alert("Enter events"); return; }
-        const topk = document.getElementById("trakeTopk").value || 200;
-        const candidates = document.getElementById("trakeCandidates").value || 200;
-        const option = document.getElementById("trakeOption").value;
-        
-        showLoading();
-        
-        try {
-            const res = await fetch("/api/trake", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ events: events, top_k: parseInt(topk), candidates: parseInt(candidates), option: option })
-            });
-            const data = await res.json();
-            
-            // Trake results are nested, we need to flatten them for the generic viewer,
-            // or render them specially. We'll render them specially but also populate lastResults for exporting.
-            window.lastResults = [];
-            const len_of_events = events.length;
-            
-            if (!data.result || data.result.length === 0) {
-                document.getElementById("resultsGrid").innerHTML = `<div class="col-span-full text-center py-10">No sequence found.</div>`;
-                showInfo(`TRAKE completed in ${data.elapsed?.toFixed(2)}s. No results.`);
-                return;
-            }
-
-            let html = "";
-            for (const candidate of data.result) {
-                // Add a full width header for the sequence
-                html += `<div class="col-span-full bg-indigo-100 p-3 rounded mt-4 mb-2 flex justify-between items-center shadow-sm">
-                            <span class="font-bold text-indigo-900"><i class="fa fa-film"></i> ${candidate.video_name}</span>
-                            <a href="${candidate.watch_url}" target="_blank" class="text-sm text-indigo-600 hover:underline"><i class="fa fa-play-circle"></i> Watch Video</a>
-                         </div>`;
-                         
-                for (const d of candidate.details) {
-                    html += `
-                    <div class="bg-white border rounded-xl overflow-hidden shadow hover:shadow-md transition">
-                        <div class="relative group">
-                            <img src="${getImgUrl(d.path)}" class="frame-image rounded-none" loading="lazy">
-                        </div>
-                        <div class="p-3">
-                            <div class="text-xs font-bold text-gray-500 uppercase">${d.event}</div>
-                            <div class="font-semibold text-gray-800 text-sm mt-1">Frame ${d.frame}</div>
-                            <div class="text-xs text-gray-500 mt-1">Score: ${d.sim?.toFixed(3)}</div>
-                        </div>
-                    </div>`;
-                    
-                    window.lastResults.push({
-                        image_path: d.path,
-                        video_name: candidate.video_name,
-                        frame_idx: d.frame,
-                        similarity: d.sim,
-                        watch_url: d.watch_url,
-                        event: len_of_events
-                    });
-                }
-            }
-            
-            document.getElementById("resultsGrid").innerHTML = html;
-            showInfo(`TRAKE completed in ${data.elapsed?.toFixed(2)}s`);
-            
-            // Disable fuse for trake sequences
-            fuse = null; 
-            document.getElementById("fuseSearchInput").value = "";
-            document.getElementById("fuseSearchInput").disabled = true;
-            
-        } catch(e) {
-            alert("Error: " + e.message);
-            hideLoading();
-        }
-    }
-
-    // --- Core Rendering & Filtering ---
-    function handleBackendResponse(data, title) {
-        window.lastResults = data.results || [];
-        window.filteredResults = [...window.lastResults];
-        
-        showInfo(`${title} — Time: ${data.elapsed?.toFixed(2)}s | Found: ${window.lastResults.length}`);
-        
-        // Flatten OCR arrays into searchable text for Fuse.js
-        window.lastResults.forEach(r => {
-            if (Array.isArray(r.ocr_text)) {
-                r._ocr_flat = r.ocr_text.map(o => (typeof o === 'string') ? o : (o.text || '')).join(' ');
-            } else {
-                r._ocr_flat = r.ocr_text || '';
-            }
-            r._scene_flat = (typeof r.scene === 'object' && r.scene) ? (r.scene.category + ' ' + (r.scene.scene_group || '')) : (r.scene || '');
-        });
-
-        // Setup Fuse.js for client side filtering (now includes OCR + Scene)
-        const fuseOptions = {
-            keys: [
-                { name: 'caption', weight: 0.3 },
-                { name: '_ocr_flat', weight: 0.4 },
-                { name: '_scene_flat', weight: 0.2 },
-                { name: 'video_name', weight: 0.1 }
-            ],
-            threshold: 0.4, // 0.0 is perfect match, 1.0 matches anything
-            ignoreLocation: true,
-            useExtendedSearch: true
-        };
-        fuse = new Fuse(window.lastResults, fuseOptions);
-        
-        document.getElementById("fuseSearchInput").disabled = false;
-        document.getElementById("fuseSearchInput").value = "";
-        
-        renderResults(window.filteredResults);
-    }
-
-    function applyFuseFilter() {
-        const query = document.getElementById("fuseSearchInput").value.trim();
-        if (!query) {
-            window.filteredResults = [...window.lastResults];
-        } else {
-            if (fuse) {
-                const results = fuse.search(query);
-                window.filteredResults = results.map(r => r.item);
-            }
-        }
-        renderResults(window.filteredResults);
-    }
-
-    function renderResults(results) {
-        const grid = document.getElementById("resultsGrid");
-        if (results.length === 0) {
-            grid.innerHTML = `<div class="col-span-full text-center text-gray-500 py-10 mt-10">
-                <i class="fa fa-folder-open text-4xl mb-3 opacity-50"></i>
-                <p>No matching results.</p>
-            </div>`;
-            return;
-        }
-
-        let html = "";
-        // Render each card
-        results.forEach((r, index) => {
-            const timeStr = r.time_str || "?";
-            const fvid = r.frame_idx_video || "?";
-            const sim = r.similarity?.toFixed(3) || "N/A";
-            
-            // Store raw JSON in a data attribute to retrieve it when clicking
-            const safeData = encodeURIComponent(JSON.stringify(r));
-            
-            html += `
-            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group cursor-pointer" onclick="openModal('${safeData}')">
-                <div class="relative overflow-hidden bg-black flex-1 flex items-center justify-center min-h-[160px]">
-                    <img src="${getImgUrl(r.image_path)}" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" loading="lazy">
-                    <div class="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
-                        <i class="fa fa-star text-yellow-400"></i> ${sim}
-                    </div>
-                </div>
-                <div class="p-3 bg-white">
-                    <div class="font-bold text-gray-800 text-sm truncate" title="${r.video_name}">${r.video_name}</div>
-                    <div class="text-xs text-gray-500 mt-1 flex justify-between">
-                        <span><i class="fa fa-film"></i> ${fvid}</span>
-                        <span><i class="fa fa-clock"></i> ${timeStr}</span>
-                    </div>
-                </div>
-            </div>`;
-        });
-        grid.innerHTML = html;
-        document.getElementById("infoStatus").innerText = `Showing ${results.length} results.`;
-    }
-
-    // --- Modal Inspector ---
-    function openModal(encodedData) {
-        try {
-            const r = JSON.parse(decodeURIComponent(encodedData));
-            
-            document.getElementById("modalImg").src = getImgUrl(r.image_path);
-            document.getElementById("modalVideoName").innerText = r.video_name;
-            document.getElementById("modalFrameInfo").innerText = `Frame: ${r.frame_idx_video || r.frame_idx} | Time: ${r.time_str || '?'} | Sim: ${r.similarity?.toFixed(3) || '?'}`;
-            
-            document.getElementById("modalCaption").innerText = r.caption || "No caption available.";
-            
-            // OCR: may be a string or array of {text, bbox, confidence} objects
-            let ocrDisplay = "No text detected.";
-            if (r.ocr_text) {
-                if (typeof r.ocr_text === 'string') {
-                    ocrDisplay = r.ocr_text || "No text detected.";
-                } else if (Array.isArray(r.ocr_text) && r.ocr_text.length > 0) {
-                    ocrDisplay = r.ocr_text.map(o => (typeof o === 'string') ? o : (o.text || '')).filter(Boolean).join(' | ');
-                }
-            }
-            document.getElementById("modalOCR").innerText = ocrDisplay;
-            
-            // Scene: may be a string or {category, confidence, ...} object
-            let sceneDisplay = "Unknown scene.";
-            if (r.scene) {
-                if (typeof r.scene === 'string') {
-                    sceneDisplay = r.scene;
-                } else if (typeof r.scene === 'object' && r.scene.category) {
-                    sceneDisplay = r.scene.confidence 
-                        ? `${r.scene.category} (${(r.scene.confidence * 100).toFixed(1)}%)`
-                        : r.scene.category;
-                }
-            }
-            document.getElementById("modalScene").innerText = sceneDisplay;
-            
-            // Detections: array of {label, score, bbox, position} objects
-            const detContainer = document.getElementById("modalDetections");
-            let detHtml = "";
-            if (r.detections && r.detections.length > 0) {
-                // Extract labels, deduplicate, show top 10
-                const labels = r.detections.map(d => (typeof d === 'string') ? d : (d.label || '?'));
-                const uniqueLabels = [...new Set(labels)].slice(0, 10);
-                uniqueLabels.forEach(label => {
-                    const count = labels.filter(l => l === label).length;
-                    const badge = count > 1 ? ` ×${count}` : '';
-                    detHtml += `<span class="bg-gray-100 border text-gray-600 text-xs px-2 py-1 rounded-full">${label}${badge}</span>`;
-                });
-            } else {
-                detHtml = `<span class="text-xs text-gray-400 italic">No objects detected.</span>`;
-            }
-            detContainer.innerHTML = detHtml;
-            
-            const watchBtn = document.getElementById("modalWatchUrl");
-            if (r.watch_url) {
-                watchBtn.href = r.watch_url;
-                watchBtn.style.display = "inline-flex";
-            } else {
-                watchBtn.style.display = "none";
-            }
-
-            // Hook the explore context button
-            const ctxBtn = document.getElementById("modalContextBtn");
-            ctxBtn.onclick = (e) => {
-                e.stopPropagation();
-                closeModal();
-                // We map explore context to "frames range viewer" (3 frames before and after)
-                document.getElementById("subVideoName").value = r.video_name;
-                document.getElementById("subFrameId").value = r.frame_idx;
-                alert(`Context Exploration: Please use the Video Frames Viewer or Submission tools with Frame ID ${r.frame_idx} for ${r.video_name}.`);
-            };
-
-            document.getElementById("inspectorModal").classList.remove("hidden");
-        } catch(e) {
-            console.error(e);
-        }
-    }
-
-    function closeModal(e) {
-        document.getElementById("inspectorModal").classList.add("hidden");
-        document.getElementById("modalImg").src = "";
-    }
-
-    // --- Helpers ---
-    function showLoading() {
-        document.getElementById("resultsGrid").innerHTML = `
-        <div class="col-span-full flex flex-col items-center justify-center py-20">
-            <i class="fa fa-spinner fa-spin text-4xl text-indigo-500 mb-4"></i>
-            <p class="text-gray-500 font-medium animate-pulse">Processing request...</p>
+    // Flatten trake results for rendering
+    const flat = [];
+    let html = '';
+    for (const cand of data.result) {
+      html += `<div class="col-span-full" style="background:#1a1d27;border:1px solid #252840;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-weight:700;color:#c9d1e9;"><i class="fa fa-film" style="color:#6366f1;"></i> ${cand.video_name}</span>
+        ${cand.watch_url ? `<a href="${cand.watch_url}" target="_blank" style="color:#6366f1;font-size:12px;"><i class="fa fa-play-circle"></i> Watch</a>` : ''}
+      </div>`;
+      for (const d of (cand.details || [])) {
+        const r = { video_name:cand.video_name, frame_idx:d.frame, image_path:d.path, similarity:d.sim, watch_url:cand.watch_url, event:d.event };
+        flat.push(r);
+        const encoded = encodeURIComponent(JSON.stringify(r));
+        html += `<div class="frame-card" onclick="openModal('${encoded}')">
+          <div class="relative">
+            <img src="${getImgUrl(d.path)}" loading="lazy" class="w-full" style="max-height:200px;object-fit:cover;">
+            <div class="sim-badge">${d.sim?.toFixed(3)}</div>
+          </div>
+          <div class="card-footer">
+            <div class="vid-name">${d.event || 'Event'}</div>
+            <div class="meta-row"><span>Fr: ${d.frame}</span></div>
+          </div>
         </div>`;
-    }
-    
-    function hideLoading() {}
-
-    function showInfo(text) {
-        const bar = document.getElementById("infoBar");
-        bar.classList.remove("hidden");
-        document.getElementById("infoStatus").innerText = text;
-    }
-
-    // --- Export / Grouping / Submission (Preserved Legacy Functions) ---
-    async function exportResults() {
-        const results = window.filteredResults && window.filteredResults.length > 0 ? window.filteredResults : window.lastResults;
-        if (!results || !results.length) { alert("No results"); return; }
-        const name = prompt("Enter CSV name (no .csv):", `exported_${Date.now()}`);
-        if (!name) return;
-        const constVal = prompt("Optional const value (int) or leave blank:");
-        
-        try {
-            const res = await fetch("/api/export_results", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ results: results, name: name, const_value: constVal })
-            });
-            const data = await res.json();
-            alert(data.status === "ok" ? `Exported: ${data.csv_path}` : "Error exporting.");
-        } catch(e) {
-            alert("Error: " + e.message);
-        }
-    }
-
-    async function groupByVideoText() {
-        const results = window.filteredResults && window.filteredResults.length > 0 ? window.filteredResults : window.lastResults;
-        if (!results || !results.length) { alert("No results to group. Run a search first."); return; }
-
-        const sort_by = prompt("Sort by (frame or similarity):", "frame") || "frame";
-        const topInput = prompt("Top per video (e.g. 20):", "20");
-        const top_per_video = topInput ? parseInt(topInput) : null;
-
-        showLoading();
-
-        try {
-            const res = await fetch("/api/group_by_video", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ results, sort_by, top_per_video })
-            });
-            const data = await res.json();
-
-            let html = "";
-            const entries = Object.entries(data);
-            if (!entries.length) {
-                document.getElementById("resultsGrid").innerHTML = "<div class='col-span-full'>No grouped items.</div>";
-                return;
-            }
-
-            for (const [vid, items] of entries) {
-                html += `<div class="col-span-full mt-4 mb-2 bg-indigo-50 border border-indigo-100 rounded-lg overflow-hidden">
-                    <div class="bg-indigo-100 px-4 py-2 font-bold text-indigo-900 cursor-pointer flex justify-between" onclick="this.nextElementSibling.classList.toggle('hidden')">
-                        <span><i class="fa fa-folder"></i> ${vid} <span class="text-xs font-normal bg-indigo-200 px-2 py-0.5 rounded-full ml-2">${items.length} items</span></span>
-                        <i class="fa fa-chevron-down"></i>
-                    </div>
-                    <div class="flex overflow-x-auto gap-4 p-4">`;
-                
-                for (const r of items) {
-                    const fvid = (r.frame_idx_video ?? r.frame_idx ?? "?");
-                    const sim = (typeof r.similarity === "number") ? r.similarity.toFixed(3) : "–";
-                    const safeData = encodeURIComponent(JSON.stringify(r));
-                    
-                    html += `
-                    <div class="shrink-0 w-48 bg-white border rounded shadow-sm cursor-pointer hover:shadow-md transition" onclick="openModal('${safeData}')">
-                        <img src="${getImgUrl(r.image_path)}" class="w-full h-32 object-cover border-b" loading="lazy">
-                        <div class="p-2 text-xs">
-                            <div class="font-bold text-gray-700 mb-1 flex justify-between"><span>Fr: ${fvid}</span> <span><i class="fa fa-star text-yellow-500"></i> ${sim}</span></div>
-                        </div>
-                    </div>`;
-                }
-                html += `</div></div>`;
-            }
-            
-            document.getElementById("resultsGrid").innerHTML = html;
-            document.getElementById("infoStatus").innerText = `Grouped ${results.length} items into ${entries.length} videos.`;
-            
-        } catch(e) {
-            alert("Error: " + e.message);
-        }
-    }
-
-    async function makeSubmission() {
-      const name = document.getElementById("subExportName").value.trim() || `submission_${Date.now()}`;
-      const videoName = document.getElementById("subVideoName").value.trim();
-      const frameIdStr = document.getElementById("subFrameId").value.trim();
-      const gapStr = document.getElementById("subGap").value.trim();
-      
-      if (!videoName || !frameIdStr || !gapStr) {
-        alert("Please enter video_name, frame_id and GAP");
-        return;
-      }
-      
-      const frameId = parseInt(frameIdStr);
-      const GAP = parseInt(gapStr);
-      
-      try {
-        const res = await fetch("/api/export_submission", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            video_name: videoName,
-            frame_id: frameId,
-            gap: GAP,
-            const_value: null,
-            name: name
-          })
-        });
-        const data = await res.json();
-        const msg = document.getElementById("subMsg");
-        if (data.status === "ok") {
-          msg.innerText = `Success: ${data.csv_path}`;
-          msg.className = "text-xs text-green-700 mt-1";
-        } else {
-          msg.innerText = `Failed: ${data.msg}`;
-          msg.className = "text-xs text-red-700 mt-1";
-        }
-      } catch (err) {
-        alert("Error: " + err.message);
       }
     }
-  </script>
+    document.getElementById('resultsGrid-trake').innerHTML = html;
+    workspace['trake'].results = flat;
+    workspace['trake'].filtered = flat;
+    showInfo(`TRAKE — ${data.elapsed?.toFixed(2)}s | ${flat.length} frames`);
+    document.getElementById('emptyState').style.display = 'none';
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ─────────────────────────────────────────────
+// OCR SEARCH
+// ─────────────────────────────────────────────
+async function searchOCR() {
+  const q = document.getElementById('ocrQuery').value.trim();
+  if (!q) { alert('Enter OCR query text'); return; }
+  const topk = parseInt(document.getElementById('ocrTopk').value) || 50;
+  const mode = document.getElementById('ocrMode').value;
+  const ci   = document.getElementById('ocrCaseInsensitive').checked;
+
+  showLoading('ocr');
+  try {
+    const res = await fetch('/api/search_ocr', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ query:q, top_k:topk, mode, case_insensitive:ci })
+    });
+    handleBackendResponse(await res.json(), `OCR: "${q}"`, 'ocr');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ─────────────────────────────────────────────
+// BROWSE — Folder
+// ─────────────────────────────────────────────
+async function browseFolder() {
+  const vid = document.getElementById('browseFolder').value.trim();
+  if (!vid) { alert('Enter a video name (e.g. L26_V001)'); return; }
+  showLoading('browse');
+  try {
+    const res = await fetch(`/api/browse/folder/${encodeURIComponent(vid)}`);
+    if (!res.ok) { const d=await res.json(); alert(d.error||'Error'); return; }
+    const data = await res.json();
+    // API returns {frames: [...]} not {results: [...]}, normalize before passing
+    const normalized = { results: data.frames || [], elapsed: null };
+    handleBackendResponse(normalized, `Browse: ${vid} (${(data.frames||[]).length} frames)`, 'browse');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ─────────────────────────────────────────────
+// BROWSE — Context
+// ─────────────────────────────────────────────
+async function loadContext() {
+  const vid   = document.getElementById('ctxFolder').value.trim();
+  const fid   = document.getElementById('ctxFrameId').value.trim();
+  const range = parseInt(document.getElementById('ctxRange').value) || 5;
+  if (!vid || !fid) { alert('Enter video name and frame ID'); return; }
+  showLoading('browse');
+  try {
+    const res = await fetch(`/api/get_frames_range/${encodeURIComponent(vid)}/${fid}/${range}`);
+    const data = await res.json();
+    const centerId = data.center_frame_id;
+    workspace['browse'].results = data.frames || [];
+    workspace['browse'].filtered = [...workspace['browse'].results];
+    renderResults(workspace['browse'].results, 'browse', { centerId });
+    showInfo(`Context: ${vid} frame ${fid} ±${range}`);
+    document.getElementById('emptyState').style.display = 'none';
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ─────────────────────────────────────────────
+// MODAL INSPECTOR
+// ─────────────────────────────────────────────
+function openModal(encodedData) {
+  try {
+    const r = JSON.parse(decodeURIComponent(encodedData));
+    document.getElementById('modalImg').src = getImgUrl(r.image_path);
+    document.getElementById('modalVideoName').innerText = r.video_name || '';
+    document.getElementById('modalFrameInfo').innerText =
+      `Frame: ${r.frame_idx_video || r.frame_idx || '?'} | Time: ${r.time_str || '?'} | Sim: ${r.similarity?.toFixed(3) || '?'}`;
+
+    document.getElementById('modalCaption').innerText = r.caption || 'No caption.';
+
+    // OCR
+    let ocrText = 'No text detected.';
+    if (r.ocr_text) {
+      if (typeof r.ocr_text === 'string') ocrText = r.ocr_text;
+      else if (Array.isArray(r.ocr_text) && r.ocr_text.length)
+        ocrText = r.ocr_text.map(o => typeof o === 'string' ? o : (o.text||'')).filter(Boolean).join('\n');
+    }
+    document.getElementById('modalOCR').innerText = ocrText;
+
+    // Scene
+    let sceneText = 'Unknown.';
+    if (r.scene) {
+      sceneText = typeof r.scene === 'object'
+        ? `${r.scene.category || ''}${r.scene.confidence ? ` (${(r.scene.confidence*100).toFixed(1)}%)` : ''}`
+        : r.scene;
+    }
+    if (r.scene_group) sceneText += ` — ${r.scene_group}`;
+    document.getElementById('modalScene').innerText = sceneText;
+
+    // Detections
+    const detContainer = document.getElementById('modalDetections');
+    if (r.detections && r.detections.length) {
+      const labels = r.detections.map(d => typeof d === 'string' ? d : (d.label || '?'));
+      const counts = {};
+      labels.forEach(l => { counts[l] = (counts[l]||0)+1; });
+      detContainer.innerHTML = Object.entries(counts).slice(0,12).map(([l,c]) =>
+        `<span style="background:#1a2a3a;border:1px solid #2563eb;color:#93c5fd;border-radius:20px;padding:2px 10px;font-size:11px;">${l}${c>1?` ×${c}`:''}</span>`
+      ).join(' ');
+    } else {
+      detContainer.innerHTML = `<span style="color:#4a5568;font-size:12px;font-style:italic;">No objects detected.</span>`;
+    }
+
+    // Watch URL
+    const watchBtn = document.getElementById('modalWatchUrl');
+    if (r.watch_url) { watchBtn.href = r.watch_url; watchBtn.style.display='inline'; }
+    else watchBtn.style.display='none';
+
+    // Context button
+    document.getElementById('modalContextBtn').onclick = (e) => {
+      e.stopPropagation();
+      closeModal();
+      switchBlock('browse');
+      switchBrowseTab('context');
+      document.getElementById('ctxFolder').value = r.video_name || '';
+      document.getElementById('ctxFrameId').value = r.frame_idx || '';
+    };
+
+    document.getElementById('inspectorModal').classList.add('open');
+  } catch(e) { console.error(e); }
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('inspectorModal')) return;
+  document.getElementById('inspectorModal').classList.remove('open');
+  document.getElementById('modalImg').src = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('inspectorModal').classList.remove('open'); });
+
+// ─────────────────────────────────────────────
+// EXPORT / GROUP
+// ─────────────────────────────────────────────
+async function exportResults() {
+  const st = workspace[workspace.activeBlock];
+  const results = st.filtered.length ? st.filtered : st.results;
+  if (!results.length) { alert('No results'); return; }
+  const name = prompt('CSV name:', `export_${Date.now()}`);
+  if (!name) return;
+  const constVal = prompt('Const value (int) or blank:');
+  try {
+    const res = await fetch('/api/export_results', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ results, name, const_value:constVal })
+    });
+    const d = await res.json();
+    alert(d.status==='ok' ? `Exported: ${d.csv_path}` : 'Export error');
+  } catch(e) { alert('Error: '+e.message); }
+}
+
+async function groupByVideoUI() {
+  const st = workspace[workspace.activeBlock];
+  const results = st.filtered.length ? st.filtered : st.results;
+  if (!results.length) { alert('No results to group'); return; }
+  const sort_by = prompt('Sort by (frame or similarity):', 'frame') || 'frame';
+  const top_per_video = parseInt(prompt('Top per video:', '20')) || null;
+  try {
+    const res = await fetch('/api/group_by_video', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ results, sort_by, top_per_video })
+    });
+    const data = await res.json();
+    const block = workspace.activeBlock;
+    const grid = document.getElementById(`resultsGrid-${block}`);
+    let html = '';
+    for (const [vid, items] of Object.entries(data)) {
+      html += `<div class="col-span-full" style="background:#1a1d27;border:1px solid #252840;border-radius:10px;overflow:hidden;margin-bottom:8px;">
+        <div style="background:#1e2230;padding:10px 14px;font-weight:700;color:#c9d1e9;cursor:pointer;display:flex;justify-content:space-between;"
+             onclick="this.nextElementSibling.classList.toggle('hidden')">
+          <span><i class="fa fa-folder" style="color:#6366f1;"></i> ${vid}
+            <span style="background:#252840;border-radius:20px;padding:2px 8px;font-size:11px;margin-left:6px;">${items.length} frames</span>
+          </span>
+          <i class="fa fa-chevron-down" style="color:#6272a4;"></i>
+        </div>
+        <div class="flex overflow-x-auto gap-3 p-3">
+          ${items.map(r => {
+            const encoded = encodeURIComponent(JSON.stringify(r));
+            return `<div style="flex-shrink:0;width:160px;background:#161926;border:1px solid #252840;border-radius:10px;overflow:hidden;cursor:pointer;" onclick="openModal('${encoded}')">
+              <img src="${getImgUrl(r.image_path)}" class="w-full" style="height:100px;object-fit:cover;">
+              <div style="padding:6px 8px;font-size:11px;color:#6272a4;">
+                Fr: ${r.frame_idx_video||r.frame_idx||'?'} | ${typeof r.similarity==='number'?r.similarity.toFixed(3):'—'}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }
+    grid.innerHTML = html;
+    showInfo(`Grouped into ${Object.keys(data).length} videos`);
+  } catch(e) { alert('Error: '+e.message); }
+}
+
+// ─────────────────────────────────────────────
+// SUBMISSION
+// ─────────────────────────────────────────────
+async function makeSubmission() {
+  const name      = document.getElementById('subExportName').value.trim() || `submission_${Date.now()}`;
+  const videoName = document.getElementById('subVideoName').value.trim();
+  const frameId   = parseInt(document.getElementById('subFrameId').value.trim());
+  const gap       = parseInt(document.getElementById('subGap').value.trim());
+  if (!videoName || isNaN(frameId) || isNaN(gap)) { alert('Fill in video name, frame ID and GAP'); return; }
+  try {
+    const res = await fetch('/api/export_submission', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ video_name:videoName, frame_id:frameId, gap, const_value:null, name })
+    });
+    const d = await res.json();
+    const msg = document.getElementById('subMsg');
+    msg.innerText = d.status==='ok' ? `✅ ${d.csv_path}` : `❌ ${d.msg}`;
+    msg.style.color = d.status==='ok' ? '#10b981' : '#ef4444';
+  } catch(e) { alert('Error: '+e.message); }
+}
+
+// ─────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────
+updateGridSize();
+</script>
 </body>
 </html>

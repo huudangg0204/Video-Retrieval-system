@@ -74,6 +74,7 @@ def _attach_metadata(results):
         frame = r.get("frame_idx")
         r["ocr_text"] = ""
         r["scene"] = ""
+        r["scene_group"] = ""
         r["caption"] = ""
         r["detections"] = []
         if video and frame:
@@ -82,9 +83,59 @@ def _attach_metadata(results):
             if meta:
                 r["ocr_text"] = meta.get("ocr_text", "")
                 r["scene"] = meta.get("scene", "")
+                r["scene_group"] = meta.get("scene_group", "")
                 r["caption"] = meta.get("caption", "")
                 r["detections"] = meta.get("detections", [])
     return results
+
+
+def _apply_pre_filters(
+    required_objects: list[str],
+    object_mode: str,
+    scene_group: str,
+) -> set[str] | None:
+    """Scan _META_CACHE and return a set of matching frame keys.
+
+    Returns None when no filters are active (no restriction).
+    Each key has the form ``"video_name/frame_idx"``.
+    """
+    has_objects = bool(required_objects)
+    has_scene = bool(scene_group)
+    if not has_objects and not has_scene:
+        return None
+
+    cache = _get_meta_cache()
+    matched: set[str] = set()
+
+    for key, meta in cache.items():
+        # ── Scene group filter ──────────────────────────────────
+        if has_scene:
+            if meta.get("scene_group", "") != scene_group:
+                continue
+
+        # ── Object presence filter ─────────────────────────────
+        if has_objects:
+            detection_labels = [
+                d.get("label", "").lower()
+                for d in (meta.get("detections") or [])
+            ]
+            req_lower = [o.lower() for o in required_objects]
+            if object_mode == "or":
+                if not any(req in detection_labels for req in req_lower):
+                    continue
+            else:  # default: "and"
+                if not all(req in detection_labels for req in req_lower):
+                    continue
+
+        matched.add(key)
+
+    logger.info(
+        f"Pre-filter: scene_group={scene_group!r}, "
+        f"objects={required_objects} ({object_mode}) "
+        f"→ {len(matched)} candidate frames"
+    )
+    return matched
+
 
 
 def _get_retriever():
@@ -150,25 +201,49 @@ def search_text():
         float(caption_weight_raw) if caption_weight_raw is not None else None
     )
 
-    logger.info(f"Text search: '{query[:80]}...' (top_k={top_k})")
+    # —— Pre-search filters (object presence + scene group) —————————
+    required_objects: list[str] = payload.get('required_objects') or []
+    object_mode: str = str(payload.get('object_mode', 'and')).lower()
+    scene_group: str = str(payload.get('scene_group', '')).strip()
+
+    candidate_ids: set[str] | None = _apply_pre_filters(
+        required_objects=required_objects,
+        object_mode=object_mode,
+        scene_group=scene_group,
+    )
+
+    # Expand fetch_k when filters are active so we can intersect without
+    # running out of results.
+    fetch_k = top_k * 5 if candidate_ids is not None else top_k
+
+    logger.info(f"Text search: '{query[:80]}...' (top_k={top_k}, fetch_k={fetch_k})")
 
     start = time.time()
     results = retriever.search_text(
         query=query,
-        top_k=top_k,
+        top_k=fetch_k,
         save_to_db=True,
         objects=objects,
         threshold=threshold,
     )
+
+    # Apply candidate filter when active
+    if candidate_ids is not None:
+        results = [
+            r for r in results
+            if f"{r.get('video_name')}/{r.get('frame_idx')}" in candidate_ids
+        ][:top_k]
+
     elapsed = time.time() - start
-    
+
     results = _attach_metadata(results)
-    
+
     return jsonify({
         'elapsed': round(elapsed, 3),
         'count': len(results),
         'results': results,
     })
+
 
 
 @bp.route('/search_image', methods=['POST'])
@@ -412,7 +487,96 @@ def _safe_remove(path) -> None:
             os.remove(path)
     except OSError:
         pass
-    
+
+
+@bp.route('/search_ocr', methods=['POST'])
+def search_ocr():
+    """Search keyframes by OCR text content.
+
+    Independent OCR block: scans the full metadata cache for frames
+    whose ``ocr_text`` field matches the query string.
+
+    Request JSON::
+
+        {
+            "query": "HANOI",
+            "top_k": 50,
+            "case_insensitive": true,
+            "mode": "contains"   # "contains" | "exact" | "any_word"
+        }
+
+    Returns a list of result objects in the same format as other search
+    endpoints so the frontend can reuse the same card renderer.
+    """
+    payload = request.get_json(force=True, silent=True) or {}
+    query: str = str(payload.get('query', '')).strip()
+    if not query:
+        return jsonify({'error': 'empty query'}), 400
+
+    top_k = int(payload.get('top_k', 50) or 50)
+    case_insensitive: bool = bool(payload.get('case_insensitive', True))
+    mode: str = str(payload.get('mode', 'contains')).lower()
+
+    q = query.lower() if case_insensitive else query
+    words = q.split() if mode == 'any_word' else []
+
+    cache = _get_meta_cache()
+    matched: list[dict] = []
+
+    for key, meta in cache.items():
+        ocr_entries = meta.get('ocr_text') or []
+        # Flatten all OCR text for this frame into one string
+        if isinstance(ocr_entries, list):
+            frame_text = ' '.join(
+                entry.get('text', '') if isinstance(entry, dict) else str(entry)
+                for entry in ocr_entries
+            )
+        else:
+            frame_text = str(ocr_entries)
+
+        compare_text = frame_text.lower() if case_insensitive else frame_text
+
+        hit = False
+        if mode == 'exact':
+            hit = compare_text == q
+        elif mode == 'any_word':
+            hit = any(w in compare_text for w in words)
+        else:  # default: contains
+            hit = q in compare_text
+
+        if not hit:
+            continue
+
+        # Build result object consistent with other search endpoints
+        parts = key.split('/', 1)
+        video_name = parts[0] if len(parts) == 2 else ''
+        frame_idx = parts[1] if len(parts) == 2 else ''
+
+        from aic26.config import settings as _s
+        img_path = str(
+            Path(_s.keyframes_dir) / video_name / f"{frame_idx}.jpg"
+        )
+
+        matched.append({
+            'video_name': video_name,
+            'frame_idx': frame_idx,
+            'image_path': img_path,
+            'similarity': 1.0,
+            'ocr_text': ocr_entries,
+            'scene': meta.get('scene', ''),
+            'scene_group': meta.get('scene_group', ''),
+            'caption': meta.get('caption', ''),
+            'detections': meta.get('detections', []),
+        })
+
+        if len(matched) >= top_k:
+            break
+
+    return jsonify({
+        'count': len(matched),
+        'results': matched,
+    })
+
 def _ensure_embeddings_loaded():
     """
     Kiểm tra embeddings đã có chưa. Nếu chưa, tự động chạy pipeline.

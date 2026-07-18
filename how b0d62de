@@ -1,0 +1,11 @@
+* [33ma8e7404[m[33m ([m[1;31morigin/feature/create-metadata[m[33m)[m perf: optimize query latency from 2s to 450ms
+* [33m9e977b3[m perf: optimize server startup 15x (pickle cache + eager CLIP-32)
+* [33m333cdcb[m fix: image search
+* [33m5fe9d74[m feat: lazy-load models, batch reranking, metadata cache, OCR search, query strategy docs
+[31m|[m * [33mb0d62de[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/create-metadata[m[33m)[m update  requirements.txt
+[31m|[m[31m/[m  
+* [33me9f58ad[m docs: add Metadata Sidecars section to README
+* [33m21dc12d[m feat: implement eager model loading, UI migration with Fuse.js and Metadata Inspector
+* [33m3204cf0[m feat: setup metadata pipeline and prepare for UI implementation
+* [33me4b409f[m feat(metadata): complete Phase 1 (P0 detections) + Phase 2 (P1 scene)
+* [33m683dd58[m fix(metadata): ship OIV7 class-mapping CSV + lazy-load YOLO in _detect_single (resolves outstanding #1)

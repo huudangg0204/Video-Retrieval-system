@@ -22,6 +22,27 @@ def _get_retriever():
         if fn: r = fn(); current_app.config['AIC26_RETRIEVER'] = r
     return r
 
+
+def _attach_metadata_to_frames(frames: list[dict]) -> list[dict]:
+    """Enrich frame dicts with metadata from the shared _META_CACHE."""
+    try:
+        from aic26.api.routes.search import _get_meta_cache
+        cache = _get_meta_cache()
+    except Exception:
+        return frames
+    for f in frames:
+        video = f.get('video_name', '')
+        frame = f.get('frame_idx', '')
+        key = f"{video}/{frame}"
+        meta = cache.get(key) if cache else None
+        f['ocr_text'] = meta.get('ocr_text', '') if meta else ''
+        f['scene'] = meta.get('scene', '') if meta else ''
+        f['scene_group'] = meta.get('scene_group', '') if meta else ''
+        f['caption'] = meta.get('caption', '') if meta else ''
+        f['detections'] = meta.get('detections', []) if meta else []
+    return frames
+
+
 @bp.route('/get_frames/<path:video_name>', methods=['GET'])
 def get_frames(video_name: str):
     r = _get_retriever()
@@ -35,7 +56,34 @@ def get_frames_range(video_name: str, frame_id: int, range_val: int):
     frames = r.get_frames_of_video(video_name)
     s = max(0, frame_id - range_val)
     e = min(len(frames), frame_id + range_val + 1)
-    return jsonify({'video_name': video_name, 'frames': frames[s:e]})
+    context_frames = frames[s:e]
+    context_frames = _attach_metadata_to_frames(context_frames)
+    return jsonify({
+        'video_name': video_name,
+        'center_frame_id': frame_id,
+        'frames': context_frames,
+    })
+
+@bp.route('/browse/folder/<path:video_name>', methods=['GET'])
+def browse_folder(video_name: str):
+    """Return all keyframes for a video with full metadata.
+
+    Used by the Browse Block → Folder View tab.
+    ``video_name`` must match the folder name under ``data/keyframes/``
+    (e.g. ``L26_V001``).
+    """
+    r = _get_retriever()
+    if r is None:
+        return jsonify({'error': 'not initialized'}), 503
+    frames = r.get_frames_of_video(video_name)
+    if not frames:
+        return jsonify({'error': f'No frames found for video: {video_name}'}), 404
+    frames = _attach_metadata_to_frames(frames)
+    return jsonify({
+        'video_name': video_name,
+        'count': len(frames),
+        'frames': frames,
+    })
 
 @bp.route('/image', methods=['GET'])
 def serve_image():
@@ -58,4 +106,4 @@ def serve_image():
     logger.info(f"Requested: {abs_path}, exists: {os.path.exists(abs_path)}")
     if not os.path.exists(abs_path):
         return abort(404)
-    return send_file(abs_path)
+    return send_file(abs_path)
