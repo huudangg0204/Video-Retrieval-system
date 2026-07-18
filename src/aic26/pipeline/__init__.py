@@ -19,6 +19,7 @@ Usage:
 from aic26.pipeline.keyframe import KeyframeExtractor
 from aic26.pipeline.detection import ObjectDetector
 from aic26.pipeline.ocr import OCRExtractor
+from aic26.pipeline.ocr_gpu import OCRExtractorGPU
 from aic26.pipeline.embedding import EmbeddingExtractor
 from aic26.pipeline.indexer import IndexBuilder
 from aic26.pipeline.orchestrator import PipelineOrchestrator
@@ -27,6 +28,7 @@ __all__ = [
     "KeyframeExtractor",
     "ObjectDetector", 
     "OCRExtractor",
+    "OCRExtractorGPU",
     "EmbeddingExtractor",
     "IndexBuilder",
     "PipelineOrchestrator",

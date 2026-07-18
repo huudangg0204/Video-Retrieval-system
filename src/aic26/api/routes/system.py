@@ -5,11 +5,16 @@ Endpoints for system statistics, stored queries, and grouping.
 """
 from __future__ import annotations
 
+import threading
 from flask import Blueprint, request, jsonify
 
 from loguru import logger
 
 bp = Blueprint('system', __name__)
+
+# ── Background FAISS build state ─────────────────────────────────────────────
+_faiss_build_state: dict = {"status": "idle", "message": "", "result": None}
+_faiss_build_lock = threading.Lock()
 
 
 def _get_retriever():
@@ -97,3 +102,56 @@ def group_by_video():
     )
     
     return jsonify(grouped)
+
+
+@bp.route('/build_faiss_index', methods=['POST'])
+def build_faiss_index():
+    """
+    Trigger a FAISS index rebuild from current embeddings.
+
+    Runs IndexBuilder in a background thread so the request returns immediately.
+    Poll /api/build_faiss_index/status to track progress.
+    """
+    global _faiss_build_state
+
+    with _faiss_build_lock:
+        if _faiss_build_state["status"] == "running":
+            return jsonify({"status": "running", "message": "Build already in progress"}), 409
+
+        _faiss_build_state = {"status": "running", "message": "Starting...", "result": None}
+
+    def _run():
+        global _faiss_build_state
+        try:
+            from aic26.pipeline.indexer import IndexBuilder
+            builder = IndexBuilder()
+            result = builder.build()
+            with _faiss_build_lock:
+                _faiss_build_state = {
+                    "status": "done",
+                    "message": (
+                        f"Built {result['embeddings_loaded']} vectors "
+                        f"({result['file_size_mb']:.1f} MB) → {result['output_path']}"
+                    ),
+                    "result": result,
+                }
+            logger.info(f"FAISS build finished: {result}")
+        except Exception as exc:
+            logger.error(f"FAISS build failed: {exc}")
+            with _faiss_build_lock:
+                _faiss_build_state = {
+                    "status": "error",
+                    "message": str(exc),
+                    "result": None,
+                }
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"status": "running", "message": "FAISS build started in background"})
+
+
+@bp.route('/build_faiss_index/status', methods=['GET'])
+def build_faiss_index_status():
+    """Return current status of the FAISS build job."""
+    with _faiss_build_lock:
+        return jsonify(dict(_faiss_build_state))
+

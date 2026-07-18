@@ -334,7 +334,7 @@ class Settings(BaseSettings):
     
     # ── Pipeline parameters ────────────────────────────────────────────
     max_workers: int = Field(
-        default=4,
+        default=2,
         ge=1,
         le=32,
         description="Maximum number of worker threads for parallel processing",

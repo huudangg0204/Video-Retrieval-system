@@ -135,6 +135,7 @@ def _init_retriever(app: Flask, config) -> None:
     
     # Also store directly if pre-loaded
     app.config['AIC26_RETRIEVER'] = retriever_instance
+    logger.info("Retrieval engine ready.")
 
 
 def get_retriever(app: Flask = None):

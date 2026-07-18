@@ -12,6 +12,7 @@ from aic26.core.rerank import Reranker
 from aic26.core.trake import TrakeEngine
 from aic26.core.export import Exporter
 from aic26.core.retrieval import EVA02ImageRetrieval
+from aic26.core.ocr_search import OCRSearchEngine, get_ocr_search_engine
 
 __all__ = [
     "ModelRegistry",
@@ -22,4 +23,6 @@ __all__ = [
     "TrakeEngine",
     "Exporter",
     "EVA02ImageRetrieval",
+    "OCRSearchEngine",
+    "get_ocr_search_engine",
 ]
