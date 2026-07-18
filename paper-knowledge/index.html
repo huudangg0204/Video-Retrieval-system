@@ -1,0 +1,2627 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="AI Challenge Video Retrieval System">
+      
+      
+        <meta name="author" content="AIC Team">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Paper Knowledge Library — AIC-26 Research Foundation - AIC-26 Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#paper-knowledge-library-aic-26-research-foundation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="AIC-26 Documentation" class="md-header__button md-logo" aria-label="AIC-26 Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AIC-26 Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Paper Knowledge Library — AIC-26 Research Foundation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/your-org/aic26" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    aic26
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../index.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/installation.md" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../user-guide/cli.md" class="md-tabs__link">
+          
+  
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../architecture/overview.md" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../api/search.md" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../development/contributing.md" class="md-tabs__link">
+          
+  
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../changelog.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="AIC-26 Documentation" class="md-nav__button md-logo" aria-label="AIC-26 Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AIC-26 Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/your-org/aic26" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    aic26
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/quickstart.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/configuration.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/cli.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/api.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/gui.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Desktop GUI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/pipeline.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/overview.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/core.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/data-flow.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/search.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Search
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/trake.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TRAKE
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/export.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/contributing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/testing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/deployment.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tong-quan-5-paper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tổng quan 5 paper
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-lsc-review-state-of-the-art-trong-lifelog-retrieval-2022-2024" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. LSC Review — State-of-the-Art trong Lifelog Retrieval 2022-2024
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. LSC Review — State-of-the-Art trong Lifelog Retrieval 2022-2024">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#iem-chinh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Điểm chính
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dataset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dataset
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-loai-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3 loại task
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evolution-cua-he-thong" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evolution của hệ thống
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#paradigm-shift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paradigm shift
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bai-hoc-rut-ra-cho-aic-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bài học rút ra cho AIC-26
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-lifexplore-tai-lsc-2024" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. lifeXplore tại LSC 2024
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. lifeXplore tại LSC 2024">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#architecture-3-lop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture 3 lớp
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#models-uoc-dung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Models được dùng
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#special-query-commands-prefix-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Special query commands (prefix -)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sub-filter-prefix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sub-filter (prefix |)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#temporal-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temporal search
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ket-qua-recallk-text-embedding-benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kết quả Recall@K (text embedding benchmark)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bai-hoc-rut-ra-cho-aic-26_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bài học rút ra cho AIC-26
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-libro-lifelog-search-browser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Libro — Lifelog Search Browser
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Libro — Lifelog Search Browser">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keyframe-shot-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keyframe + Shot Detection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#search-capabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search capabilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#models-a-thu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Models đã thử
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#roaring-bitmap-filters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Roaring Bitmap filters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#user-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User Interface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bai-hoc-rut-ra-cho-aic-26_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bài học rút ra cho AIC-26
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-memoriease-30-rag-enhanced-conversational-retrieval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. MemoriEase 3.0 — RAG-Enhanced Conversational Retrieval
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. MemoriEase 3.0 — RAG-Enhanced Conversational Retrieval">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tai-sao-paper-nay-quan-trong" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tại sao paper này quan trọng
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kien-truc-tong-quan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kiến trúc tổng quan
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dual-embedding-32-critical-cho-aic-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dual embedding §3.2 (CRITICAL cho AIC-26)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kich-thuoc-embedding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kích thước embedding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cac-cai-tien-so-voi-memoriease-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Các cải tiến so với MemoriEase 2.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#blip2-image-descriptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BLIP2 image descriptions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#results-lsc25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results @ LSC'25
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bai-hoc-rut-ra-cho-aic-26_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bài học rút ra cho AIC-26
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-snapseek-30-enhanced-scene-understanding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. SnapSeek 3.0 — Enhanced Scene Understanding
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. SnapSeek 3.0 — Enhanced Scene Understanding">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#4-tru-cot-cai-tien-tu-snapseek-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4 trụ cột cải tiến từ SnapSeek 2.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#search-modalities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search modalities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#temporal-search-4-buoc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temporal search — 4 bước
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Temporal search — 4 bước">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-temporal-clause-extraction-llm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Temporal Clause Extraction (LLM)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-clause-retrieval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Clause Retrieval
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-temporal-consistency-enforcement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Temporal Consistency Enforcement
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 3: Temporal Consistency Enforcement">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#seqwin-sequential-windowing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SeqWin (Sequential Windowing)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parchain-parallel-chain-aggregation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ParChain (Parallel Chain Aggregation)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-interactive-refinement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Interactive Refinement
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#human-feedback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Human Feedback
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scene-graphs-new-in-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scene Graphs (NEW in 3.0)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adl-activities-of-daily-living" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADL (Activities of Daily Living)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#results-lsc25_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results @ LSC'25
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bai-hoc-rut-ra-cho-aic-26_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bài học rút ra cho AIC-26
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ma-tran-so-sanh-kien-truc-aic-26-voi-5-paper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ma trận so sánh kiến trúc AIC-26 với 5 paper
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#roadmap-cai-tien-tiem-nang-cho-aic-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Roadmap cải tiến tiềm năng cho AIC-26
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Roadmap cải tiến tiềm năng cho AIC-26">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ngan-han-low-hanging-fruit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ngắn hạn (low-hanging fruit)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trung-han" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trung hạn
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dai-han" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dài hạn
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#citation-tham-chieu-nhanh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Citation / tham chiếu nhanh
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tai-lieu-lien-quan-trong-du-an" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tài liệu liên quan trong dự án
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="paper-knowledge-library-aic-26-research-foundation">Paper Knowledge Library — AIC-26 Research Foundation<a class="headerlink" href="#paper-knowledge-library-aic-26-research-foundation" title="Permanent link">&para;</a></h1>
+<p>Knowledge library tổng hợp từ 5 bài báo nền tảng trong <code>paper/</code>. Đây là các paper tham khảo trực tiếp cho hệ thống AIC-26: chúng định hình các quyết định kiến trúc (dual-embedding EVA-02 + BLIP-2, TRAKE DP, OCR + object filter, RAG cho QA) và là baseline benchmark khi đánh giá retrieval quality.</p>
+<hr />
+<h2 id="tong-quan-5-paper">Tổng quan 5 paper<a class="headerlink" href="#tong-quan-5-paper" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Paper</th>
+<th>Năm</th>
+<th>Hội nghị</th>
+<th>Vai trò đối với AIC-26</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><a href="#1-lsc-review--state-of-the-art-trong-lifelog-retrieval-2022-2024">The State-of-the-Art in Lifelog Retrieval</a></td>
+<td>2025</td>
+<td>IEEE Access</td>
+<td><strong>Survey</strong> — bản đồ hóa toàn bộ paradigm retrieval 2022-24, benchmark &amp; metric. Định hướng lý thuyết.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="#2-lifexplore-tại-lsc-2024">lifeXplore at LSC 2024</a></td>
+<td>2024</td>
+<td>ACM ICMR / LSC'24</td>
+<td><strong>Đối thủ thắng LSC'23</strong> — kiến trúc CLIP + FAISS + MongoDB, OpenCLIP ViT-L/14 (LAION2B). Reference cho CLIP-only pipeline.</td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="#3-libro--lifelog-search-browser">Libro — Lifelog Search Browser</a></td>
+<td>2024</td>
+<td>ACM ICMR / LSC'24</td>
+<td><strong>Keyframe + Shot detection</strong>, ANNS trên proximity graph, filter mask Roaring Bitmaps, EVA-CLIP ViT-E fine-tune. Reference cho keyframe extraction.</td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="#4-memoriease-30--rag-enhanced-conversational-retrieval">MemoriEase 3.0 — RAG-Enhanced Conversational</a></td>
+<td>2025</td>
+<td>ACM ICMR / LSC'25</td>
+<td><strong>Dual-embedding CLIP + BLIP-2</strong> chính là nền tảng cho cơ chế dual-stream trong AIC-26. Elasticsearch + cross-encoder rerank + RAG. <strong>Quan trọng nhất.</strong></td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="#5-snapseek-30--enhanced-scene-understanding">SnapSeek 3.0 — Enhanced Scene Understanding</a></td>
+<td>2025</td>
+<td>ACM ICMR / LSC'25</td>
+<td><strong>Temporal search nâng cao</strong>: SeqWin, ParChain, scene graph 3-tuple qua MLLM (Qwen2.5-VL-7B), ADL (Activities of Daily Living). Reference cho TRAKE.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-lsc-review-state-of-the-art-trong-lifelog-retrieval-2022-2024">1. LSC Review — State-of-the-Art trong Lifelog Retrieval 2022-2024<a class="headerlink" href="#1-lsc-review-state-of-the-art-trong-lifelog-retrieval-2022-2024" title="Permanent link">&para;</a></h2>
+<p><strong>File</strong>: <code>paper/2506.06743v2.pdf</code> — IEEE Access, Dec 2025.
+<strong>Tác giả</strong>: Tran et al. (DCU, Klagenfurt, Reykjavik, etc.).</p>
+<h3 id="iem-chinh">Điểm chính<a class="headerlink" href="#iem-chinh" title="Permanent link">&para;</a></h3>
+<p>LSC (Lifelog Search Challenge) là benchmark dài hạn duy nhất đánh giá hệ thống retrieval tương tác real-time qua human-in-the-loop. Khác với TRECVID / VBS / ImageCLEF (offline asynchronous), LSC chạy live với assessors.</p>
+<h3 id="dataset">Dataset<a class="headerlink" href="#dataset" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>725K ảnh first-person</strong> từ Narrative Clip, 1024×768, 18 tháng (Jan 2019 – Jun 2020)</li>
+<li>Metadata mỗi phút: timestamp, activity, biometrics (heart-rate, steps, sleep), GPS</li>
+<li>Visual concepts: COCO objects (80 classes) + Places365 scenes (102 labels)</li>
+<li>OCR + bounding box + confidence</li>
+<li>Semantic location names ("Home", "Dublin City University")</li>
+<li>Flight metadata (Voxento team)</li>
+</ul>
+<h3 id="3-loai-task">3 loại task<a class="headerlink" href="#3-loai-task" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Query</th>
+<th>Time</th>
+<th>Score</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>KIS</strong> (Known-Item Search)</td>
+<td>text mô tả progressing qua các hint 30s</td>
+<td>300s</td>
+<td><code>max(0, 100 − 50·t/T − 10·w)</code></td>
+</tr>
+<tr>
+<td><strong>Ad-hoc</strong></td>
+<td>free-text, không có ground truth</td>
+<td>180s</td>
+<td><code>100 × correct/(correct+incorrect/2) × correct/total</code></td>
+</tr>
+<tr>
+<td><strong>QA</strong></td>
+<td>câu hỏi tự do → text answer</td>
+<td>180s</td>
+<td>Correctness judged by assessors, penalty cho incorrect</td>
+</tr>
+</tbody>
+</table>
+<h3 id="evolution-cua-he-thong">Evolution của hệ thống<a class="headerlink" href="#evolution-cua-he-thong" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>LSC'22</strong>: CLIP zero-shot lên ngôi (MyScéal, LifeSeeker 4.0, Memento 2.0, Vitrivr-VR, EAGLE, Voxento, FIRST, vitrivr).</li>
+<li><strong>LSC'23</strong>: text-image embedding trên hầu hết các hệ thống; temporal + spatial filtering phổ biến.</li>
+<li><strong>LSC'24</strong>: tích hợp metadata, concept, temporal reasoning; Llama-based reranking.</li>
+</ul>
+<h3 id="paradigm-shift">Paradigm shift<a class="headerlink" href="#paradigm-shift" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>[2018-2021] rule-based / keyword filter
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   ↓
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>[2022+] embedding-driven (CLIP family) + FAISS vector index
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   ↓
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>[2024+] LLM-driven retrieval + RAG (MemoriEase 3.0) + multimodal (image+text+sketch)
+</code></pre></div>
+<h3 id="bai-hoc-rut-ra-cho-aic-26">Bài học rút ra cho AIC-26<a class="headerlink" href="#bai-hoc-rut-ra-cho-aic-26" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Multimodal input handling</strong> quan trọng — combine text query + image + metadata filters.</li>
+<li><strong>Temporal reasoning</strong> (TRAKE-style DP) đã thành standard cho KIS/QA.</li>
+<li><strong>Real-time interaction</strong> (sub-second response) là yếu tố cạnh tranh.</li>
+<li><strong>Object filter + OCR + semantic location</strong> là ba filter "must-have".</li>
+<li><strong>Score formula phạt wrong submissions</strong> — nên có UI giúp user refine, không spam.</li>
+</ol>
+<hr />
+<h2 id="2-lifexplore-tai-lsc-2024">2. lifeXplore tại LSC 2024<a class="headerlink" href="#2-lifexplore-tai-lsc-2024" title="Permanent link">&para;</a></h2>
+<p><strong>File</strong>: <code>paper/3643489.3661123.pdf</code> — ACM ICMR / LSC'24.
+<strong>Tác giả</strong>: Martin Rader &amp; Klaus Schoeffmann (Klagenfurt University).
+<strong>Đây là winner LSC'23</strong>, cải tiến cho LSC'24.</p>
+<h3 id="architecture-3-lop">Architecture 3 lớp<a class="headerlink" href="#architecture-3-lop" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>┌──────────────────────────────────────────┐
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>│  Backend: image analysis + metadata       │
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>│  (YOLOv7, EfficientNet B2, CRAFT, OpenCLIP)│
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>└──────────────────┬───────────────────────┘
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>                   │ JSON over HTTP
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>┌──────────────────▼───────────────────────┐
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>│  Middleware: Python + Node.js             │
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>│  - FAISS (CLIP features)                  │
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>│  - MongoDB (metadata + bounding box)      │
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>│  - Combined query handler                 │
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>└──────────────────┬───────────────────────┘
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>                   │ WebSocket
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>┌──────────────────▼───────────────────────┐
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>│  Frontend: Angular GUI                    │
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>│  - Query blocks (special commands: -o, -c)│
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>│  - Temporal layout                        │
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>│  - Detail dialog                          │
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>└───────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="models-uoc-dung">Models được dùng<a class="headerlink" href="#models-uoc-dung" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Modality</th>
+<th>Model</th>
+<th>Dim</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Semantic Concepts</td>
+<td>EfficientNet B2 (Places365, 365 categories)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Objects</td>
+<td>YOLOv7 (80 MS COCO categories)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Text (OCR)</td>
+<td>CRAFT + EasyOCR</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Text Embedding</td>
+<td>OpenCLIP ViT-L/14 (LAION2B)</td>
+<td>768</td>
+</tr>
+<tr>
+<td>Image Embedding</td>
+<td>OpenCLIP ViT-L/14 (LAION2B)</td>
+<td>768</td>
+</tr>
+</tbody>
+</table>
+<p>Cả text và image dùng cùng OpenCLIP model → shared embedding space → cosine similarity trực tiếp.</p>
+<h3 id="special-query-commands-prefix-">Special query commands (prefix <code>-</code>)<a class="headerlink" href="#special-query-commands-prefix-" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Modality</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-m</code></td>
+<td>Month</td>
+</tr>
+<tr>
+<td><code>-y</code></td>
+<td>Year</td>
+</tr>
+<tr>
+<td><code>-wd</code></td>
+<td>Weekday</td>
+</tr>
+<tr>
+<td><code>-o</code></td>
+<td>Detected object (COCO label)</td>
+</tr>
+<tr>
+<td><code>-c</code></td>
+<td>Detected concept (Places365)</td>
+</tr>
+<tr>
+<td><code>-t</code></td>
+<td>Recognized text (OCR)</td>
+</tr>
+<tr>
+<td><code>-h</code></td>
+<td>Heart rate (e.g. <code>-h 90+-10</code> = 80-100)</td>
+</tr>
+<tr>
+<td><code>-country</code>, <code>-city</code></td>
+<td>Geo-name</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sub-filter-prefix">Sub-filter (prefix <code>|</code>)<a class="headerlink" href="#sub-filter-prefix" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>|position:top-left|</code>, <code>|bottom-right|</code> — bounding box position</li>
+<li><code>|score:0.8|</code> — min confidence</li>
+</ul>
+<h3 id="temporal-search">Temporal search<a class="headerlink" href="#temporal-search" title="Permanent link">&para;</a></h3>
+<p>Query phức tạp kiểu <code>"man with red shirt -o person|position:top-left &lt; plane flight &lt;-h 120+"</code> được tách thành nhiều block. Mỗi block tìm 5000 FAISS results → lọc qua MongoDB bounding box → ghép theo thời gian.</p>
+<p>Heart-rate filter tự động kích hoạt khi trong query có giá trị số &gt; 120.</p>
+<h3 id="ket-qua-recallk-text-embedding-benchmark">Kết quả Recall@K (text embedding benchmark)<a class="headerlink" href="#ket-qua-recallk-text-embedding-benchmark" title="Permanent link">&para;</a></h3>
+<p>OpenCLIP ViT-L/14 (LAION2B) đạt Recall@1 = 0.7, @10 = 0.8, @100 = 0.9 trên LSC'2023 textual queries. Tốt nhất trong các model được thử.</p>
+<h3 id="bai-hoc-rut-ra-cho-aic-26_1">Bài học rút ra cho AIC-26<a class="headerlink" href="#bai-hoc-rut-ra-cho-aic-26_1" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>OpenCLIP ViT-L/14 (LAION2B) là baseline mạnh</strong> — AIC-26 dùng EVA-02 (1024-dim) nên phong phú hơn về dim.</li>
+<li><strong>Image-as-Query</strong> cho phép user cung cấp thêm hint qua URL/upload/drag — AIC-26 đã có (<code>/api/upload_image</code>).</li>
+<li><strong>Temporal query composition</strong> bằng cách chia thành nhiều query part rồi ghép theo thời gian — giống cơ chế TRAKE trong AIC-26 nhưng khác ở chỗ: lifeXplore ghép qua MongoDB key-time, AIC-26 dùng DP.</li>
+<li><strong>Bounding box + position filter</strong> — YOLOv7 COCO 80 categories. AIC-26 dùng YOLOv8x OIV7 (600+ categories) phong phú hơn nhiều.</li>
+<li><strong>WebSocket cho frontend</strong> thay vì polling — AIC-26 dùng HTTP REST (Flask), đơn giản hơn nhưng có thể cải tiến.</li>
+</ol>
+<hr />
+<h2 id="3-libro-lifelog-search-browser">3. Libro — Lifelog Search Browser<a class="headerlink" href="#3-libro-lifelog-search-browser" title="Permanent link">&para;</a></h2>
+<p><strong>File</strong>: <code>paper/3643489.3661124.pdf</code> — ACM ICMR / LSC'24.
+<strong>Tác giả</strong>: Hezel, Schall, Schilling, Jung, Barthel (HTW Berlin).
+<strong>Tiền thân</strong>: hệ thống <em>Vibro</em> trong VBS (Video Browser Showdown) — chuyển từ video sang lifelog.</p>
+<h3 id="pipeline">Pipeline<a class="headerlink" href="#pipeline" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>FRAMES (725,226) → KEYFRAMES (397,101) → SHOTS (~205K)
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>                              ↓                ↓
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>                     L2 feature distance   Roaring Bitmaps
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>                     (consecutive frames    (weekday filter)
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>                      merged if similar)
+</code></pre></div>
+<h3 id="keyframe-shot-detection">Keyframe + Shot Detection<a class="headerlink" href="#keyframe-shot-detection" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Tính L2 distance giữa feature vector của các frame liên tiếp.</li>
+<li>Nếu nhỏ hơn threshold → merge thành 1 keyframe (lấy highest contrast).</li>
+<li>Sau khi có keyframes → so sánh keyframe đầu tiên của shot với keyframe cuối của shot trước → chia shot.</li>
+<li>725K frames → 397K keyframes → ~205K shots.</li>
+</ul>
+<h3 id="search-capabilities">Search capabilities<a class="headerlink" href="#search-capabilities" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Text search</strong>: CLIP offline — feature server chạy GPU, query online trên CPU.</li>
+<li><strong>Image search</strong>: upload/drag → server tạo embedding → ANN search.</li>
+<li><strong>OCR</strong>: BM25 + alpha slider (0 = image, 1 = OCR text).</li>
+<li><strong>Hybrid</strong>: combine text + image + OCR với slider weights.</li>
+</ul>
+<h3 id="models-a-thu">Models đã thử<a class="headerlink" href="#models-a-thu" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Dim</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CLIP (original)</td>
+<td>1024</td>
+<td>Joint-embedding, contrastive</td>
+</tr>
+<tr>
+<td>LAIONSB</td>
+<td>—</td>
+<td>CLIP loss + auxiliary loss</td>
+</tr>
+<tr>
+<td>EVA CLIP ViT-E</td>
+<td>—</td>
+<td><strong>5B params, lớn nhất vision-language open-source</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Best VBS: <strong>EVA CLIP ViT-E</strong> joint-embedding + LAIONSB loss → quantized to 1536-dim + binarize ở range [0, 255] → dùng <strong>Hamming distance</strong> thay L2/cosine → memory chỉ 192 bytes/image. Tốc độ tăng ~100×.</p>
+<h3 id="roaring-bitmap-filters">Roaring Bitmap filters<a class="headerlink" href="#roaring-bitmap-filters" title="Permanent link">&para;</a></h3>
+<p>Filter mask cho mỗi metadata field:
+- Weekday filter (Sat+Sun UNION).
+- Biometric (heart-rate range).
+- Location (city/country).
+- Visual concept (Places365).
+- Date range.</p>
+<p>Mỗi filter → Roaring Bitmap → AND operation trong milliseconds.</p>
+<h3 id="user-interface">User Interface<a class="headerlink" href="#user-interface" title="Permanent link">&para;</a></h3>
+<p>3 panels:
+1. <strong>Query formulation</strong> (trái): text/image/OCR input + sliders + filters.
+2. <strong>Search area</strong> (giữa): scan-line grid (FLAS algorithm) — most relevant ở giữa.
+3. <strong>Global map</strong> (phải trên): 2D grid visualization của proximity graph — clustering tự nhiên.
+4. <strong>Temporal view</strong> (phải dưới): slideshow ngày của ảnh hiện tại.</p>
+<h3 id="bai-hoc-rut-ra-cho-aic-26_2">Bài học rút ra cho AIC-26<a class="headerlink" href="#bai-hoc-rut-ra-cho-aic-26_2" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Keyframe extraction giảm search space 50%</strong> — AIC-26 dùng DINOv2 cosine similarity cho keyframe detection (<code>pipeline/keyframe.py</code>).</li>
+<li><strong>Quantized embedding + Hamming</strong> tăng tốc 100× so với L2/cosine — cơ hội tối ưu hóa cho AIC-26 nếu scale lên hàng triệu frames.</li>
+<li><strong>EVA CLIP ViT-E</strong> joint-embedding với LAIONSB loss → AIC-26 cũng dùng <strong>EVA-02</strong> nhưng chưa fine-tune joint-embedding.</li>
+<li><strong>Roaring Bitmap cho filter</strong> — nhanh hơn so với query DB mỗi lần.</li>
+<li><strong>FLAS algorithm</strong> cho scan-line grid arrangement → có thể áp dụng cho hiển thị kết quả GUI.</li>
+</ol>
+<hr />
+<h2 id="4-memoriease-30-rag-enhanced-conversational-retrieval">4. MemoriEase 3.0 — RAG-Enhanced Conversational Retrieval<a class="headerlink" href="#4-memoriease-30-rag-enhanced-conversational-retrieval" title="Permanent link">&para;</a></h2>
+<p><strong>File</strong>: <code>paper/3729459.3748689.pdf</code> — ACM ICMR / LSC'25.
+<strong>Tác giả</strong>: Tran, Nguyen, Jones, Gurrin (DCU + VNU-HCM).
+<strong>Đây là paper nền tảng cho kiến trúc dual-embedding của AIC-26</strong> — đặc biệt là §3.2 và cơ chế "weighted average of CLIP + BLIP2 cosine similarity".</p>
+<h3 id="tai-sao-paper-nay-quan-trong">Tại sao paper này quan trọng<a class="headerlink" href="#tai-sao-paper-nay-quan-trong" title="Permanent link">&para;</a></h3>
+<p>AIC-26 có <code>USE_DUAL_EMBEDDING=true</code> + <code>data/blip2_embeddings/</code> → load 2 stream embedding EVA-02 + BLIP-2 Q-Former. Đây chính xác là cách MemoriEase 3.0 làm ở §3.2 — weighted average hai embedding.</p>
+<h3 id="kien-truc-tong-quan">Kiến trúc tổng quan<a class="headerlink" href="#kien-truc-tong-quan" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>            OFFLINE                              ONLINE
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>┌────────────────────────────┐         ┌──────────────────────┐
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>│ Metadata CSV               │         │ User → Chat UI       │
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>│ BLIP2 image descriptions   │ Indexing│   ↓                  │
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>│ Images (lifecycle)         │─────────▶ Elasticsearch       │
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>│                            │         │   ↓                  │
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>│ Embedding Models:          │         │ Embedding Models     │
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>│  - BLIP2 (256-dim)         │         │ (CLIP + BLIP2)       │
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>│  - CLIP (1024-dim)         │         │   ↓                  │
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>└────────────────────────────┘         │ Top-K images         │
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>                                       │   ↓                  │
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>                                       │ Reranking (BERT)     │
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>                                       │   ↓                  │
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>                                       │ GPT-o1 → answer      │
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>                                       └──────────────────────┘
+</code></pre></div>
+<h3 id="dual-embedding-32-critical-cho-aic-26">Dual embedding §3.2 (CRITICAL cho AIC-26)<a class="headerlink" href="#dual-embedding-32-critical-cho-aic-26" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p>"We extract image embeddings using the <strong>BLIP2 and CLIP</strong> models. [...] query is encoded into embeddings by <strong>two models (CLIP and BLIP2)</strong>. The embeddings are used to calculate the cosine similarity from image embeddings. We use a <strong>weighted average approach</strong> to combine the cosine similarity from two embeddings. The weight is chosen for retrieving several queries and tuning the best weight."</p>
+</blockquote>
+<p>→ Đây chính là <code>EVA02_SEARCH_WEIGHT * sim_eva02 + BLIP2_SEARCH_WEIGHT * sim_blip2</code> trong <code>core/search.py::_dual_topk_indices</code> của AIC-26.</p>
+<h3 id="kich-thuoc-embedding">Kích thước embedding<a class="headerlink" href="#kich-thuoc-embedding" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Dim</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BLIP2</td>
+<td>256</td>
+</tr>
+<tr>
+<td>CLIP</td>
+<td>1024</td>
+</tr>
+<tr>
+<td>EVA-02 (AIC-26 dùng)</td>
+<td>768</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cac-cai-tien-so-voi-memoriease-20">Các cải tiến so với MemoriEase 2.0<a class="headerlink" href="#cac-cai-tien-so-voi-memoriease-20" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Dual embedding (CLIP + BLIP2)</strong> — chính là core của §3.2 mô tả.</li>
+<li><strong>Enhanced Relevance Feedback</strong> — trước: dùng pooled image average. Sau: dùng query embedding + pooled image embedding với weight balance để retain original query info.</li>
+<li><strong>RAG cho QA task</strong> — cross-encoder BERT rerank descriptions, format <code>&lt;metadata&gt;&lt;description&gt;</code> prompt cho GPT-o1.</li>
+<li><strong>KIS score cải thiện 10 điểm</strong> — nhờ query embedding retention.</li>
+<li><strong>AD-HOC không cải thiện</strong> — vì cùng cơ chế visual similarity search.</li>
+</ol>
+<h3 id="blip2-image-descriptions">BLIP2 image descriptions<a class="headerlink" href="#blip2-image-descriptions" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Sinh caption tự động từ BLIP2 (Salesforce/blip2-itm-vit-g).</li>
+<li>Lưu thêm vào index → filter/re-rank theo description relevance.</li>
+<li>⚠️ <strong>AIC-26 gotcha</strong>: <code>Salesforce/blip2-itm-vit-g</code> chỉ nhận image input cho Q-Former, text phải dùng black 224×224 placeholder (xem memory [[blip2-itm-vit-g-image-only]]). Đã có runtime probe fallback trong <code>core/search.py</code> (xem [[dual-embedding-text-fallback]]).</li>
+</ul>
+<h3 id="results-lsc25">Results @ LSC'25<a class="headerlink" href="#results-lsc25" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>3rd place overall</strong> (snapSeek 1st, 2nd, MemoriEase 3rd)</li>
+<li><strong>2nd place QA task</strong> (score 96/100)</li>
+<li>7/10 KIS đúng, 6/6 QA đúng, kém Ad-hoc</li>
+</ul>
+<h3 id="bai-hoc-rut-ra-cho-aic-26_3">Bài học rút ra cho AIC-26<a class="headerlink" href="#bai-hoc-rut-ra-cho-aic-26_3" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>§3.2 weighted average hai embedding</strong> — đã implement trong AIC-26, kiểm chứng giả thuyết từ paper này.</li>
+<li><strong>Pooled image embedding ≠ original query info</strong> — phải weight lại với query embedding (relevance feedback cải tiến).</li>
+<li><strong>BLIP2 Q-Former image-only</strong> — phải fallback cho text-only query (memory [[blip2-itm-vit-g-image-only]]).</li>
+<li><strong>Cross-encoder BERT rerank</strong> — AIC-26 dùng BLIP ITM rerank thay vì BERT. Khác nhưng cùng paradigm.</li>
+<li><strong>RAG cho QA</strong> — nếu AIC-26 mở rộng sang QA task, có thể mượn cơ chế <code>description → prompt → GPT</code> này.</li>
+</ol>
+<hr />
+<h2 id="5-snapseek-30-enhanced-scene-understanding">5. SnapSeek 3.0 — Enhanced Scene Understanding<a class="headerlink" href="#5-snapseek-30-enhanced-scene-understanding" title="Permanent link">&para;</a></h2>
+<p><strong>File</strong>: <code>paper/3729459.3748697.pdf</code> — ACM ICMR / LSC'25.
+<strong>Tác giả</strong>: Ho-Le, Ho, Ninh, Nguyen, Gurrin, Tran (VNU-HCM + DCU).
+<strong>Top performer LSC'25</strong> (2nd place overall, 1st place KIS — score 100/100).</p>
+<h3 id="4-tru-cot-cai-tien-tu-snapseek-20">4 trụ cột cải tiến từ SnapSeek 2.0<a class="headerlink" href="#4-tru-cot-cai-tien-tu-snapseek-20" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Search modalities</strong>: semantic, image-based, keyword, hybrid.</li>
+<li><strong>Temporal search nâng cao</strong>: SeqWin + ParChain.</li>
+<li><strong>Human-in-the-loop feedback</strong> với A+ / A− update.</li>
+<li><strong>Scene graph 3-tuple</strong> qua MLLM (Qwen2.5-VL-7B).</li>
+<li><strong>ADL (Activities of Daily Living)</strong> annotations — 35 classes.</li>
+</ol>
+<h3 id="search-modalities">Search modalities<a class="headerlink" href="#search-modalities" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Semantic</strong>: CLIP5S text-image → Milvus dense vector.</li>
+<li><strong>Image-based</strong>: upload/URL/cropped → CLIP image embedding.</li>
+<li><strong>Keyword</strong>: location/ADL/OCR indexed as sparse vector trong Milvus.</li>
+<li><strong>Hybrid</strong>: dense + sparse weighted fusion.</li>
+</ul>
+<p>→ AIC-26 chỉ có semantic + image + object filter. Keyword/ADL sparse search là cơ hội mở rộng.</p>
+<h3 id="temporal-search-4-buoc">Temporal search — 4 bước<a class="headerlink" href="#temporal-search-4-buoc" title="Permanent link">&para;</a></h3>
+<h4 id="step-1-temporal-clause-extraction-llm">Step 1: Temporal Clause Extraction (LLM)<a class="headerlink" href="#step-1-temporal-clause-extraction-llm" title="Permanent link">&para;</a></h4>
+<p>LLM prompt-engineered convert text query → JSON:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">&quot;before&quot;</span><span class="p">:</span><span class="w"> </span><span class="err">&lt;clause_</span><span class="mi">1</span><span class="err">&gt;</span><span class="p">,</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">&quot;after&quot;</span><span class="p">:</span><span class="w">  </span><span class="err">&lt;clause_</span><span class="mi">2</span><span class="err">&gt;</span><span class="p">,</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nt">&quot;interval&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;min&quot;</span><span class="p">:</span><span class="w"> </span><span class="err">x</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;max&quot;</span><span class="p">:</span><span class="w"> </span><span class="err">y</span><span class="p">}</span><span class="w">  </span><span class="c1">// null nếu không có</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="p">}</span>
+</code></pre></div></p>
+<p>Cho phép <code>null interval</code> → linh hoạt cho "arrive at the airport before boarding" (gap không xác định).</p>
+<h4 id="step-2-clause-retrieval">Step 2: Clause Retrieval<a class="headerlink" href="#step-2-clause-retrieval" title="Permanent link">&para;</a></h4>
+<p>Mỗi clause → search stack semantic → top-K ranked lists R1, R2.</p>
+<h4 id="step-3-temporal-consistency-enforcement">Step 3: Temporal Consistency Enforcement<a class="headerlink" href="#step-3-temporal-consistency-enforcement" title="Permanent link">&para;</a></h4>
+<p><strong>Hai mode interchangeable:</strong></p>
+<h5 id="seqwin-sequential-windowing">SeqWin (Sequential Windowing)<a class="headerlink" href="#seqwin-sequential-windowing" title="Permanent link">&para;</a></h5>
+<p>Cho tightly-coupled temporal queries.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>1. Lấy top-K seed frames f1 từ R1 (ranked by sim s1).
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>2. Với mỗi f1 tại time t_f1, tạo forward window W(f1) = [t_f1, t_f1 + δ]
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>   với δ = interval.max hoặc user-adjustable.
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>3. Trong W(f1), xét tất cả frames f2 trong R2 có timestamp ∈ W(f1)
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>   → tính clause-2 score s2 → chọn frame gần f1 nhất (smallest gap).
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>4. pair_score = mean(s1, s2)
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>5. Rank các valid (f1, f2) pairs.
+</code></pre></div>
+<p>→ Tương đương <code>trake_closest</code> (greedy DP) trong AIC-26 — minimize frame gap.</p>
+<h5 id="parchain-parallel-chain-aggregation">ParChain (Parallel Chain Aggregation)<a class="headerlink" href="#parchain-parallel-chain-aggregation" title="Permanent link">&para;</a></h5>
+<p>Cho loosely-coupled / multi-scene queries.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>1. Từ R1 và R2, form contexts — chuỗi frame kề nhau trong interval [min, max].
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>   context = shot (≤ 2s window).
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>2. score(c) = max(f) trong context.
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>3. Tạo ordered context pairs (c1, c2) với c1 ∈ R1, c2 ∈ R2
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>   sao cho start(c2) &gt; end(c1) và gap ∈ [min, max].
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>4. pair_score = sum(score(c1), score(c2))
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>5. Rank valid context pairs.
+</code></pre></div>
+<p>→ Tương đương <code>trake_highest</code> (summed similarity) trong AIC-26.</p>
+<h4 id="step-4-interactive-refinement">Step 4: Interactive Refinement<a class="headerlink" href="#step-4-interactive-refinement" title="Permanent link">&para;</a></h4>
+<p>Slider α ∈ [1..200] re-evaluate SeqWin/ParChain on-the-fly mà không phải re-index.</p>
+<h3 id="human-feedback">Human Feedback<a class="headerlink" href="#human-feedback" title="Permanent link">&para;</a></h3>
+<p>User mark ảnh relevant / irrelevant. Cập nhật set A:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>A ← (A ∪ A⁺) \ A⁻
+</code></pre></div>
+<p>Mỗi feedback có ít nhất 1 component: relevant set, irrelevant set, hoặc cả hai. Hai-scheme scoring:
+- <strong>A⁺ (positive)</strong>: similarity = α × original_score + (1−α) × sim_to_relevant
+- <strong>A⁻ (negative)</strong>: similarity = original_score × sim_to_irrelevant</p>
+<h3 id="scene-graphs-new-in-30">Scene Graphs (NEW in 3.0)<a class="headerlink" href="#scene-graphs-new-in-30" title="Permanent link">&para;</a></h3>
+<p>3-tuple representation:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>(subject, predicate, object)
+</code></pre></div></p>
+<p>Generated bằng <strong>Qwen2.5-VL-7B</strong> MLLM với carefully-crafted prompt (lower-case noun, base-form predicates, no passive constructions). Indexed in Milvus alongside image embeddings.</p>
+<p>→ Enable both visual + relational search. AIC-26 chưa có scene graph — cơ hội cải tiến lớn.</p>
+<h3 id="adl-activities-of-daily-living">ADL (Activities of Daily Living)<a class="headerlink" href="#adl-activities-of-daily-living" title="Permanent link">&para;</a></h3>
+<ul>
+<li>35 classes (e.g., "cooking", "commuting", "shopping").</li>
+<li>300 representative examples/class.</li>
+<li>High-quality annotation ≈ 75% dataset.</li>
+<li>Used để filter/narrow retrieval candidates cho action-related queries.</li>
+</ul>
+<p>→ AIC-26 có object detection (YOLOv8x OIV7) nhưng chưa có ADL classification — mở rộng tự nhiên.</p>
+<h3 id="results-lsc25_1">Results @ LSC'25<a class="headerlink" href="#results-lsc25_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>2nd place overall</strong> (SnapSeek1: 2711/3000 = 90.4%)</li>
+<li><strong>1st place KIS</strong> với SnapSeek2 (100% on some queries)</li>
+<li>Top 3 trên Ad-hoc</li>
+</ul>
+<h3 id="bai-hoc-rut-ra-cho-aic-26_4">Bài học rút ra cho AIC-26<a class="headerlink" href="#bai-hoc-rut-ra-cho-aic-26_4" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>SeqWin ≡ trake_closest, ParChain ≡ trake_highest</strong> — AIC-26 đã implement nhưng còn đơn giản. Có thể nâng cấp:</li>
+<li>Explicit interval [min, max] parsing (dùng LLM hoặc regex).</li>
+<li>Forward window thay vì exhaustive DP (nhanh hơn).</li>
+<li>Context = shot (window theo shot, không phải per-frame).</li>
+<li><strong>α slider re-evaluate on-the-fly</strong> — đáng thêm vào GUI: refine temporal results mà không cần re-search.</li>
+<li><strong>Scene graph 3-tuple qua MLLM</strong> — feature chưa có trong AIC-26. Có thể tích hợp Qwen2.5-VL-7B nếu có GPU đủ mạnh (RTX 2080 Ti chỉ có 11GB → có thể chạy quantized).</li>
+<li><strong>ADL classification</strong> — bổ sung cho action queries. Pipeline tương tự YOLOv8x.</li>
+<li><strong>Milvus thay FAISS</strong> — nếu scale lên &gt; 1M embeddings, Milvus có GPU index và distributed. Hiện tại AIC-26 dùng FAISS IndexFlatIP (CPU) đủ cho ~700K vectors.</li>
+<li><strong>LLM clause extraction</strong> — quan trọng cho query parsing. Nếu thêm LLM step (GPT-4o-mini, Llama-3) có thể boost temporal search accuracy.</li>
+</ol>
+<hr />
+<h2 id="ma-tran-so-sanh-kien-truc-aic-26-voi-5-paper">Ma trận so sánh kiến trúc AIC-26 với 5 paper<a class="headerlink" href="#ma-tran-so-sanh-kien-truc-aic-26-voi-5-paper" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>AIC-26 hiện tại</th>
+<th>lifeXplore'24</th>
+<th>Libro'24</th>
+<th>MemoriEase 3.0</th>
+<th>SnapSeek 3.0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Vision encoder</strong></td>
+<td>EVA-02 (768-dim)</td>
+<td>OpenCLIP ViT-L/14 (768)</td>
+<td>EVA CLIP ViT-E (1536 → quant 1024 binarize)</td>
+<td>CLIP (1024) + BLIP2 (256)</td>
+<td>CLIP5S</td>
+</tr>
+<tr>
+<td><strong>Vector DB</strong></td>
+<td>FAISS IndexFlatIP (CPU)</td>
+<td>FAISS + MongoDB</td>
+<td>FAISS + ANNS proximity graph</td>
+<td>Elasticsearch</td>
+<td>Milvus dense+sparse</td>
+</tr>
+<tr>
+<td><strong>Object detection</strong></td>
+<td>YOLOv8x OIV7 (600+ classes)</td>
+<td>YOLOv7 (80 COCO)</td>
+<td>—</td>
+<td>—</td>
+<td>CLIP implicit</td>
+</tr>
+<tr>
+<td><strong>OCR</strong></td>
+<td>EasyOCR (vi/en)</td>
+<td>CRAFT</td>
+<td>BM25 + alpha slider</td>
+<td>—</td>
+<td>sparse Milvus</td>
+</tr>
+<tr>
+<td><strong>Temporal search</strong></td>
+<td>TRAKE DP (greedy + summed)</td>
+<td>Multi-block + MongoDB time-join</td>
+<td>— (treat as continuous video)</td>
+<td>—</td>
+<td>SeqWin + ParChain</td>
+</tr>
+<tr>
+<td><strong>Reranking</strong></td>
+<td>BLIP ITM (<code>*</code> suffix trigger)</td>
+<td>—</td>
+<td>—</td>
+<td>BERT cross-encoder</td>
+<td>human feedback A+/A−</td>
+</tr>
+<tr>
+<td><strong>RAG/QA</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>✅ GPT-o1</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>Scene graph</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>✅ Qwen2.5-VL-7B</td>
+</tr>
+<tr>
+<td><strong>ADL classification</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>✅ 35 classes</td>
+</tr>
+<tr>
+<td><strong>Relevance feedback</strong></td>
+<td>❌ (chỉ object filter)</td>
+<td>✅ via MongoDB query</td>
+<td>❌</td>
+<td>✅ query+pooled embedding</td>
+<td>✅ A+/A− formula</td>
+</tr>
+<tr>
+<td><strong>GUI framework</strong></td>
+<td>Flask web UI + CustomTkinter</td>
+<td>Angular</td>
+<td>Native desktop</td>
+<td>Chat UI</td>
+<td>Web UI (Fuse.js fuzzy)</td>
+</tr>
+<tr>
+<td><strong>Backend framework</strong></td>
+<td>Flask</td>
+<td>Node.js + Python</td>
+<td>Python (Vibro base)</td>
+<td>Python (Elasticsearch)</td>
+<td>Python (Milvus)</td>
+</tr>
+<tr>
+<td><strong>Lazy loading</strong></td>
+<td>✅ API server (on first request)</td>
+<td>❌ all at startup</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="roadmap-cai-tien-tiem-nang-cho-aic-26">Roadmap cải tiến tiềm năng cho AIC-26<a class="headerlink" href="#roadmap-cai-tien-tiem-nang-cho-aic-26" title="Permanent link">&para;</a></h2>
+<p>Dựa trên các paper, đây là những cải tiến có giá trị cao:</p>
+<h3 id="ngan-han-low-hanging-fruit">Ngắn hạn (low-hanging fruit)<a class="headerlink" href="#ngan-han-low-hanging-fruit" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Temporal interval parsing</strong>: parse <code>(min, max)</code> từ query text thay vì chỉ dùng <code>GAP_KEYFRAME</code> cố định (từ SnapSeek 3.0).</li>
+<li><strong>Query embedding retention trong relevance feedback</strong>: thay vì chỉ filter bằng object, mix pooled image embedding với query embedding (từ MemoriEase 3.0 §3.5).</li>
+<li><strong>Binarized embedding cho large-scale</strong>: nếu &gt; 1M frames → quantize EVA-02 về [0,255] + Hamming (từ Libro).</li>
+<li><strong>Hybrid sparse + dense search</strong>: thêm BM25/keyword layer cho OCR text (từ SnapSeek 3.0).</li>
+</ol>
+<h3 id="trung-han">Trung hạn<a class="headerlink" href="#trung-han" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Scene graph generation</strong>: dùng Qwen2.5-VL-7B quantized để sinh 3-tuple <code>(subject, predicate, object)</code> cho mỗi keyframe (từ SnapSeek 3.0 §3.5).</li>
+<li><strong>Cross-encoder reranker</strong>: thay BLIP ITM bằng BERT cross-encoder trên query-description pairs (từ MemoriEase 3.0 §3.4).</li>
+<li><strong>RAG cho QA</strong>: nếu mở rộng sang QA task, dùng GPT-4o-mini + reranked descriptions (từ MemoriEase 3.0 §3.4).</li>
+</ol>
+<h3 id="dai-han">Dài hạn<a class="headerlink" href="#dai-han" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Milvus thay FAISS</strong>: distributed vector DB cho scale &gt; 1M embeddings.</li>
+<li><strong>ADL classification</strong>: 35-class ADL pipeline (YOLOv8 + CLIP zero-shot) (từ SnapSeek 3.0 §3.6).</li>
+<li><strong>CLIP-based joint-embedding fine-tune</strong>: train EVA-02 với LAIONSB loss (joint embedding + binarize) — nhưng cần GPU &gt; 24GB.</li>
+</ol>
+<hr />
+<h2 id="citation-tham-chieu-nhanh">Citation / tham chiếu nhanh<a class="headerlink" href="#citation-tham-chieu-nhanh" title="Permanent link">&para;</a></h2>
+<p>Khi implement feature mới dựa trên paper, cite trong commit message và docstring:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Ví dụ trong core/search.py</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">dual_topk_indices</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Weighted average of two embedding streams.</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="sd">    Implements the dual-embedding retrieval strategy from:</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="sd">    MemoriEase 3.0 (Tran et al., LSC&#39;25) §3.2:</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="sd">        &quot;weighted average approach to combine the cosine similarity</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="sd">         from two embeddings (CLIP and BLIP2)&quot;</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>    <span class="n">score</span> <span class="o">=</span> <span class="n">EVA02_SEARCH_WEIGHT</span> <span class="o">*</span> <span class="n">sim_eva02</span> <span class="o">+</span> <span class="n">BLIP2_SEARCH_WEIGHT</span> <span class="o">*</span> <span class="n">sim_blip2</span>
+</code></pre></div>
+<hr />
+<h2 id="tai-lieu-lien-quan-trong-du-an">Tài liệu liên quan trong dự án<a class="headerlink" href="#tai-lieu-lien-quan-trong-du-an" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>docs/dual-embedding.md</code> — implementation chi tiết dual-embedding cho AIC-26.</li>
+<li><code>CLAUDE.md</code> §"Dual-stream search" — gotchas BLIP-2 Q-Former image-only.</li>
+<li>Memory: [[blip2-itm-vit-g-image-only]], [[dual-embedding-text-fallback]].</li>
+</ul>
+<hr />
+<p><em>Tạo ngày 2026-06-26 từ 5 PDF trong <code>paper/</code>.</em></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

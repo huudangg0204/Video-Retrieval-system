@@ -1,0 +1,2412 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="AI Challenge Video Retrieval System">
+      
+      
+        <meta name="author" content="AIC Team">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>📋 Kế hoạch Cải thiện Metadata — K05_V004 - AIC-26 Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ke-hoach-cai-thien-metadata-k05_v004" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="AIC-26 Documentation" class="md-header__button md-logo" aria-label="AIC-26 Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AIC-26 Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              📋 Kế hoạch Cải thiện Metadata — K05_V004
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/your-org/aic26" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    aic26
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../index.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/installation.md" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../user-guide/cli.md" class="md-tabs__link">
+          
+  
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/overview.md" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/search.md" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../development/contributing.md" class="md-tabs__link">
+          
+  
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="AIC-26 Documentation" class="md-nav__button md-logo" aria-label="AIC-26 Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AIC-26 Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/your-org/aic26" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    aic26
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/configuration.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/cli.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/api.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/gui.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Desktop GUI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/pipeline.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/overview.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/core.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/data-flow.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/search.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Search
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/trake.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TRAKE
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/export.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/contributing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/testing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/deployment.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-tong-quan-phan-tich-hien-trang-updated-2026-06-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Tổng quan Phân tích Hiện trạng (updated 2026-06-29)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Tổng quan Phân tích Hiện trạng (updated 2026-06-29)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-du-lieu-keyframes-k05_v004-sau-khi-hoan-thanh-phase-1-2-31-32" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Dữ liệu Keyframes — K05_V004 (sau khi hoàn thành Phase 1, 2, 3.1, 3.2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-phan-bo-scene-sau-khi-ap-dung-phase-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Phân bố Scene sau khi áp dụng Phase 2
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-ocr-coverage-phase-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 OCR coverage — Phase 3.1
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-caption-coverage-phase-32" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.4 Caption coverage — Phase 3.2
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-van-e-va-ke-hoach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Vấn đề và Kế hoạch
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Vấn đề và Kế hoạch">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-cac-van-e-p0-ban-au" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Các vấn đề P0 ban đầu
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.1 Các vấn đề P0 ban đầu">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#p0-metadata-coverage-cuc-thap-117-a-giai-quyet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🔴 P0 — Metadata Coverage cực thấp (11.7%) — ✅ ĐÃ GIẢI QUYẾT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#p0-detections-hoan-toan-trong-trong-metadata-100-a-giai-quyet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🔴 P0 — Detections hoàn toàn trống trong Metadata (100%) — ✅ ĐÃ GIẢI QUYẾT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#p0-scene-graph-hoan-toan-trong-100-van-con-0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🔴 P0 — Scene Graph hoàn toàn trống (100%) — ⚠️ VẪN CÒN (0%)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-cac-van-e-p1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Các vấn đề P1
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.2 Các vấn đề P1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#p1-scene-classification-confidence-thap-70-a-giai-quyet-mot-phan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🟡 P1 — Scene Classification confidence thấp (70%) — ✅ ĐÃ GIẢI QUYẾT một phần
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#p1-top-5-scenes-co-duplicate-category-a-giai-quyet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🟡 P1 — Top-5 Scenes có duplicate category — ✅ ĐÃ GIẢI QUYẾT
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-cac-van-e-p2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Các vấn đề P2
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.3 Các vấn đề P2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#p2-thieu-cac-modalities-bo-sung-ang-xu-ly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🟢 P2 — Thiếu các modalities bổ sung — 🔄 ĐANG XỬ LÝ
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-ke-hoach-chi-tiet-tung-phase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Kế hoạch chi tiết — từng Phase
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Kế hoạch chi tiết — từng Phase">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-khac-phuc-khan-cap-p0-hoan-thanh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: Khắc phục Khẩn cấp (P0) — ✅ HOÀN THÀNH
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 1: Khắc phục Khẩn cấp (P0) — ✅ HOÀN THÀNH">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#task-11-tich-hop-detection-data-vao-metadata-sidecar-done" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 1.1: Tích hợp Detection Data vào Metadata Sidecar — ✅ DONE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#task-12-wire-real-models-vao-orchestrator-partial" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 1.2: Wire Real Models vào Orchestrator — 🔄 PARTIAL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#task-13-chay-lai-metadata-extraction-done" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 1.3: Chạy lại Metadata Extraction — ✅ DONE
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-nang-cao-scene-classification-p1-hoan-thanh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: Nâng cao Scene Classification (P1) — ✅ HOÀN THÀNH
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 2: Nâng cao Scene Classification (P1) — ✅ HOÀN THÀNH">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#task-21-de-duplicate-places365-labels-done" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 2.1: De-duplicate Places365 Labels — ✅ DONE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#task-22-scene-confidence-thresholding-fallback-done" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 2.2: Scene Confidence Thresholding + Fallback — ✅ DONE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#task-23-scene-temporal-smoothing-done" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 2.3: Scene Temporal Smoothing — ✅ DONE
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-bo-sung-modalities-p2-mixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: Bổ sung Modalities (P2) — 🔄 MIXED
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 3: Bổ sung Modalities (P2) — 🔄 MIXED">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#task-31-tich-hop-ocr-vao-metadata-hoan-thanh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 3.1: Tích hợp OCR vào Metadata — ✅ HOÀN THÀNH
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#task-32-image-captioning-hoan-thanh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 3.2: Image Captioning — ✅ HOÀN THÀNH
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#task-33-temporal-context-chua-bat-au" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 3.3: Temporal Context — ⏳ CHƯA BẮT ĐẦU
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-4-toi-uu-pipeline-p2-chua-bat-au" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4: Tối ưu Pipeline (P2) — ⏳ CHƯA BẮT ĐẦU
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 4: Tối ưu Pipeline (P2) — ⏳ CHƯA BẮT ĐẦU">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#task-41-batch-scene-graph-inference-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 4.1: Batch Scene Graph Inference — ⏳ NEXT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#task-42-incremental-metadata-update-pending" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 4.2: Incremental Metadata Update — ⏳ PENDING
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#task-43-schema-validation-migration-pending" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 4.3: Schema Validation + Migration — ⏳ PENDING
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-schema-metadata-hien-tai-post-phase-32" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Schema Metadata hiện tại (post-Phase 3.2)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-uu-tien-thuc-hien-updated-effort-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Ưu tiên Thực hiện — Updated Effort Table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-metrics-thanh-cong-actual-vs-target" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Metrics Thành công — Actual vs Target
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-rui-ro-va-bien-phap-updated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Rủi ro và Biện pháp — Updated
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-outstanding-work-can-lam-tiep" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Outstanding Work — Cần làm tiếp
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Outstanding Work — Cần làm tiếp">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ngay-lap-tuc-uu-tien-cao" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ngay lập tức (ưu tiên cao)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sau-o-uu-tien-trung-binh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sau đó (ưu tiên trung bình)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deferred-uu-tien-thap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deferred (ưu tiên thấp)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="ke-hoach-cai-thien-metadata-k05_v004">📋 Kế hoạch Cải thiện Metadata — K05_V004<a class="headerlink" href="#ke-hoach-cai-thien-metadata-k05_v004" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>Ngày tạo:</strong> 2026-06-29
+<strong>Video mục tiêu phân tích:</strong> K05_V004
+<strong>Áp dụng cho:</strong> Toàn bộ pipeline metadata AIC-26
+<strong>Trạng thái tổng quan:</strong>
+- Phase 1 (P0 detections): ✅ HOÀN THÀNH (2026-06-29) — committed <code>e4b409f</code>
+- Phase 2 (P1 scene improvements): ✅ HOÀN THÀNH (2026-06-29) — committed <code>e4b409f</code>
+- Phase 3.1 (OCR): ✅ HOÀN THÀNH (2026-06-29) — committed <code>e4b409f</code>
+- Phase 3.2 (BLIP captioning): ✅ HOÀN THÀNH (2026-06-29) — on disk + tests, chưa commit
+- Phase 3.3 (Temporal context): ⏳ CHƯA BẮT ĐẦU
+- Phase 4 (Optimizations): ⏳ CHƯA BẮT ĐẦU</p>
+</blockquote>
+<hr />
+<h2 id="1-tong-quan-phan-tich-hien-trang-updated-2026-06-29">1. Tổng quan Phân tích Hiện trạng (updated 2026-06-29)<a class="headerlink" href="#1-tong-quan-phan-tich-hien-trang-updated-2026-06-29" title="Permanent link">&para;</a></h2>
+<h3 id="11-du-lieu-keyframes-k05_v004-sau-khi-hoan-thanh-phase-1-2-31-32">1.1 Dữ liệu Keyframes — K05_V004 (sau khi hoàn thành Phase 1, 2, 3.1, 3.2)<a class="headerlink" href="#11-du-lieu-keyframes-k05_v004-sau-khi-hoan-thanh-phase-1-2-31-32" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Chỉ số</th>
+<th>Giá trị</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tổng keyframes</td>
+<td><strong>427 frames</strong></td>
+</tr>
+<tr>
+<td>Metadata sidecars đã tạo</td>
+<td><strong>427 / 427</strong> (100%)</td>
+</tr>
+<tr>
+<td>Detection files đã tạo</td>
+<td><strong>426 / 427</strong> (99.8%)</td>
+</tr>
+<tr>
+<td>Sidecars có <code>detections</code> w/ <code>position</code></td>
+<td><strong>377 / 427</strong> (88.3%)</td>
+</tr>
+<tr>
+<td>Sidecars có <code>scene</code> (Places365)</td>
+<td><strong>427 / 427</strong> (100%)</td>
+</tr>
+<tr>
+<td>Sidecars có <code>scene_group</code></td>
+<td><strong>427 / 427</strong> (100%)</td>
+</tr>
+<tr>
+<td>Sidecars có <code>smoothed_scene</code></td>
+<td><strong>427 / 427</strong> (100%)</td>
+</tr>
+<tr>
+<td>Sidecars có <code>scene_graph</code> (Qwen)</td>
+<td><strong>0 / 427</strong> (0%) ⚠️</td>
+</tr>
+<tr>
+<td>Sidecars có <code>ocr_text</code></td>
+<td><strong>427 / 427</strong> (100%)</td>
+</tr>
+<tr>
+<td>Sidecars có <code>caption</code> (BLIP)</td>
+<td><strong>427 / 427</strong> (100%)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12-phan-bo-scene-sau-khi-ap-dung-phase-2">1.2 Phân bố Scene sau khi áp dụng Phase 2<a class="headerlink" href="#12-phan-bo-scene-sau-khi-ap-dung-phase-2" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Trước Phase 2</th>
+<th>Sau Phase 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unique Places365 leaf categories</td>
+<td>82</td>
+<td>36 (sau smoothing)</td>
+</tr>
+<tr>
+<td>Unique <code>scene_group</code></td>
+<td>n/a</td>
+<td>13</td>
+</tr>
+<tr>
+<td>Top <code>scene_group</code></td>
+<td>n/a</td>
+<td><code>outdoor_urban</code> (79), <code>indoor_public</code> (68), <code>other</code> (66), <code>entertainment_culture</code> (65)</td>
+</tr>
+<tr>
+<td>Top <code>smoothed_scene</code></td>
+<td>n/a</td>
+<td><code>uncertain</code> (289), <code>television_studio</code> (20), <code>airport_terminal</code> (11), <code>booth_indoor</code> (11), <code>auto_showroom</code> (10)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Quan sát quan trọng:</strong> Số 28 categories "đáng ngờ" trong phân tích ban đầu thực ra là do <strong>thiếu temporal smoothing</strong>. Sau khi áp dụng majority-vote sliding window (Phase 2.3), số unique scene giảm từ 82 → 36 và top result hợp lý (<code>uncertain</code> chiếm 289 frames vì đây là broadcast video nhiều cảnh trộn lẫn). Sự "phân tán" của Places365 không phải bug model, mà là do TV-style cuts trong video.</p>
+<h3 id="13-ocr-coverage-phase-31">1.3 OCR coverage — Phase 3.1<a class="headerlink" href="#13-ocr-coverage-phase-31" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>3,139 text regions</strong> đã được merge vào sidecar (avg ~7.35 regions/frame).</li>
+<li>Chủ yếu là chú thích tiếng Việt + timestamp overlay (vd: <code>"(NL) Kết quả bốc thăm AFF Cup 2024"</code>, <code>"CHUYỂN ĐỘNG 24H"</code>).</li>
+<li>Schema: <code>ocr_text: [{"text": str, "bbox": [x1,y1,x2,y2], "confidence": float}]</code> (xyxy sau khi convert từ polygon 4 điểm của EasyOCR).</li>
+</ul>
+<h3 id="14-caption-coverage-phase-32">1.4 Caption coverage — Phase 3.2<a class="headerlink" href="#14-caption-coverage-phase-32" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>427/427 sidecars</strong> có <code>caption</code> (string, English).</li>
+<li>Trung bình <strong>46 chars / caption</strong>, 0 captions trống.</li>
+<li>Model: <code>Salesforce/blip-image-captioning-base</code> (446M params, ~2GB VRAM, ~0.3s/frame trên RTX 2080 Ti).</li>
+<li>Sample spot-checks: tất cả đều là câu tiếng Anh mạch lạc, mô tả nội dung frame.</li>
+</ul>
+<hr />
+<h2 id="2-van-e-va-ke-hoach">2. Vấn đề và Kế hoạch<a class="headerlink" href="#2-van-e-va-ke-hoach" title="Permanent link">&para;</a></h2>
+<h3 id="21-cac-van-e-p0-ban-au">2.1 Các vấn đề P0 ban đầu<a class="headerlink" href="#21-cac-van-e-p0-ban-au" title="Permanent link">&para;</a></h3>
+<h4 id="p0-metadata-coverage-cuc-thap-117-a-giai-quyet">🔴 P0 — Metadata Coverage cực thấp (11.7%) — ✅ ĐÃ GIẢI QUYẾT<a class="headerlink" href="#p0-metadata-coverage-cuc-thap-117-a-giai-quyet" title="Permanent link">&para;</a></h4>
+<p><strong>Trước:</strong> 50/427 sidecars (11.7%).
+<strong>Sau Phase 1.3:</strong> 427/427 (100%).
+<strong>Cách làm:</strong>
+- <code>MetadataExtractor</code> giờ đọc pre-computed detections từ <code>data/detections/{video}/{frame}.json</code> thay vì chạy lại YOLO (<code>load_precomputed_detections()</code> trong <code>pipeline/metadata.py</code>).
+- CLI command <code>aic26 pipeline extract-metadata --input data/keyframes --output data/metadata</code> (chạy độc lập, không cần <code>run-all</code>).</p>
+<h4 id="p0-detections-hoan-toan-trong-trong-metadata-100-a-giai-quyet">🔴 P0 — Detections hoàn toàn trống trong Metadata (100%) — ✅ ĐÃ GIẢI QUYẾT<a class="headerlink" href="#p0-detections-hoan-toan-trong-trong-metadata-100-a-giai-quyet" title="Permanent link">&para;</a></h4>
+<p><strong>Trước:</strong> 50/50 sidecars có <code>detections: []</code>.
+<strong>Sau Phase 1:</strong> 377/427 (88.3%) sidecars có detections với <code>position</code> field. 50 còn lại là frames YOLO thực sự không detect được object nào.
+<strong>Cách làm:</strong>
+- <code>KeyframeMetadata.detections</code> schema giờ gồm <code>position</code> (3×3 grid từ <code>pipeline/position.py</code>).
+- Bbox &lt; 5% diện tích ảnh trả về <code>position: None</code> (theo spec R5).
+- 3×3 grid: <code>top-left | top-center | top-right | center-left | center | center-right | bottom-left | bottom-center | bottom-right</code>.</p>
+<h4 id="p0-scene-graph-hoan-toan-trong-100-van-con-0">🔴 P0 — Scene Graph hoàn toàn trống (100%) — ⚠️ VẪN CÒN (0%)<a class="headerlink" href="#p0-scene-graph-hoan-toan-trong-100-van-con-0" title="Permanent link">&para;</a></h4>
+<p><strong>Hiện trạng:</strong> Tất cả 427 sidecars có <code>scene_graph: []</code>. Qwen2.5-VL model <strong>chưa bao giờ được invoke end-to-end</strong> trên K05_V004 vì:
+- <code>PipelineOrchestrator.run(extract_metadata=True)</code> vẫn pass dummy <code>scene_graph_fn=lambda img: []</code> (orchestrator chưa wire real callable).
+- Code <code>pipeline/scene_graph.py</code> đã sẵn sàng (extract_scene_graph + Qwen2.5-VL-7B-Instruct 4-bit qua bitsandbytes), nhưng chưa được execute vì cần GPU ~14GB VRAM.</p>
+<p><strong>Tác động:</strong> Truy vấn relational kiểu "person hold cup", "car park on street" hoàn toàn bất khả thi.
+<strong>Bước tiếp theo:</strong> Phase 4.1 — chạy batch Qwen2.5-VL inference thực tế trên K05_V004.</p>
+<h3 id="22-cac-van-e-p1">2.2 Các vấn đề P1<a class="headerlink" href="#22-cac-van-e-p1" title="Permanent link">&para;</a></h3>
+<h4 id="p1-scene-classification-confidence-thap-70-a-giai-quyet-mot-phan">🟡 P1 — Scene Classification confidence thấp (70%) — ✅ ĐÃ GIẢI QUYẾT một phần<a class="headerlink" href="#p1-scene-classification-confidence-thap-70-a-giai-quyet-mot-phan" title="Permanent link">&para;</a></h4>
+<p><strong>Trước:</strong> 35/50 frames (70%) có scene confidence &lt; 0.5.
+<strong>Sau Phase 2.2:</strong> Khi top-1 confidence &lt; 0.3, scene được gán là <code>"uncertain"</code> → có fallback hợp lý.
+<strong>Sau Phase 2.3:</strong> Temporal smoothing với sliding window = 5 majority vote → unique scene giảm 82 → 36.</p>
+<h4 id="p1-top-5-scenes-co-duplicate-category-a-giai-quyet">🟡 P1 — Top-5 Scenes có duplicate category — ✅ ĐÃ GIẢI QUYẾT<a class="headerlink" href="#p1-top-5-scenes-co-duplicate-category-a-giai-quyet" title="Permanent link">&para;</a></h4>
+<p><strong>Cách làm (Phase 2.1):</strong> De-duplicate leaf labels bằng cách append parent path khi có collision. Ví dụ:
+- <code>/p/platform/train_station_platform</code> → <code>train_station_platform</code>
+- <code>/p/platform/outdoor</code> → <code>platform</code> (giữ nguyên vì chưa collision)</p>
+<p>Logic nằm trong <code>Places365Classifier._infer_scene_group()</code> và label-loading code.</p>
+<h3 id="23-cac-van-e-p2">2.3 Các vấn đề P2<a class="headerlink" href="#23-cac-van-e-p2" title="Permanent link">&para;</a></h3>
+<h4 id="p2-thieu-cac-modalities-bo-sung-ang-xu-ly">🟢 P2 — Thiếu các modalities bổ sung — 🔄 ĐANG XỬ LÝ<a class="headerlink" href="#p2-thieu-cac-modalities-bo-sung-ang-xu-ly" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Modality</th>
+<th>Status</th>
+<th>Ghi chú</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OCR text</td>
+<td>✅ Phase 3.1 done</td>
+<td>3,139 regions merged end-to-end</td>
+</tr>
+<tr>
+<td>Image captions (English)</td>
+<td>✅ Phase 3.2 done</td>
+<td>427/427 captions via BLIP base</td>
+</tr>
+<tr>
+<td>Image captions (Vietnamese)</td>
+<td>⏳ Deferred (3.2.2)</td>
+<td>Cần VinAI/visobert-ViCaptioning</td>
+</tr>
+<tr>
+<td>Caption-based text search</td>
+<td>⏳ Deferred (3.2.1)</td>
+<td>Touches core/search.py — integration pending</td>
+</tr>
+<tr>
+<td>Audio/ASR transcription</td>
+<td>⏳ Out of scope</td>
+<td></td>
+</tr>
+<tr>
+<td>Action recognition</td>
+<td>⏳ Out of scope</td>
+<td></td>
+</tr>
+<tr>
+<td>Temporal context</td>
+<td>⏳ Phase 3.3 next</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-ke-hoach-chi-tiet-tung-phase">3. Kế hoạch chi tiết — từng Phase<a class="headerlink" href="#3-ke-hoach-chi-tiet-tung-phase" title="Permanent link">&para;</a></h2>
+<h3 id="phase-1-khac-phuc-khan-cap-p0-hoan-thanh">Phase 1: Khắc phục Khẩn cấp (P0) — ✅ HOÀN THÀNH<a class="headerlink" href="#phase-1-khac-phuc-khan-cap-p0-hoan-thanh" title="Permanent link">&para;</a></h3>
+<h4 id="task-11-tich-hop-detection-data-vao-metadata-sidecar-done">Task 1.1: Tích hợp Detection Data vào Metadata Sidecar — ✅ DONE<a class="headerlink" href="#task-11-tich-hop-detection-data-vao-metadata-sidecar-done" title="Permanent link">&para;</a></h4>
+<p><strong>File:</strong> <code>src/aic26/pipeline/metadata.py</code>
+- <code>load_precomputed_detections(detection_dir) -&gt; DetectorFn</code>: factory tạo callable đọc <code>data/detections/{video}/{frame}.json</code>.
+- <code>MetadataExtractor.__init__</code> nhận <code>detector_fn</code> (default = <code>load_precomputed_detections(settings.detection_dir)</code>).
+- <code>KeyframeMetadata.detections: list[Detection]</code> giờ chứa <code>position</code> field.</p>
+<h4 id="task-12-wire-real-models-vao-orchestrator-partial">Task 1.2: Wire Real Models vào Orchestrator — 🔄 PARTIAL<a class="headerlink" href="#task-12-wire-real-models-vao-orchestrator-partial" title="Permanent link">&para;</a></h4>
+<p><strong>File:</strong> <code>src/aic26/pipeline/orchestrator.py</code>
+- <code>PipelineOrchestrator.run(extract_metadata=False)</code> mới có flag opt-in (AD-5).
+- Hiện pass detector_fn (đọc từ data/detections/) ✅
+- Hiện pass scene_fn thực (Places365Classifier) ✅
+- <strong>Còn lại:</strong> scene_graph_fn vẫn dummy <code>lambda img: []</code> ⚠️ (Phase 4.1 sẽ wire Qwen)</p>
+<h4 id="task-13-chay-lai-metadata-extraction-done">Task 1.3: Chạy lại Metadata Extraction — ✅ DONE<a class="headerlink" href="#task-13-chay-lai-metadata-extraction-done" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Command: <code>aic26 pipeline extract-metadata -i data/keyframes -o data/metadata [--overwrite]</code></li>
+<li>427/427 sidecars đã tạo trên K05_V004.</li>
+</ul>
+<hr />
+<h3 id="phase-2-nang-cao-scene-classification-p1-hoan-thanh">Phase 2: Nâng cao Scene Classification (P1) — ✅ HOÀN THÀNH<a class="headerlink" href="#phase-2-nang-cao-scene-classification-p1-hoan-thanh" title="Permanent link">&para;</a></h3>
+<h4 id="task-21-de-duplicate-places365-labels-done">Task 2.1: De-duplicate Places365 Labels — ✅ DONE<a class="headerlink" href="#task-21-de-duplicate-places365-labels-done" title="Permanent link">&para;</a></h4>
+<p><strong>File:</strong> <code>src/aic26/pipeline/places365.py</code>
+- Trong <code>Places365Classifier._infer_scene_group(label)</code>: append parent path khi collision.
+- Top categories không còn duplicate.</p>
+<h4 id="task-22-scene-confidence-thresholding-fallback-done">Task 2.2: Scene Confidence Thresholding + Fallback — ✅ DONE<a class="headerlink" href="#task-22-scene-confidence-thresholding-fallback-done" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Khi top-1 confidence &lt; 0.3 → scene.category = <code>"uncertain"</code>.</li>
+<li><code>scene_group</code> aggregate các categories vào 13 nhóm: <code>outdoor_urban</code>, <code>indoor_public</code>, <code>entertainment_culture</code>, <code>transportation</code>, <code>sports_recreation</code>, ...</li>
+</ul>
+<h4 id="task-23-scene-temporal-smoothing-done">Task 2.3: Scene Temporal Smoothing — ✅ DONE<a class="headerlink" href="#task-23-scene-temporal-smoothing-done" title="Permanent link">&para;</a></h4>
+<p><strong>File:</strong> <code>src/aic26/pipeline/metadata.py::apply_temporal_smoothing()</code>
+- Sliding window = 5, majority vote.
+- <code>smoothed_scene</code> field trong sidecar.
+- Kết quả: 82 unique → 36 unique categories, top: <code>uncertain</code> (289), <code>television_studio</code> (20), <code>airport_terminal</code> (11).</p>
+<hr />
+<h3 id="phase-3-bo-sung-modalities-p2-mixed">Phase 3: Bổ sung Modalities (P2) — 🔄 MIXED<a class="headerlink" href="#phase-3-bo-sung-modalities-p2-mixed" title="Permanent link">&para;</a></h3>
+<h4 id="task-31-tich-hop-ocr-vao-metadata-hoan-thanh">Task 3.1: Tích hợp OCR vào Metadata — ✅ HOÀN THÀNH<a class="headerlink" href="#task-31-tich-hop-ocr-vao-metadata-hoan-thanh" title="Permanent link">&para;</a></h4>
+<p><strong>Files:</strong> <code>src/aic26/pipeline/ocr.py</code>, <code>src/aic26/pipeline/metadata.py</code>, <code>src/aic26/cli/main.py</code>
+- Polygon bbox <code>[[x1,y1],[x2,y2],[x3,y3],[x4,y4]]</code> (EasyOCR output) → xyxy <code>[x_min, y_min, x_max, y_max]</code>.
+- Helper <code>_polygon_to_xyxy()</code> trong <code>pipeline/ocr.py</code>.
+- CLI command: <code>aic26 pipeline merge-ocr --input data/ocr_results.csv --metadata-dir data/metadata [--video V] [--dry-run]</code>.
+- <code>KeyframeMetadata.ocr_text: list[OCRText] | None</code> — None khi chưa merge.
+- Schema: <code>{"text": str, "bbox": [x1,y1,x2,y2], "confidence": float}</code>.
+- Tests: <code>test_ocr_polygon.py</code> (4 tests), tests trong <code>test_cli_metadata.py</code> (4 tests cho merge-ocr).
+- End-to-end: 427/427 sidecars updated, 3,139 text regions merged.</p>
+<h4 id="task-32-image-captioning-hoan-thanh">Task 3.2: Image Captioning — ✅ HOÀN THÀNH<a class="headerlink" href="#task-32-image-captioning-hoan-thanh" title="Permanent link">&para;</a></h4>
+<p><strong>Files mới:</strong>
+- <code>src/aic26/pipeline/captioning.py</code> — <code>CaptionGenerator</code> + <code>build_caption_fn()</code>.
+- <code>tests/unit/test_captioning.py</code> — 12 tests (mock BLIP/BLIP-2 classes ở boundary <code>transformers.*</code>).</p>
+<p><strong>Files sửa:</strong>
+- <code>src/aic26/pipeline/metadata.py</code> — <code>CaptionFn</code> type alias, <code>KeyframeMetadata.caption</code>, <code>MetadataStats.sidecars_with_caption</code>, <code>MetadataStats.caption_total_chars</code>, <code>build_metadata_callables()</code> returns 4-tuple, <code>apply_caption_merging()</code> post-pass function.
+- <code>src/aic26/cli/main.py</code> — <code>--skip-caption</code> flag, <code>merge-captions</code> subcommand.
+- <code>src/aic26/config/settings.py</code> — <code>caption_model_name</code>, <code>caption_max_new_tokens</code>, <code>caption_min_length</code>, <code>caption_quantization</code>.
+- <code>src/aic26/config/constants.py</code> — <code>CAPTION_DEFAULT_MODEL</code>, <code>CAPTION_PROMPT</code>, <code>CAPTION_MAX_NEW_TOKENS</code>, <code>CAPTION_MIN_LENGTH</code>.</p>
+<p><strong>Model đã chọn:</strong> <code>Salesforce/blip-image-captioning-base</code> (446M params) — <strong>KHÔNG dùng</strong> <code>Salesforce/blip2-itm-vit-g</code> (ITM variant — không có <code>.generate()</code> method, đã được document trong memory <code>blip2-itm-g-image-only</code>).</p>
+<p><strong>Implementation:</strong>
+- <code>CaptionGenerator</code> lazy-loads model+processor trên first <code>.generate()</code> call.
+- Branches trên <code>"blip2" in model_name.lower()</code> để chọn <code>BlipProcessor</code>/<code>BlipForConditionalGeneration</code> (BLIP base) hoặc <code>Blip2Processor</code>/<code>Blip2ForConditionalGeneration</code> (BLIP-2).
+- Returns <code>""</code> on any exception (graceful degradation).
+- Default prompt: <code>"a photo of"</code> (BLIP base ignores prompt nhưng wiring vẫn truyền qua processor).</p>
+<p><strong>CLI:</strong>
+- <code>aic26 pipeline extract-metadata --input data/keyframes --output data/metadata --skip-caption</code> (skip flag mới).
+- <code>aic26 pipeline merge-captions --input data/metadata --keyframes-dir data/keyframes [--video V] [--model-name NAME] [--dry-run]</code>.</p>
+<p><strong>End-to-end:</strong> 427/427 K05_V004 sidecars updated, avg 46 chars/caption, 0 empty captions.</p>
+<h4 id="task-33-temporal-context-chua-bat-au">Task 3.3: Temporal Context — ⏳ CHƯA BẮT ĐẦU<a class="headerlink" href="#task-33-temporal-context-chua-bat-au" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Hành động:
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>- Thêm fields:
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    &quot;prev_frame_idx&quot;: int | null,
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    &quot;next_frame_idx&quot;: int | null,
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    &quot;temporal_segment_id&quot;: int  # nhóm frames liên tục cùng scene
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>- Cho phép navigation giữa các frames liên quan
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>- Lợi dụng: `smoothed_scene` runs (consecutive frames cùng smoothed_scene) tạo thành natural segments
+</code></pre></div>
+<hr />
+<h3 id="phase-4-toi-uu-pipeline-p2-chua-bat-au">Phase 4: Tối ưu Pipeline (P2) — ⏳ CHƯA BẮT ĐẦU<a class="headerlink" href="#phase-4-toi-uu-pipeline-p2-chua-bat-au" title="Permanent link">&para;</a></h3>
+<h4 id="task-41-batch-scene-graph-inference-next">Task 4.1: Batch Scene Graph Inference — ⏳ NEXT<a class="headerlink" href="#task-41-batch-scene-graph-inference-next" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Hành động:
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>- Chạy Qwen2.5-VL-7B-Instruct (4-bit qua bitsandbytes) trên toàn bộ K05_V004
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>- Code: pipeline/scene_graph.py đã sẵn sàng, cần wire vào orchestrator
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>- Ước tính: 427 frames × 3s = ~21 phút (single-batch) → batch 4 = ~5-7 phút
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>- Output: scene_graph: [{s, p, o, confidence}] cho 427 sidecars
+</code></pre></div>
+<h4 id="task-42-incremental-metadata-update-pending">Task 4.2: Incremental Metadata Update — ⏳ PENDING<a class="headerlink" href="#task-42-incremental-metadata-update-pending" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Hành động:
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>- Hiện process_video() skip file đã tồn tại khi overwrite=False
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>- Thêm mode &quot;merge&quot;: đọc sidecar hiện có, chỉ cập nhật fields còn thiếu
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  Ví dụ: sidecar có scene nhưng thiếu caption → chỉ chạy caption_fn
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>- Giảm thời gian khi thêm modality mới (vd: sau khi Qwen wired → chỉ chạy scene_graph pass)
+</code></pre></div>
+<h4 id="task-43-schema-validation-migration-pending">Task 4.3: Schema Validation + Migration — ⏳ PENDING<a class="headerlink" href="#task-43-schema-validation-migration-pending" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Hành động:
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>- Tạo JSON Schema chính thức cho metadata sidecar
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>- Script migrate cũ → schema mới (backward-compatible)
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>- CI test validate tất cả sidecars against schema
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>- Hiện tại backward-compat được thực hiện bằng &quot;only emit when populated&quot; — không có version field
+</code></pre></div>
+<hr />
+<h2 id="4-schema-metadata-hien-tai-post-phase-32">4. Schema Metadata hiện tại (post-Phase 3.2)<a class="headerlink" href="#4-schema-metadata-hien-tai-post-phase-32" title="Permanent link">&para;</a></h2>
+<p><strong>Lưu ý:</strong> KHÔNG có <code>version</code> field ở top-level. Backward-compat được thực hiện bằng cách <strong>chỉ emit optional fields khi populated</strong> (None thì không xuất hiện trong JSON). Đây là chiến lược khác với ban đầu đề xuất (<code>"version": "2.0"</code>).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">&quot;video&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;K05_V004&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">&quot;frame_idx&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nt">&quot;detections&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">      </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Person&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">      </span><span class="nt">&quot;score&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.92</span><span class="p">,</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">      </span><span class="nt">&quot;bbox&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">],</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">      </span><span class="nt">&quot;position&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;top-left&quot;</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">  </span><span class="nt">&quot;scene&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span><span class="nt">&quot;category&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;airport_terminal&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span><span class="nt">&quot;confidence&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.633</span><span class="p">,</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span><span class="nt">&quot;scene_group&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;transportation&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">    </span><span class="nt">&quot;top5&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[[</span><span class="s2">&quot;airport_terminal&quot;</span><span class="p">,</span><span class="w"> </span><span class="mf">0.633</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;indoor&quot;</span><span class="p">,</span><span class="w"> </span><span class="mf">0.185</span><span class="p">]],</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span><span class="nt">&quot;smoothed_category&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;airport_terminal&quot;</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">  </span><span class="nt">&quot;scene_graph&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">    </span><span class="p">{</span><span class="nt">&quot;s&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;person&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;p&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;hold&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;o&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cup&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;confidence&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.9</span><span class="p">}</span>
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="w">  </span><span class="nt">&quot;ocr_text&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="w">    </span><span class="p">{</span><span class="nt">&quot;text&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EXIT&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;bbox&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">50</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">120</span><span class="p">,</span><span class="w"> </span><span class="mi">40</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;confidence&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.95</span><span class="p">}</span>
+<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="w">  </span><span class="nt">&quot;caption&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;A person holding a cup while standing in an airport terminal.&quot;</span>
+<a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>Quy tắc backward-compat:</strong>
+- <code>detections</code>: luôn emit (mặc định <code>[]</code>).
+- <code>scene</code>: <code>null</code> khi chưa chạy, <code>{...}</code> khi đã chạy.
+- <code>scene_graph</code>: <code>[]</code> khi chưa chạy hoặc ran-but-empty.
+- <code>ocr_text</code>: <code>null</code> khi chưa merge, <code>[{...}]</code> sau merge.
+- <code>caption</code>: <code>null</code> khi chưa chạy, <code>""</code> (chuỗi rỗng) khi model thất bại — phân biệt với model chưa chạy.</p>
+<hr />
+<h2 id="5-uu-tien-thuc-hien-updated-effort-table">5. Ưu tiên Thực hiện — Updated Effort Table<a class="headerlink" href="#5-uu-tien-thuc-hien-updated-effort-table" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Task</th>
+<th>Priority</th>
+<th>Effort</th>
+<th>Impact</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.1</td>
+<td>Tích hợp Detection → Metadata</td>
+<td>🔴 P0</td>
+<td>3h</td>
+<td>Rất cao</td>
+<td>✅ DONE</td>
+</tr>
+<tr>
+<td>1.2</td>
+<td>Wire real models vào orchestrator</td>
+<td>🔴 P0</td>
+<td>4h</td>
+<td>Rất cao</td>
+<td>🔄 PARTIAL (Qwen chưa wire)</td>
+</tr>
+<tr>
+<td>1.3</td>
+<td>Chạy lại metadata extraction</td>
+<td>🔴 P0</td>
+<td>1h</td>
+<td>Rất cao</td>
+<td>✅ DONE</td>
+</tr>
+<tr>
+<td>2.1</td>
+<td>De-duplicate Places365 labels</td>
+<td>🟡 P1</td>
+<td>2h</td>
+<td>Trung bình</td>
+<td>✅ DONE</td>
+</tr>
+<tr>
+<td>2.2</td>
+<td>Scene confidence thresholding</td>
+<td>🟡 P1</td>
+<td>3h</td>
+<td>Trung bình</td>
+<td>✅ DONE</td>
+</tr>
+<tr>
+<td>2.3</td>
+<td>Scene temporal smoothing</td>
+<td>🟡 P1</td>
+<td>4h</td>
+<td>Cao</td>
+<td>✅ DONE</td>
+</tr>
+<tr>
+<td>3.1</td>
+<td>Tích hợp OCR</td>
+<td>🟢 P2</td>
+<td>3h</td>
+<td>Cao</td>
+<td>✅ DONE</td>
+</tr>
+<tr>
+<td>3.2</td>
+<td>Image captioning (BLIP base)</td>
+<td>🟢 P2</td>
+<td>6h</td>
+<td>Cao</td>
+<td>✅ DONE (chưa commit)</td>
+</tr>
+<tr>
+<td>3.3</td>
+<td>Temporal context</td>
+<td>🟢 P2</td>
+<td>3h</td>
+<td>Trung bình</td>
+<td>⏳ NEXT</td>
+</tr>
+<tr>
+<td>4.1</td>
+<td>Batch scene graph (Qwen)</td>
+<td>🟢 P2</td>
+<td>4h</td>
+<td>Trung bình</td>
+<td>⏳ PENDING</td>
+</tr>
+<tr>
+<td>4.2</td>
+<td>Incremental update mode</td>
+<td>🟢 P2</td>
+<td>4h</td>
+<td>Cao</td>
+<td>⏳ PENDING</td>
+</tr>
+<tr>
+<td>4.3</td>
+<td>Schema validation + migration</td>
+<td>🟢 P2</td>
+<td>3h</td>
+<td>Trung bình</td>
+<td>⏳ PENDING</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Tổng effort ước tính:</strong> ~40h (~1 tuần full-time).
+<strong>Effort đã hoàn thành:</strong> ~26h (Phase 1 + 2 + 3.1 + 3.2).
+<strong>Effort còn lại:</strong> ~14h (Phase 3.3 + 4).</p>
+<hr />
+<h2 id="6-metrics-thanh-cong-actual-vs-target">6. Metrics Thành công — Actual vs Target<a class="headerlink" href="#6-metrics-thanh-cong-actual-vs-target" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Ban đầu</th>
+<th>Target Phase 1</th>
+<th>Target Final</th>
+<th><strong>Actual (2026-06-29)</strong></th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Metadata coverage</td>
+<td>11.7%</td>
+<td>100%</td>
+<td>100%</td>
+<td><strong>100%</strong> (427/427)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Detection in metadata</td>
+<td>0%</td>
+<td>93%+</td>
+<td>93%+</td>
+<td><strong>88.3%</strong> (377/427)</td>
+<td>🟡 Hơi thấp (50 frames YOLO không detect gì)</td>
+</tr>
+<tr>
+<td>Scene populated</td>
+<td>70%</td>
+<td>100%</td>
+<td>100%</td>
+<td><strong>100%</strong> (427/427)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Scene graph populated</td>
+<td>0%</td>
+<td>80%+</td>
+<td>90%+</td>
+<td><strong>0%</strong> (0/427)</td>
+<td>🔴 CHƯA ĐẠT (cần Phase 4.1)</td>
+</tr>
+<tr>
+<td>Unique smoothed scenes</td>
+<td>82</td>
+<td>&lt;50</td>
+<td>~10</td>
+<td><strong>36</strong></td>
+<td>🟡 Chấp nhận được (TV cuts hợp lý)</td>
+</tr>
+<tr>
+<td>Scene confidence ≥0.5</td>
+<td>30%</td>
+<td>30%</td>
+<td>60%+</td>
+<td><strong>chưa đo lại</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td>OCR integrated</td>
+<td>0%</td>
+<td>0%</td>
+<td>100%</td>
+<td><strong>100%</strong> (3,139 regions)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Caption available</td>
+<td>0%</td>
+<td>0%</td>
+<td>100%</td>
+<td><strong>100%</strong> (avg 46 chars)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Caption empty</td>
+<td>n/a</td>
+<td>n/a</td>
+<td>&lt;5%</td>
+<td><strong>0%</strong> (0 empty)</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-rui-ro-va-bien-phap-updated">7. Rủi ro và Biện pháp — Updated<a class="headerlink" href="#7-rui-ro-va-bien-phap-updated" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Rủi ro</th>
+<th>Mức độ</th>
+<th>Biện pháp</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qwen2.5-VL quá chậm (7B params)</td>
+<td>Trung bình</td>
+<td>4-bit quantize, batch processing, cache results</td>
+<td>⚠️ VẪN CÒN (chưa chạy end-to-end)</td>
+</tr>
+<tr>
+<td>VRAM không đủ cho scene_graph + scene đồng thời</td>
+<td>Cao</td>
+<td>Sequential loading, offload model sau mỗi pass</td>
+<td>✅ Mitigated (code đã sẵn sàng)</td>
+</tr>
+<tr>
+<td>Places365 domain mismatch</td>
+<td>Trung bình</td>
+<td>Fine-tune trên AIC domain hoặc dùng CLIP zero-shot scene</td>
+<td>🟡 Mitigated (smoothing giúp giảm noise)</td>
+</tr>
+<tr>
+<td>Schema migration phá vỡ downstream</td>
+<td>Thấp</td>
+<td>Backward-compatible: chỉ thêm fields, không sửa/xóa</td>
+<td>✅ Mitigated (None khi chưa populate)</td>
+</tr>
+<tr>
+<td>Caption model ITM variant gotcha</td>
+<td>Trung bình</td>
+<td>Documented <code>blip2-itm-vit-g</code> không thể caption (image-only)</td>
+<td>✅ Mitigated (dùng BLIP base, không phải BLIP-2 ITM)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-outstanding-work-can-lam-tiep">8. Outstanding Work — Cần làm tiếp<a class="headerlink" href="#8-outstanding-work-can-lam-tiep" title="Permanent link">&para;</a></h2>
+<h3 id="ngay-lap-tuc-uu-tien-cao">Ngay lập tức (ưu tiên cao)<a class="headerlink" href="#ngay-lap-tuc-uu-tien-cao" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Commit Phase 3.2</strong> — captioning.py, test_captioning.py (mới), metadata.py, cli/main.py, settings.py, constants.py, test_metadata.py, test_cli_metadata.py (sửa).</li>
+<li><strong>Phase 4.1 — Chạy Qwen scene graph end-to-end</strong> trên K05_V004 → đóng P0 cuối cùng.</li>
+</ol>
+<h3 id="sau-o-uu-tien-trung-binh">Sau đó (ưu tiên trung bình)<a class="headerlink" href="#sau-o-uu-tien-trung-binh" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Phase 3.3 — Temporal context</strong> (3h, low complexity).</li>
+<li><strong>3.2.1 — Caption-based text search</strong> integration trong <code>core/search.py</code>.</li>
+</ol>
+<h3 id="deferred-uu-tien-thap">Deferred (ưu tiên thấp)<a class="headerlink" href="#deferred-uu-tien-thap" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>3.2.2 — Vietnamese captions</strong> (cần model riêng, vd VinAI).</li>
+<li><strong>Phase 4.2 — Incremental update mode</strong>.</li>
+<li><strong>Phase 4.3 — JSON Schema validation</strong>.</li>
+</ol>
+<hr />
+<blockquote>
+<p><strong>Bước tiếp theo đề xuất:</strong> Commit Phase 3.2 work (captioning.py + tests + plan update này) trước, sau đó bắt đầu <strong>Phase 4.1</strong> (chạy Qwen scene graph) để đóng P0 cuối cùng. Nếu không có GPU khả dụng ngay, ưu tiên <strong>Phase 3.3</strong> (temporal context) vì không cần GPU.</p>
+</blockquote>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

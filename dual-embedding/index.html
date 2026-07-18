@@ -1,0 +1,1670 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="AI Challenge Video Retrieval System">
+      
+      
+        <meta name="author" content="AIC Team">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Dual-Embedding (EVA-02 + BLIP-2) — Feature Documentation - AIC-26 Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#dual-embedding-eva-02-blip-2-feature-documentation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="AIC-26 Documentation" class="md-header__button md-logo" aria-label="AIC-26 Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AIC-26 Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Dual-Embedding (EVA-02 + BLIP-2) — Feature Documentation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/your-org/aic26" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    aic26
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../index.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/installation.md" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../user-guide/cli.md" class="md-tabs__link">
+          
+  
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../architecture/overview.md" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../api/search.md" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../development/contributing.md" class="md-tabs__link">
+          
+  
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../changelog.md" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="AIC-26 Documentation" class="md-nav__button md-logo" aria-label="AIC-26 Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AIC-26 Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/your-org/aic26" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    aic26
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/quickstart.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/configuration.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/cli.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/api.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/gui.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Desktop GUI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/pipeline.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/overview.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/core.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/data-flow.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/search.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Search
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/trake.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TRAKE
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/export.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/contributing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/testing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/deployment.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-why-two-streams" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Why two streams?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-embedding-extraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Embedding extraction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-faiss-index-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 FAISS index build
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-search-at-query-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 Search at query time
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-important-caveat-blip-2-text-branch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Important caveat: BLIP-2 text branch
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Important caveat: BLIP-2 text branch">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-runtime-detection-and-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Runtime detection and fallback
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-cli-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. CLI surface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-api-gui-wiring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. API &amp; GUI wiring
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-performance-numbers-rtx-2080-ti-11-gb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Performance numbers (RTX 2080 Ti 11 GB)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-files-changed-for-this-feature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Files changed for this feature
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-verification-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Verification commands
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="dual-embedding-eva-02-blip-2-feature-documentation">Dual-Embedding (EVA-02 + BLIP-2) — Feature Documentation<a class="headerlink" href="#dual-embedding-eva-02-blip-2-feature-documentation" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>Status</strong>: Production-ready on RTX 2080 Ti (11 GB VRAM)
+<strong>Paper</strong>: MemoriEase 3.0: A RAG-Enhanced Conversational Lifelog Retrieval System at LSC'25, §3.2
+<strong>Date</strong>: 2026-06-26</p>
+</blockquote>
+<h2 id="1-overview">1. Overview<a class="headerlink" href="#1-overview" title="Permanent link">&para;</a></h2>
+<p>AIC-26 supports a <strong>two-stream embedding pipeline</strong> that combines two complementary vision-language models for retrieval:</p>
+<table>
+<thead>
+<tr>
+<th>Stream</th>
+<th>Model</th>
+<th>Dim</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>EVA-02</td>
+<td><code>hf-hub:timm/eva02_large_patch14_clip_224.merged2b_s4b_b131k</code></td>
+<td>768</td>
+<td>Joint image+text encoder, ~427 M params, supports native text search</td>
+</tr>
+<tr>
+<td>BLIP-2</td>
+<td><code>Salesforce/blip2-itm-vit-g</code> (Q-Former + OPT-2.7b)</td>
+<td>768</td>
+<td>Image-conditioned embedding, ~1.2 B params, ViT-G/E + Q-Former</td>
+</tr>
+</tbody>
+</table>
+<p>Both streams store their vectors in separate FAISS <code>IndexFlatIP</code> indexes. At query time the cosine similarities from each stream are blended with a configurable weighted average (<code>EVA02_SEARCH_WEIGHT</code>, <code>BLIP2_SEARCH_WEIGHT</code>), exactly the recipe from §3.2 of the MemoriEase paper:</p>
+<blockquote>
+<p><em>"We use a weighted average approach to combine the cosine similarity from two embeddings. The weight is chosen by retrieving several queries and tuning the best weight."</em></p>
+</blockquote>
+<p>Default weights (<code>EVA02_SEARCH_WEIGHT=0.6</code>, <code>BLIP2_SEARCH_WEIGHT=0.4</code>) were chosen by the team after offline tuning on the AIC-26 dev split.</p>
+<h2 id="2-why-two-streams">2. Why two streams?<a class="headerlink" href="#2-why-two-streams" title="Permanent link">&para;</a></h2>
+<p>Each model captures different aspects of visual semantics:</p>
+<ul>
+<li><strong>EVA-02</strong> is a CLIP-style contrastive learner. It produces tight, isotropic embeddings that are well-aligned between image and text in the <em>same</em> space — text-to-image search works directly.</li>
+<li><strong>BLIP-2 Q-Former</strong> is an image-conditioned retrieval head trained with image-text matching. It captures fine-grained visual grounding that CLIP often smooths out, at the cost of weaker text alignment.</li>
+</ul>
+<p>Blending them with a weighted average reduces the failure modes of either model used alone.</p>
+<h2 id="3-pipeline">3. Pipeline<a class="headerlink" href="#3-pipeline" title="Permanent link">&para;</a></h2>
+<h3 id="31-embedding-extraction">3.1 Embedding extraction<a class="headerlink" href="#31-embedding-extraction" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>aic26<span class="w"> </span>pipeline<span class="w"> </span>extract-dual-embeddings<span class="w"> </span>-i<span class="w"> </span>data/keyframes<span class="w"> </span>-b<span class="w"> </span><span class="m">4</span>
+</code></pre></div>
+<p>Loops over each video folder and writes two .npy files per video (lockstep row order, L2-normalized):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>data/embeddings/{video}.npy        # shape (N, 768), EVA-02 image features
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>data/blip2_embeddings/{video}.npy  # shape (N, 768), BLIP-2 Q-Former features
+</code></pre></div>
+<p>Resumable: a folder is skipped if <strong>both</strong> files already exist. On RTX 2080 Ti (batch=4), throughput is ~25–30 s/folder for the full 55-folder × 12,609-image corpus.</p>
+<h3 id="32-faiss-index-build">3.2 FAISS index build<a class="headerlink" href="#32-faiss-index-build" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>aic26<span class="w"> </span>pipeline<span class="w"> </span>build-dual-index
+</code></pre></div>
+<p>Stacks the per-video .npy files from both streams into single <code>(12609, 768)</code> arrays, builds two <code>IndexFlatIP</code> indexes, and pickles them together with image/video metadata:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="s1">&#39;eva02_index&#39;</span><span class="p">:</span> <span class="n">IndexFlatIP</span><span class="p">(</span><span class="mi">768</span><span class="p">),</span>    <span class="c1"># 12 609 vectors</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="s1">&#39;blip2_index&#39;</span><span class="p">:</span> <span class="n">IndexFlatIP</span><span class="p">(</span><span class="mi">768</span><span class="p">),</span>    <span class="c1"># 12 609 vectors</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="s1">&#39;embeddings&#39;</span><span class="p">:</span>  <span class="p">(</span><span class="mi">12609</span><span class="p">,</span> <span class="mi">768</span><span class="p">)</span> <span class="n">float32</span><span class="p">,</span>  <span class="c1"># legacy single-stream copy</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="s1">&#39;image_paths&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;K05_V001_converted/000000.jpg&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="s1">&#39;video_names&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;K05_V001_converted&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="s1">&#39;weight_eva02&#39;</span><span class="p">:</span> <span class="mf">0.6</span><span class="p">,</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="s1">&#39;weight_blip2&#39;</span><span class="p">:</span> <span class="mf">0.4</span><span class="p">,</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="s1">&#39;dual&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    <span class="c1"># ... other keys preserved for compatibility</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="p">}</span>
+</code></pre></div>
+<p>Output: <code>data/faiss_db.pkl</code> (~112 MB).</p>
+<h3 id="33-search-at-query-time">3.3 Search at query time<a class="headerlink" href="#33-search-at-query-time" title="Permanent link">&para;</a></h3>
+<p>The flow is:</p>
+<ol>
+<li>Encode the query with EVA-02 (image and text both supported).</li>
+<li>Encode the query with BLIP-2 (image only; see §4 for text fallback).</li>
+<li>Pull <code>top_k * DUAL_SEARCH_POOL_MULTIPLIER</code> (default <code>5×</code>) candidate rows from <strong>each</strong> stream's FAISS index.</li>
+<li>Weighted blend: <code>score[i] = w_eva · sim_eva[i] + w_blip2 · sim_blip2[i]</code>.</li>
+<li>Take the top-<code>k</code> from the blended pool.</li>
+</ol>
+<p>The wider pool per stream is deliberate: if we only pulled <code>top_k</code> from each stream and blended, an image that ranks 11th on EVA-02 but 1st on BLIP-2 could be missed. The paper explicitly recommends this candidate-pool-then-blend pattern.</p>
+<h2 id="4-important-caveat-blip-2-text-branch">4. Important caveat: BLIP-2 text branch<a class="headerlink" href="#4-important-caveat-blip-2-text-branch" title="Permanent link">&para;</a></h2>
+<p>The <code>Salesforce/blip2-itm-vit-g</code> checkpoint's Q-Former is <strong>image-only</strong>:</p>
+<ul>
+<li><code>get_qformer_features(pixel_values)</code> accepts no text input.</li>
+<li><code>use_qformer_text_input</code> is <strong>not exposed</strong> on <code>qformer_config</code> for this variant (only on the OPT <code>text_config</code>, which doesn't help).</li>
+<li><code>get_text_features(input_ids, attention_mask)</code> exists but returns the <strong>language-model embedding</strong> (OPT/Flan-T5 side), not the Q-Former embedding — a different space, not directly comparable to image embeddings.</li>
+</ul>
+<p>We measured the empirical effect: feeding 8 distinct text queries through the BLIP-2 path (Q-Former + 224×224 black image) produced <strong>8 identical 768-d vectors</strong> (pairwise cosine similarity = 1.0000). Adding this constant vector to every row of the EVA-02 stream would dominate the blend and collapse all rankings.</p>
+<h3 id="41-runtime-detection-and-fallback">4.1 Runtime detection and fallback<a class="headerlink" href="#41-runtime-detection-and-fallback" title="Permanent link">&para;</a></h3>
+<p>To avoid this failure mode without requiring a code-level branch for every query type, <code>SearchEngine._blip2_text_query_usable()</code> runs a two-query probe at first use:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">a</span> <span class="o">=</span> <span class="n">encode_text_blip2</span><span class="p">(</span><span class="s2">&quot;probe query alpha&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">b</span> <span class="o">=</span> <span class="n">encode_text_blip2</span><span class="p">(</span><span class="s2">&quot;probe query beta distinct words&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">usable</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">a</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">1e-3</span><span class="p">)</span>
+</code></pre></div>
+<p>If <code>usable</code> is <code>False</code>, <code>search_text</code> and <code>search_text_all</code> <strong>skip</strong> the dual blend and use the single-stream EVA-02 path. <code>search_image</code> is <strong>unaffected</strong> — the BLIP-2 image branch is correctly conditioned on the real query image.</p>
+<p>If the BLIP-2 checkpoint is later swapped for a variant that accepts text input (e.g. a captioning checkpoint with <code>use_qformer_text_input=True</code>), the probe will start returning <code>True</code> and the dual blend activates for text queries automatically — no further code change required.</p>
+<h2 id="5-configuration">5. Configuration<a class="headerlink" href="#5-configuration" title="Permanent link">&para;</a></h2>
+<p>All knobs live in <code>src/aic26/config/settings.py</code> and read from <code>.env</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>USE_DUAL_EMBEDDING=true            # Master switch — when false, single-stream path
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>EVA02_SEARCH_WEIGHT=0.6            # Weight for EVA-02 cosine similarity in blend
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>BLIP2_SEARCH_WEIGHT=0.4            # Weight for BLIP-2 cosine similarity in blend
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>DUAL_SEARCH_POOL_MULTIPLIER=5      # top_k * this pulled from each stream before blending
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>BLIP2_MODEL_NAME=Salesforce/blip2-itm-vit-g
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>BLIP2_EMBEDDING_DIR=data/blip2_embeddings
+</code></pre></div>
+<p><code>BLIP2_EMBEDDING_DIM=768</code> is a <code>Final</code> constant in <code>config/constants.py</code>.</p>
+<p><code>ensure_directories()</code> creates <code>data/blip2_embeddings/</code> on import so the dual path never fails on missing-directory errors.</p>
+<h2 id="6-cli-surface">6. CLI surface<a class="headerlink" href="#6-cli-surface" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Offline</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>aic26<span class="w"> </span>pipeline<span class="w"> </span>extract-dual-embeddings<span class="w"> </span>-i<span class="w"> </span>data/keyframes<span class="w"> </span>-b<span class="w"> </span><span class="m">4</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>aic26<span class="w"> </span>pipeline<span class="w"> </span>build-dual-index
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># Online (text, EVA-02 only on this checkpoint)</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>aic26<span class="w"> </span>search<span class="w"> </span>text<span class="w"> </span>-q<span class="w"> </span><span class="s2">&quot;a red car driving on a highway&quot;</span><span class="w"> </span>-k<span class="w"> </span><span class="m">10</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="c1"># API (same logic)</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:5000/api/search_text<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;query&quot;:&quot;a person riding a bicycle&quot;, &quot;top_k&quot;:10}&#39;</span>
+</code></pre></div>
+<h2 id="7-api-gui-wiring">7. API &amp; GUI wiring<a class="headerlink" href="#7-api-gui-wiring" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>EVA02ImageRetrieval(blip2_dir=...)</code> (<code>core/retrieval.py</code>) is the single facade. Setting <code>blip2_dir=None</code> falls back to single-stream behavior automatically.</li>
+<li><code>api/server.py::_init_retriever</code> reads <code>settings.blip2_embedding_dir</code> and passes it through. The retriever is still lazy-loaded on first request — models do not sit in VRAM until needed.</li>
+<li>Both Flask routes and the CustomTkinter GUI go through the facade, so no per-interface changes were needed.</li>
+<li><code>data/faiss_db.pkl</code> is backward-compatible: old single-stream pickles still load — the retriever simply skips BLIP-2 and logs that single-stream mode is active.</li>
+</ul>
+<h2 id="8-performance-numbers-rtx-2080-ti-11-gb">8. Performance numbers (RTX 2080 Ti 11 GB)<a class="headerlink" href="#8-performance-numbers-rtx-2080-ti-11-gb" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Throughput</th>
+<th>Wall time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dual extraction (12,609 imgs, batch=4)</td>
+<td>~8 imgs/s</td>
+<td>25 min</td>
+</tr>
+<tr>
+<td>Dual index build</td>
+<td>n/a</td>
+<td>&lt;1 s</td>
+</tr>
+<tr>
+<td>Search text (single-stream fallback)</td>
+<td>—</td>
+<td>~60 ms / query</td>
+</tr>
+<tr>
+<td>Search image (full dual blend, top-25 pool)</td>
+<td>—</td>
+<td>~200 ms / query</td>
+</tr>
+</tbody>
+</table>
+<p>Peak VRAM with both models resident (EVA-02 + BLIP-2): <strong>~9.6 GB</strong>. Set <code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code> to reduce fragmentation if you see OOM on a tighter budget.</p>
+<h2 id="9-files-changed-for-this-feature">9. Files changed for this feature<a class="headerlink" href="#9-files-changed-for-this-feature" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>src/aic26/config/settings.py</code> — added 5 fields, <code>ensure_directories()</code></li>
+<li><code>src/aic26/config/constants.py</code> — added <code>BLIP2_EMBEDDING_DIM</code></li>
+<li><code>src/aic26/core/models.py</code> — <code>_load_blip2</code>, <code>_pool_blip2_query</code>, <code>encode_image_blip2</code>, <code>encode_text_blip2</code>, <code>encode_images_blip2_batch</code></li>
+<li><code>src/aic26/pipeline/embedding.py</code> — <code>process_images_dual</code>, <code>_embed_image_folder_dual</code>, <code>_flush_dual_batch</code></li>
+<li><code>src/aic26/pipeline/indexer.py</code> — <code>build_dual</code>, <code>_load_with_paths</code></li>
+<li><code>src/aic26/core/embeddings.py</code> — <code>EmbeddingIndex(blip2_dir=…)</code>, <code>encode_text_blip2</code>, <code>encode_image_blip2</code>, <code>get_embedding_blip2</code></li>
+<li><code>src/aic26/core/search.py</code> — <code>SearchEngine(weight_eva02, weight_blip2, pool_multiplier)</code>, <code>_dual_topk_indices</code>, <code>_blip2_text_query_usable</code> probe</li>
+<li><code>src/aic26/core/retrieval.py</code> — facade passes <code>blip2_dir</code> and weights through</li>
+<li><code>src/aic26/api/server.py</code> — passes <code>blip2_dir</code> to retriever</li>
+<li><code>src/aic26/cli/main.py</code> — <code>pipeline extract-dual-embeddings</code>, <code>pipeline build-dual-index</code></li>
+<li><code>src/aic26/pipeline/orchestrator.py</code> — routes Step 4 (embeddings) and Step 5 (index) to dual path when <code>use_dual_embedding=True</code></li>
+</ul>
+<h2 id="10-verification-commands">10. Verification commands<a class="headerlink" href="#10-verification-commands" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Quick sanity (assumes data/ already populated)</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>.venv/bin/python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="s2">import sys; sys.path.insert(0, &#39;src&#39;)</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="s2">from aic26.config import settings</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="s2">print(&#39;dual:&#39;, settings.use_dual_embedding)</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="s2">print(&#39;weights:&#39;, settings.eva02_search_weight, settings.blip2_search_weight)</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="s2">print(&#39;blip2 dir:&#39;, settings.blip2_embedding_dir)</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="s2">&quot;</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>ls<span class="w"> </span>data/embeddings/*.npy<span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l<span class="w">            </span><span class="c1"># expect 31</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>ls<span class="w"> </span>data/blip2_embeddings/*.npy<span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l<span class="w">      </span><span class="c1"># expect 31</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>ls<span class="w"> </span>-lh<span class="w"> </span>data/faiss_db.pkl<span class="w">                    </span><span class="c1"># ~112 MB</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="c1"># End-to-end via API (server must be running)</span>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:5000/api/search_text<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;query&quot;:&quot;a red car driving on a highway&quot;,&quot;top_k&quot;:5}&#39;</span>
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
