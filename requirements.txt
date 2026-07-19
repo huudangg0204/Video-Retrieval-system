@@ -40,7 +40,7 @@ rank-bm25>=0.2.2          # BM25 text search cho caption index
 #   pip install paddleocr>=2.9.0
 #
 # GPU (CUDA 11.x):
-#   pip install paddlepaddle-gpu==3.0.0 -f https://www.paddlepaddle.org.cn/whl/windows/mkl/avx/stable.html
+#   pip install paddlepaddle-gpu==2.6.2
 #   pip install paddleocr>=2.9.0
-paddlepaddle>=3.0.0
-paddleocr>=3.0.0
+paddlepaddle-gpu>=2.6.2
+paddleocr>=2.9.0

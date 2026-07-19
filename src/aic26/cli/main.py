@@ -247,7 +247,7 @@ def extract_ocr(
         parallel_mode=parallel_mode,
     )
 
-    click.echo("\n✅ OCR extraction complete!")
+    click.echo("\n[SUCCESS] OCR extraction complete!")
     click.echo(f"   Images processed: {len(df)}")
     click.echo(f"   Output: {output or settings.ocr_output_path}")
 

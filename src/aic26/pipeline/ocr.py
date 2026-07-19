@@ -72,7 +72,7 @@ def _worker_init(min_conf: float):
         use_textline_orientation=False,
         text_det_limit_side_len=960,
         text_recognition_batch_size=32,
-        device="cpu",
+        device="gpu",
         enable_mkldnn=False,
     )
 
@@ -96,21 +96,20 @@ def _worker_process_image(args):
             return None
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
 
-        results = list(_global_ocr.predict(rgb))
-        if not results:
+        results = _global_ocr.ocr(rgb, cls=True)
+        if not results or not results[0]:
             return None
 
         items = []
-        for result in results:
-            boxes  = result.get("dt_polys",   [])
-            texts  = result.get("rec_texts",  [])
-            scores = result.get("rec_scores", [])
-            for box, txt, conf in zip(boxes, texts, scores):
-                c = float(conf)
-                if c < min_conf:
-                    continue
-                box_list = [[float(pt[0]), float(pt[1])] for pt in box]
-                items.append({"text": str(txt), "conf": c, "box": box_list})
+        for line in results[0]:
+            box = line[0]
+            txt = line[1][0]
+            conf = line[1][1]
+            c = float(conf)
+            if c < min_conf:
+                continue
+            box_list = [[float(pt[0]), float(pt[1])] for pt in box]
+            items.append({"text": str(txt), "conf": c, "box": box_list})
 
         if not items:
             return None
@@ -382,41 +381,45 @@ class OCRExtractor:
             f"/ {len(all_image_tasks)} tổng | {actual_workers} worker(s)"
         )
 
-        ctx = multiprocessing.get_context("spawn")
         all_rows = []
         buffer = []
 
-        with ctx.Pool(
-            processes=actual_workers,
-            initializer=_worker_init,
-            initargs=(min_conf,),
-        ) as pool:
-            try:
-                for row in tqdm(
-                    pool.imap_unordered(_worker_process_image, pending_tasks),
-                    total=len(pending_tasks),
-                    desc="OCR images",
-                    position=0,
-                    leave=True,
-                    dynamic_ncols=True,
-                ):
-                    if row is None:
-                        continue
+        try:
+            if actual_workers == 1:
+                _worker_init(min_conf)
+                iterator = (_worker_process_image(task) for task in pending_tasks)
+            else:
+                ctx = multiprocessing.get_context("spawn")
+                pool = ctx.Pool(processes=actual_workers, initializer=_worker_init, initargs=(min_conf,))
+                iterator = pool.imap_unordered(_worker_process_image, pending_tasks)
+
+            for row in tqdm(
+                iterator,
+                total=len(pending_tasks),
+                desc="OCR images",
+                position=0,
+                leave=True,
+                dynamic_ncols=True,
+            ):
+                if row is None:
+                    continue
     
-                    all_rows.append(row)
-                    buffer.append(row)
+                all_rows.append(row)
+                buffer.append(row)
     
-                    # Ghi CSV định kỳ để resumable
-                    if len(buffer) >= checkpoint_per_image:
-                        try:
-                            buf_df = pd.DataFrame(buffer)
-                            write_header = not out_csv_path.exists()
-                            buf_df.to_csv(output_csv, mode="a", header=write_header, index=False, encoding="utf-8")
-                            buffer.clear()
-                        except Exception as e:
-                            logger.warning(f"Lỗi ghi CSV tạm: {e}")
-            except KeyboardInterrupt:
-                logger.warning("Đã hủy quá trình OCR (Ctrl+C). Đang đóng worker an toàn...")
+                # Ghi CSV định kỳ để resumable
+                if len(buffer) >= checkpoint_per_image:
+                    try:
+                        buf_df = pd.DataFrame(buffer)
+                        write_header = not out_csv_path.exists()
+                        buf_df.to_csv(output_csv, mode="a", header=write_header, index=False, encoding="utf-8")
+                        buffer.clear()
+                    except Exception as e:
+                        logger.warning(f"Lỗi ghi CSV tạm: {e}")
+        except KeyboardInterrupt:
+            logger.warning("Đã hủy quá trình OCR (Ctrl+C). Đang đóng worker an toàn...")
+        finally:
+            if actual_workers > 1 and 'pool' in locals():
                 pool.terminate()
                 pool.join()
 
@@ -483,38 +486,42 @@ class OCRExtractor:
         logger.info(f"[Folder-parallel] {len(folders)} folder(s) | {actual_workers} worker(s)")
 
         all_rows = []
-        ctx = multiprocessing.get_context("spawn")
 
-        with ctx.Pool(
-            processes=actual_workers,
-            initializer=_worker_init,
-            initargs=(min_conf,),
-        ) as pool:
-            try:
-                for rows_batch in tqdm(
-                    pool.imap_unordered(_worker_process_folder, tasks),
-                    total=len(tasks),
-                    desc="OCR folders",
-                    position=0,
-                    leave=True,
-                    dynamic_ncols=True,
-                ):
-                    if not rows_batch:
-                        continue
-                    valid_rows = [r for r in rows_batch if "path" in r]
-                    if not valid_rows:
-                        continue
+        try:
+            if actual_workers == 1:
+                _worker_init(min_conf)
+                iterator = (_worker_process_folder(task) for task in tasks)
+            else:
+                ctx = multiprocessing.get_context("spawn")
+                pool = ctx.Pool(processes=actual_workers, initializer=_worker_init, initargs=(min_conf,))
+                iterator = pool.imap_unordered(_worker_process_folder, tasks)
+
+            for rows_batch in tqdm(
+                iterator,
+                total=len(tasks),
+                desc="OCR folders",
+                position=0,
+                leave=True,
+                dynamic_ncols=True,
+            ):
+                if not rows_batch:
+                    continue
+                valid_rows = [r for r in rows_batch if "path" in r]
+                if not valid_rows:
+                    continue
     
-                    all_rows.extend(valid_rows)
+                all_rows.extend(valid_rows)
     
-                    try:
-                        folder_df = pd.DataFrame(valid_rows)
-                        write_header = not out_csv_path.exists()
-                        folder_df.to_csv(output_csv, mode="a", header=write_header, index=False, encoding="utf-8")
-                    except Exception as e:
-                        logger.warning(f"Lỗi append CSV: {e}")
-            except KeyboardInterrupt:
-                logger.warning("Đã hủy quá trình OCR (Ctrl+C). Đang đóng worker an toàn...")
+                try:
+                    folder_df = pd.DataFrame(valid_rows)
+                    write_header = not out_csv_path.exists()
+                    folder_df.to_csv(output_csv, mode="a", header=write_header, index=False, encoding="utf-8")
+                except Exception as e:
+                    logger.warning(f"Lỗi append CSV: {e}")
+        except KeyboardInterrupt:
+            logger.warning("Đã hủy quá trình OCR (Ctrl+C). Đang đóng worker an toàn...")
+        finally:
+            if actual_workers > 1 and 'pool' in locals():
                 pool.terminate()
                 pool.join()
 
