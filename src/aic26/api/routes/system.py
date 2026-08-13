@@ -5,6 +5,7 @@ Endpoints for system statistics, stored queries, and grouping.
 """
 from __future__ import annotations
 
+import os
 import threading
 from flask import Blueprint, request, jsonify
 
@@ -123,9 +124,31 @@ def build_faiss_index():
     def _run():
         global _faiss_build_state
         try:
+            from aic26.config import settings
             from aic26.pipeline.indexer import IndexBuilder
             builder = IndexBuilder()
-            result = builder.build()
+
+            # Rebuild the SAME index shape the live retriever is configured
+            # for. Calling build() (single-stream) while
+            # use_dual_embedding=true would silently drop the CLIP-32
+            # stream from search until someone reruns the dual build by hand.
+            clip32_dir = str(getattr(settings, "clip32_embedding_dir", ""))
+            use_dual = bool(getattr(settings, "use_dual_embedding", False))
+
+            if use_dual and clip32_dir and os.path.isdir(clip32_dir) and os.listdir(clip32_dir):
+                logger.info("Dual-stream enabled: building EVA-02 + CLIP-32 index")
+                result = builder.build_dual(
+                    eva02_dir=str(settings.embedding_dir),
+                    clip32_dir=clip32_dir,
+                )
+            else:
+                if use_dual:
+                    logger.warning(
+                        f"[INDEX-BUILD] use_dual_embedding=true but clip32_embedding_dir "
+                        f"({clip32_dir}) missing/empty — built single-stream EVA-02 index instead"
+                    )
+                result = builder.build()
+
             with _faiss_build_lock:
                 _faiss_build_state = {
                     "status": "done",
@@ -154,4 +177,3 @@ def build_faiss_index_status():
     """Return current status of the FAISS build job."""
     with _faiss_build_lock:
         return jsonify(dict(_faiss_build_state))
-

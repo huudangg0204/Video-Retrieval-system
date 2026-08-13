@@ -50,7 +50,12 @@ class ObjectDetector:
             config = global_settings
 
         self.config = config
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        requested = (getattr(config, "device", "cuda") or "cuda").lower()
+        if requested.startswith("cuda") and not torch.cuda.is_available():
+            logger.warning(f"[DEVICE] config.device={requested!r} but CUDA unavailable — using cpu")
+            self.device = "cpu"
+        else:
+            self.device = requested
 
         # Load mappings
         self.mid_to_entity, self.entity_to_mid = self._load_mapping()

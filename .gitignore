@@ -34,7 +34,7 @@ paper/
 Data
 # Models
 *.pt
-*.pthbỏ
+*.pth
 *.pkl
 *.onnx
 models/

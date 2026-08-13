@@ -25,8 +25,8 @@ classifiers = [
 ]
 
 dependencies = [
-    "torch>=2.0.0",
-    "torchvision>=0.15.0",
+    "torch>=2.1.0",
+    "torchvision>=0.16.0",
     "opencv-python>=4.8.0",
     "pillow>=10.0.0",
     "numpy>=1.24.0",
@@ -34,8 +34,10 @@ dependencies = [
     "faiss-cpu>=1.7.4",
     "flask>=3.0.0",
     "flask-cors>=4.0.0",
-    "open-clip-torch>=2.20.0",
-    "transformers>=4.30.0",
+    "gunicorn>=21.0.0",
+    "open-clip-torch>=2.24.0",
+    "timm>=0.9.0",
+    "transformers>=4.40.0",
     "ultralytics>=8.4.0",
     "customtkinter>=5.2.0",
     "matplotlib>=3.7.0",
@@ -45,7 +47,14 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "loguru>=0.7.0",
     "click>=8.1.0",
-    "easyocr>=1.7.0",
+    "rank-bm25>=0.2.2",
+    # PaddleOCR is the OCR engine actually used by pipeline/ocr.py and
+    # pipeline/ocr_gpu.py (constants.OCR_LANGUAGES uses its language codes).
+    # paddlepaddle itself is CUDA/CPU-specific like torch — install it
+    # separately first, see requirements.txt for the exact commands:
+    #   CPU: pip install paddlepaddle==3.0.0
+    #   GPU: pip install paddlepaddle-gpu==2.6.2
+    "paddleocr>=2.9.0",
 ]
 
 [project.optional-dependencies]

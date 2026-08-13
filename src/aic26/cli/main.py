@@ -910,27 +910,6 @@ def serve_group():
 @click.option("--debug/--no-debug", default=None, help="Enable debug mode")
 def serve_api(host: str | None, port: int | None, debug: bool | None) -> None:
     """Start the REST API server."""
-    from loguru import logger
-
-    host = host or settings.host
-    port = port or settings.port
-    debug = debug if debug is not None else settings.debug
-
-    logger.info(f"Starting API server on {host}:{port}")
-    logger.warning("API server will be fully migrated in Phase 4")
-    logger.info("For now, use the original sever.py script")
-
-    click.echo("⚠️  API server coming in Phase 4.")
-    click.echo(f"   Would start on http://{host}:{port}")
-    click.echo("   For now: python sever.py")
-
-
-@serve_group.command(name="api")
-@click.option("--host", "-h", default=None, help="Host address")
-@click.option("--port", "-p", type=int, default=None, help="Port number")
-@click.option("--debug/--no-debug", default=None, help="Enable debug mode")
-def serve_api(host: str | None, port: int | None, debug: bool | None) -> None:
-    """Start the REST API server."""
     from aic26.api.server import create_app
 
     host = host or settings.host

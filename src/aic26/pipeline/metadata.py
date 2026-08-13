@@ -476,7 +476,14 @@ def load_ocr_lookup(csv_path: Path) -> OcrLookup:
     # loop if pandas isn't installed (keeps tests lightweight).
     try:
         import pandas as pd
-        df = pd.read_csv(csv_path)
+        try:
+            df = pd.read_csv(csv_path)
+        except pd.errors.EmptyDataError:
+            # Defensive fallback only — ocr.py now always writes a valid
+            # header even when 0 frames had text, so this should only fire
+            # on CSVs left over from before that fix.
+            logger.warning(f"[OCR-MERGE] {csv_path.name}: unparseable/legacy empty CSV — 0 rows merged")
+            return lookup
         rows = df.to_dict("records")
     except ImportError:
         import csv as _csv
@@ -1048,10 +1055,11 @@ def build_metadata_callables(
             # Lazy-load the model on first call to avoid VRAM allocation
             # when the scene-graph step is skipped via --skip-scene-graph.
             _qwen_model = None
+            _qwen_processor = None
             _model_name = scene_graph_model_name
 
             def _sg_fn(image: Image.Image) -> list[dict]:
-                nonlocal _qwen_model
+                nonlocal _qwen_model, _qwen_processor
                 if _qwen_model is None:
                     logger.info(
                         "Lazy-loading Qwen scene-graph model: %s", _model_name
@@ -1064,6 +1072,10 @@ def build_metadata_callables(
                             torch_dtype="auto",
                         )
                         _qwen_model = _qwen_model_obj
+                        # AutoProcessor builds the chat-templated prompt and
+                        # turns (image, text) into model inputs — the model
+                        # object itself has no .chat() method, only .generate().
+                        _qwen_processor = AutoProcessor.from_pretrained(_model_name)
                     except Exception as exc:  # noqa: BLE001
                         logger.warning(
                             "Failed to load Qwen model %s: %s — scene graph disabled",
@@ -1075,6 +1087,7 @@ def build_metadata_callables(
                     triples = extract_scene_graph(
                         image,
                         model=_qwen_model,
+                        processor=_qwen_processor,
                         max_triples=scene_graph_max_triples,
                         max_new_tokens=scene_graph_max_new_tokens,
                     )

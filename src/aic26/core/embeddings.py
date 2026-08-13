@@ -196,14 +196,24 @@ class EmbeddingIndex:
                 return None
             
             embs = np.load(emb_path)
-            if frame_idx >= len(embs):
+            # Keyframe filenames are 1-indexed ("001.jpg" = first frame —
+            # see pipeline/keyframe.py's saved_count starting at 1), but
+            # the stacked .npy array is 0-indexed (row 0 = first frame).
+            # The fast path above (_path_to_idx) already accounts for
+            # this via enumerate(); this fallback previously used the
+            # raw parsed filename number directly as the array index,
+            # off by one — and out of bounds entirely for the last frame
+            # of any video (e.g. "008.jpg" -> parsed 8, but valid indices
+            # for an 8-row array are 0-7).
+            array_idx = frame_idx - 1
+            if array_idx < 0 or array_idx >= len(embs):
                 logger.warning(
-                    f"Frame index {frame_idx} out of bounds for {video_name} "
-                    f"({len(embs)} embeddings)"
+                    f"[EMBED] frame {frame_idx} (array idx {array_idx}) out of "
+                    f"bounds for {video_name} ({len(embs)} embeddings)"
                 )
                 return None
             
-            return embs[frame_idx : frame_idx + 1].astype(np.float32)
+            return embs[array_idx : array_idx + 1].astype(np.float32)
             
         except Exception as e:
             logger.error(f"Error getting embedding for {image_path}: {e}")

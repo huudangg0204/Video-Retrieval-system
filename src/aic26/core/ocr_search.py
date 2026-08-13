@@ -240,7 +240,16 @@ class OCRSearchEngine:
                 on_bad_lines="skip",
             )
 
-            # Bỏ dòng đầu nếu là header chữ (khi file có header)
+            # Bỏ dòng đầu nếu là header chữ (khi file có header) — chỉ
+            # kiểm tra khi df thực sự có ít nhất 1 dòng, tránh IndexError
+            # trên file 0 byte (có thể sót lại từ trước khi ocr.py được
+            # sửa để luôn ghi header hợp lệ).
+            if len(df) == 0:
+                logger.warning(f"[OCR-SEARCH] {self._csv_path.name}: empty file, no OCR data yet")
+                self._df = df
+                self._mtime = mtime
+                return self._df
+
             if df.iloc[0]["video"] == "video":
                 df = df.iloc[1:].reset_index(drop=True)
 
@@ -248,7 +257,7 @@ class OCRSearchEngine:
             self._mtime = mtime
             logger.debug(f"OCR CSV loaded: {len(df)} rows from {self._csv_path}")
         except Exception as e:
-            logger.error(f"Failed to load OCR CSV: {e}")
+            logger.error(f"[OCR-SEARCH] Failed to load {self._csv_path.name}: {e}")
             self._df = None
 
         return self._df

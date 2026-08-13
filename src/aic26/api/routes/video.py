@@ -103,7 +103,23 @@ def serve_image():
         rel = decoded.lstrip('/')
         abs_path = os.path.normpath(os.path.join(_PROJECT_ROOT, rel))
 
+    # ── Security: reject any path that escapes the project root ──────────
+    # os.path.normpath alone does not stop ".." segments from resolving
+    # outside _PROJECT_ROOT (e.g. "../../../../etc/passwd"), and an
+    # absolute path can point anywhere on disk. Only serve files that
+    # resolve to somewhere under the project root.
+    real_path = os.path.realpath(abs_path)
+    real_root = os.path.realpath(_PROJECT_ROOT)
+    try:
+        inside_root = os.path.commonpath([real_path, real_root]) == real_root
+    except ValueError:
+        # Different drives on Windows (e.g. requested path on D:, root on E:)
+        inside_root = False
+    if not inside_root:
+        logger.warning(f"[SECURITY] /image blocked (outside project root): requested={raw!r} resolved={real_path}")
+        return abort(403)
+
     logger.info(f"Requested: {abs_path}, exists: {os.path.exists(abs_path)}")
     if not os.path.exists(abs_path):
         return abort(404)
-    return send_file(abs_path)
+    return send_file(abs_path)

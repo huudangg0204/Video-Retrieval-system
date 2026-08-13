@@ -440,9 +440,20 @@ class OCRExtractor:
             except Exception:
                 final_rows = all_rows
 
-        df = pd.DataFrame(final_rows)
+        # NOTE: pd.DataFrame([]).to_csv() used to write a file with ZERO
+        # columns (no header at all) when there were no rows — pandas.
+        # read_csv() later chokes on that with EmptyDataError. Always pass
+        # `columns=` explicitly so a 0-row result still writes a valid,
+        # parseable header. This also keeps the file as a traceable record
+        # that OCR ran and genuinely found no text, rather than silently
+        # producing nothing.
+        ocr_columns = ["video", "file", "path", "text_full", "num_boxes",
+                       "conf_mean", "boxes", "texts", "confs"]
+        df = pd.DataFrame(final_rows, columns=ocr_columns if not final_rows else None)
         df.to_csv(output_csv, index=False, encoding="utf-8")
 
+        if len(df) == 0:
+            logger.warning(f"[OCR] {input_dir}: 0/{len(all_image_tasks)} frames had text — wrote header-only CSV to {output_csv}")
         logger.info(f"OCR complete: {len(all_rows)} ảnh mới → tổng {len(df)} ảnh → {output_csv}")
         return df
 

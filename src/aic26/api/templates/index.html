@@ -337,9 +337,9 @@
       <textarea id="ocrQuery" rows="3" class="aic-textarea" placeholder="Text to find in frames…"></textarea>
     </div>
     <select id="ocrMode" class="aic-select">
-      <option value="contains">Contains (default)</option>
-      <option value="any_word">Any Word</option>
+      <option value="substring">Contains (default)</option>
       <option value="exact">Exact Match</option>
+      <option value="regex">Regex</option>
     </select>
     <div class="flex items-center gap-2 text-xs text-gray-400">
       <input type="checkbox" id="ocrCaseInsensitive" checked class="accent-indigo-500">

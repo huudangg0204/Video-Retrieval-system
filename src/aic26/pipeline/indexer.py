@@ -84,7 +84,7 @@ class IndexBuilder:
         if not clip32_path.exists():
             raise FileNotFoundError(f"CLIP-32 embedding dir not found: {clip32_path}")
 
-        output_path = output_path or str(self.config.db_path)
+        output_path = output_path or str(self.config.faiss_index_path)
         ensure_dir(os.path.dirname(output_path))
 
         logger.info(f"Loading EVA-02 embeddings from {eva02_path}...")
@@ -237,7 +237,7 @@ class IndexBuilder:
         if not embedding_path.exists():
             raise FileNotFoundError(f"Embedding directory not found: {embedding_path}")
         
-        output_path = output_path or str(self.config.db_path)
+        output_path = output_path or str(self.config.faiss_index_path)
         output_dir = os.path.dirname(output_path)
         ensure_dir(output_dir)
         

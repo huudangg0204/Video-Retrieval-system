@@ -35,6 +35,7 @@ from aic26.core.embeddings import EmbeddingIndex
 from aic26.core.models import ModelRegistry
 from aic26.core.database import VectorDatabase
 from aic26.core.bm25 import BM25CaptionIndex
+from aic26.core.translation import get_translation_engine
 
 
 class SearchEngine:
@@ -87,6 +88,12 @@ class SearchEngine:
         if self.weight_bm25 > 0:
             self.bm25_index = BM25CaptionIndex(image_paths=self.index.image_paths)
 
+        # Vi -> En translation. EVA-02 / CLIP-32 / BM25 captions are all
+        # English-trained, so an untranslated Vietnamese query silently
+        # degrades to near-random similarity. See core/translation.py for
+        # backend details (Gemini API with local envit5 fallback, cached).
+        self.translator = get_translation_engine()
+
         streams = ["eva02"]
         if self.index.is_dual:
             streams.append("clip32")
@@ -132,15 +139,23 @@ class SearchEngine:
 
         logger.debug(f"Searching: '{query[:80]}...' (top_k={top_k})")
 
+        # Translate Vietnamese -> English. No-op (cached, near-instant) for
+        # queries that are already English — see looks_vietnamese().
+        query_en = self.translator.translate(query)
+        if query_en != query:
+            logger.info(f"Translated query: '{query}' -> '{query_en}'")
+
         # Encode query and compute similarities
-        text_emb = self.index.encode_text(query)
+        text_emb = self.index.encode_text(query_en)
         text_emb_clip32: Optional[np.ndarray] = None
         if self.index.is_dual:
-            text_emb_clip32 = self.index.encode_text_clip32(query)
+            text_emb_clip32 = self.index.encode_text_clip32(query_en)
 
         # Multi-stream blend: EVA-02 always, CLIP-32/BM25 when usable
+        # (BM25 also needs the English form since captions are generated
+        # in English by pipeline/captioning.py)
         idx, scores = self._multi_stream_topk_indices(
-            query, text_emb, text_emb_clip32, top_k
+            query_en, text_emb, text_emb_clip32, top_k
         )
 
         # Build results
@@ -192,10 +207,14 @@ class SearchEngine:
             logger.error("No embeddings loaded")
             return []
 
-        text_emb = self.index.encode_text(query)
+        query_en = self.translator.translate(query)
+        if query_en != query:
+            logger.info(f"Translated query: '{query}' -> '{query_en}'")
+
+        text_emb = self.index.encode_text(query_en)
         sims = self.index.cosine_similarity(text_emb, self.index.embeddings)[0]
         if self.index.is_dual:
-            text_emb_clip32 = self.index.encode_text_clip32(query)
+            text_emb_clip32 = self.index.encode_text_clip32(query_en)
             sims_clip32 = self.index.cosine_similarity(
                 text_emb_clip32, self.index.clip32_embeddings
             )[0]
