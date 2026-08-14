@@ -32,6 +32,9 @@ data/
 !data/.gitkeep
 paper/
 Data
+media-info/
+watch_urls/
+
 # Models
 *.pt
 *.pthbỏ

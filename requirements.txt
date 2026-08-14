@@ -33,3 +33,19 @@ customtkinter>=5.2.0
 requests>=2.31.0
 tqdm>=4.66.0
 rank-bm25>=0.2.2          # BM25 text search cho caption index
+<<<<<<< Updated upstream
+=======
+
+# ── OCR (PaddleOCR v3) ────────────────────────────────────────────────────────
+# CPU (Windows / Linux / Mac):
+#   pip install paddlepaddle==3.0.0
+#   pip install paddleocr>=2.9.0
+#
+# GPU (CUDA 11.x):
+#   pip install paddlepaddle-gpu==2.6.2
+#   pip install paddleocr>=2.9.0
+# ── Gemini / Pipeline ─────────────────────────────────────────────────────────
+google-genai>=1.0.0
+python-dotenv>=1.0.0
+
+>>>>>>> Stashed changes
