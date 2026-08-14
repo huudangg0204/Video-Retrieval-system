@@ -48,7 +48,7 @@ AIC-26 là một hệ thống truy xuất video đa phương thức được xâ
 | Object Detection | **YOLOv26x** (COCO 80 classes) | Bbox + label cho metadata sidecar |
 | Caption Generation | BLIP image captioning | English caption cho mỗi keyframe |
 | Reranking | BLIP ITM (lazy-load) | Cải thiện độ chính xác TRAKE |
-| OCR | EasyOCR (pre-extracted CSV) | Trích xuất văn bản tiếng Việt/tiếng Anh |
+| OCR | PaddleOCR (pre-extracted CSV) | Trích xuất văn bản tiếng Việt/tiếng Anh |
 | Keyframe Extraction | DINOv2 + cosine similarity | Phát hiện thay đổi cảnh |
 | API Server | Flask + Flask-CORS (threaded) | REST endpoints |
 | Web UI Filtering | Fuse.js (client-side) | Fuzzy filter OCR/Scene/Caption tức thì |
@@ -221,7 +221,7 @@ aic26 pipeline verify-metadata --video K05_V004 --frame-idx 42
 # Thống kê coverage
 aic26 pipeline metadata-stats -i data/metadata
 
-# Gộp OCR/EasyOCR text regions vào sidecar (chạy sau extract-metadata)
+# Gộp OCR/PaddleOCR text regions vào sidecar (chạy sau extract-metadata)
 aic26 pipeline merge-ocr --input data/ocr_results.csv --metadata-dir data/metadata
 
 # Tạo BLIP captions cho keyframes
@@ -253,7 +253,7 @@ aic26 pipeline merge-captions --metadata-dir data/metadata
 **Pipeline Models**:
 - **YOLOv26x** (`pipeline/detection.py`) — 80 COCO classes, `num_workers=1` cho low VRAM.
 - **BLIP image captioning** (`pipeline/captioning.py`) — tiếng Anh, ~446M params.
-- **EasyOCR** (pre-extracted CSV) — merge từ `data/raw/ocr_results.csv`.
+- **PaddleOCR** (pre-extracted CSV) — merge từ `data/raw/ocr_results.csv`.
 
 **Serving Models**:
 - **EVA-02 CLIP** — eager-loaded at startup (~1.7GB VRAM), text + image encoding.
@@ -328,7 +328,7 @@ aic26/
 │   ├── pipeline/        # Xử lý dữ liệu (GPU-safe sequential)
 │   │   ├── keyframe.py  # Trích xuất keyframe bằng DINOv2
 │   │   ├── detection.py # Object detection bằng YOLOv26x (num_workers=1)
-│   │   ├── ocr.py       # Trích xuất text bằng EasyOCR
+│   │   ├── ocr.py       # Trích xuất text bằng PaddleOCR
 │   │   ├── embedding.py # Dual embedding (EVA-02 768d + CLIP-32 512d)
 │   │   ├── metadata.py  # Metadata sidecar builder (merge OCR + captions)
 │   │   ├── captioning.py# BLIP caption generation
@@ -676,6 +676,14 @@ Vui lòng đọc [CONTRIBUTING.md](CONTRIBUTING.md) để biết hướng dẫn 
 ## Changelog
 
 Xem [CHANGELOG.md](CHANGELOG.md) để biết lịch sử phiên bản.
+
+---
+
+## Giới Hạn Đã Biết
+
+- **Qwen2.5-VL scene-graph**: đã sửa lỗi wiring (`AutoProcessor` + `generate()`), nhưng chưa được chạy xác nhận trên GPU thật — model 7B không khả thi để test trên máy CPU/VRAM thấp. Nếu bạn dựa vào field `scene_graph` trong metadata sidecar, hãy chạy lại `aic26 pipeline extract-metadata` (không có `--skip-scene-graph`) trên vài sample và kiểm tra sidecar có triples thật trước khi tin dữ liệu cũ.
+- **Desktop GUI** (`aic26 serve gui`, `aic26 serve filter`) chưa được test trong đợt rà soát gần nhất (tập trung vào REST API + Web UI).
+- Chi tiết đầy đủ các bug đã tìm và sửa: xem mục "Bug-fix log" trong [CLAUDE.md](CLAUDE.md).
 
 ---
 
