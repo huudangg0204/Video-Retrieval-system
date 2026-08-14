@@ -58,7 +58,24 @@ class Settings(BaseSettings):
     
     db_path: Path = Field(
         default_factory=lambda: Path("data/faiss_db.pkl"),
-        description="Path to the FAISS database pickle file",
+        description=(
+            "Path to the VectorDatabase query-history pickle file "
+            "(core/database.py). NOT the FAISS corpus index — see "
+            "faiss_index_path. Kept separate so pipeline/indexer.py "
+            "rebuilding the corpus index can never overwrite query history "
+            "(or vice versa)."
+        ),
+    )
+
+    faiss_index_path: Path = Field(
+        default_factory=lambda: Path("data/faiss_index.pkl"),
+        description=(
+            "Path to the FAISS corpus index pickle built by "
+            "pipeline/indexer.py::IndexBuilder (build() / build_dual()). "
+            "Separate from db_path — previously both defaulted to the same "
+            "file, which meant rebuilding the index silently clobbered "
+            "VectorDatabase's query history and vice versa."
+        ),
     )
     
     output_dir: Path = Field(
@@ -153,7 +170,7 @@ class Settings(BaseSettings):
         default=0.2,
         ge=0.0,
         le=1.0,
-        description="Weight of BM25 caption similarity when blending with image/BLIP-2 streams",
+        description="Weight of BM25 caption similarity when blending with EVA-02/CLIP-32 streams",
     )
 
     yolo_model_name: str = Field(
@@ -254,6 +271,52 @@ class Settings(BaseSettings):
         ),
     )
 
+    # ── Vi->En query translation (core/translation.py) ──────────────────
+    translation_default_mode: str = Field(
+        default="test",
+        description=(
+            "'test' = local envit5 model only, no network/API cost (safe "
+            "default for dev). 'real' = Gemini API with local fallback on "
+            "failure — set this to 'real' for the actual competition run "
+            "so translation quality is as high as possible."
+        ),
+    )
+
+    local_translation_model_name: str = Field(
+        default="VietAI/envit5-translation",
+        description="HF seq2seq model for local Vi->En translation (mode='test' or Gemini fallback)",
+    )
+
+    translation_cache_path: Path = Field(
+        default_factory=lambda: Path("data/translation_cache.json"),
+        description="On-disk JSON cache of {original_text: translated_text}, avoids re-translating repeats",
+    )
+
+    gemini_api_key: Optional[str] = Field(
+        default=None,
+        description="Google Gemini API key for mode='real' translation. Required for 'real' mode — "
+                    "falls back to the local model with a warning if unset.",
+    )
+
+    gemini_model_name: str = Field(
+        default="gemini-2.0-flash",
+        description="Gemini model id used for Vi->En query translation",
+    )
+
+    gemini_max_retries: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Retry attempts for a Gemini translation call before falling back to the local model",
+    )
+
+    gemini_retry_backoff_seconds: float = Field(
+        default=1.0,
+        ge=0.1,
+        le=30.0,
+        description="Base seconds for exponential backoff between Gemini retries",
+    )
+
     # ── Search parameters ──────────────────────────────────────────────
     default_top_k: int = Field(
         default=100,
@@ -334,7 +397,7 @@ class Settings(BaseSettings):
     
     # ── Pipeline parameters ────────────────────────────────────────────
     max_workers: int = Field(
-        default=4,
+        default=2,
         ge=1,
         le=32,
         description="Maximum number of worker threads for parallel processing",

@@ -478,6 +478,205 @@ def search_text_with_image():
         'results': results,
     })
 
+@bp.route('/search_ocr', methods=['POST'])
+def search_ocr():
+    """
+    Tìm kiếm keyframes theo nội dung OCR (văn bản trong ảnh).
+
+    Request JSON:
+        {
+            "query": "TRIỀU CƯỜNG",
+            "top_k": 100,
+            "mode": "substring",      // "substring" | "regex" | "exact"
+            "case_sensitive": false,
+            "normalize_accents": true,
+            "min_conf": 0.0,
+            "video_filter": ""        // lọc theo tên video (optional)
+        }
+
+    Returns:
+        JSON với elapsed, count, results (image_path, video_name,
+        frame_idx, ocr_text, num_boxes, conf_mean, watch_url,
+        fps, frame_idx_video, time_str)
+    """
+    from aic26.core.ocr_search import get_ocr_search_engine
+
+    payload = request.get_json(force=True, silent=True) or {}
+    query = payload.get('query', '')
+
+    if not query.strip():
+        return jsonify({'error': 'empty query'}), 400
+
+    top_k        = int(payload.get('top_k', 100) or 100)
+    mode         = str(payload.get('mode', 'substring'))
+    case_sens    = bool(payload.get('case_sensitive', False))
+    norm_acc     = bool(payload.get('normalize_accents', True))
+    min_conf     = float(payload.get('min_conf', 0.0))
+    video_filter = str(payload.get('video_filter', '') or '')
+
+    if mode not in ('substring', 'regex', 'exact'):
+        return jsonify({'error': f'Invalid mode: {mode}. Use substring|regex|exact'}), 400
+
+    start = time.time()
+    try:
+        engine = get_ocr_search_engine()
+        results = engine.search(
+            query=query,
+            top_k=top_k,
+            mode=mode,
+            case_sensitive=case_sens,
+            normalize_accents=norm_acc,
+            min_conf=min_conf,
+            video_filter=video_filter or None,
+        )
+    except Exception as e:
+        logger.error(f"OCR search error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+    elapsed = time.time() - start
+    return jsonify({
+        'elapsed': round(elapsed, 3),
+        'count': len(results),
+        'results': results,
+    })
+
+
+@bp.route('/search_ocr_combined', methods=['POST'])
+def search_ocr_combined():
+    """
+    Tìm kiếm kết hợp: OCR text search + embedding search.
+
+    Thực hiện:
+      1. OCR search → lấy danh sách ảnh khớp OCR
+      2. Embedding search (text query) → lấy top candidates
+      3. Intersection của 2 tập → trả về kết quả khớp cả hai
+
+    Request JSON:
+        {
+            "query": "TRIỀU CƯỜNG",          // dùng cho cả OCR lẫn embedding
+            "ocr_query": "TRIỀU CƯỜNG",      // override riêng OCR query (optional)
+            "embedding_query": "flooding",   // override riêng embedding query (optional)
+            "top_k": 100,
+            "ocr_top_k": 500,               // lấy rộng hơn để intersect
+            "mode": "substring",
+            "normalize_accents": true,
+            "min_conf": 0.0,
+            "objects": "",
+            "threshold": 0.5
+        }
+
+    Returns:
+        JSON với elapsed, count, results (kết quả có similarity từ embedding + ocr_text)
+    """
+    from aic26.core.ocr_search import get_ocr_search_engine
+
+    retriever = _get_retriever()
+    if retriever is None:
+        return jsonify({'error': 'retrieval engine not initialized'}), 503
+
+    payload = request.get_json(force=True, silent=True) or {}
+    base_query       = payload.get('query', '')
+    ocr_query        = payload.get('ocr_query', '') or base_query
+    embedding_query  = payload.get('embedding_query', '') or base_query
+
+    if not ocr_query.strip() and not embedding_query.strip():
+        return jsonify({'error': 'empty query'}), 400
+
+    top_k      = int(payload.get('top_k', 100) or 100)
+    ocr_top_k  = int(payload.get('ocr_top_k', top_k * 5) or top_k * 5)
+    mode       = str(payload.get('mode', 'substring'))
+    norm_acc   = bool(payload.get('normalize_accents', True))
+    min_conf   = float(payload.get('min_conf', 0.0))
+    objects    = payload.get('objects', '')
+    threshold  = float(payload.get('threshold', 0.5))
+
+    start = time.time()
+
+    # Step 1: OCR search — lấy tập ảnh khớp text
+    ocr_engine = get_ocr_search_engine()
+    ocr_results = ocr_engine.search(
+        query=ocr_query,
+        top_k=ocr_top_k,
+        mode=mode,
+        normalize_accents=norm_acc,
+        min_conf=min_conf,
+    )
+    ocr_paths = {r['image_path'].replace('\\', '/') for r in ocr_results}
+    # build map path → ocr info
+    ocr_map = {r['image_path'].replace('\\', '/'): r for r in ocr_results}
+
+    # Step 2: Embedding search nếu có query
+    if embedding_query.strip():
+        emb_results = retriever.search_text(
+            query=embedding_query,
+            top_k=max(top_k * 3, 300),
+            save_to_db=False,
+            objects=objects,
+            threshold=threshold,
+        )
+        # Intersect: chỉ giữ ảnh có trong cả 2 tập
+        combined = []
+        for r in emb_results:
+            norm = r['image_path'].replace('\\', '/')
+            if norm in ocr_paths:
+                enriched = dict(r)
+                enriched['ocr_text']  = ocr_map[norm].get('ocr_text', '')
+                enriched['num_boxes'] = ocr_map[norm].get('num_boxes', 0)
+                enriched['conf_mean'] = ocr_map[norm].get('conf_mean')
+                combined.append(enriched)
+        results = combined[:top_k]
+    else:
+        # Chỉ OCR search
+        results = ocr_results[:top_k]
+
+    elapsed = time.time() - start
+    return jsonify({
+        'elapsed': round(elapsed, 3),
+        'count': len(results),
+        'ocr_hits': len(ocr_paths),
+        'results': results,
+    })
+
+
+@bp.route('/ocr_stats', methods=['GET'])
+def ocr_stats():
+    """Trả về thống kê về OCR index (số frame đã index, số video, v.v.)."""
+    from aic26.core.ocr_search import get_ocr_search_engine
+    engine = get_ocr_search_engine()
+    return jsonify(engine.get_stats())
+
+
+@bp.route('/ocr_image', methods=['GET', 'POST'])
+def ocr_image():
+    """
+    Lấy thông tin OCR của 1 ảnh cụ thể.
+
+    Query param (GET): ?path=<image_path>
+    Request JSON (POST): { "path": "<image_path>" }
+
+    Returns:
+        JSON với text_full, boxes, texts, confs
+    """
+    from aic26.core.ocr_search import get_ocr_search_engine
+
+    if request.method == 'GET':
+        image_path = request.args.get('path', '')
+    else:
+        payload = request.get_json(force=True, silent=True) or {}
+        image_path = payload.get('path', '')
+
+    if not image_path:
+        return jsonify({'error': 'path required'}), 400
+
+    engine = get_ocr_search_engine()
+    result = engine.get_ocr_for_image(image_path)
+    if result is None:
+        return jsonify({'found': False, 'path': image_path}), 404
+
+    result['found'] = True
+    return jsonify(result)
+
+
 def _safe_remove(path) -> None:
     """Safely remove a file."""
     try:
@@ -489,93 +688,6 @@ def _safe_remove(path) -> None:
         pass
 
 
-@bp.route('/search_ocr', methods=['POST'])
-def search_ocr():
-    """Search keyframes by OCR text content.
-
-    Independent OCR block: scans the full metadata cache for frames
-    whose ``ocr_text`` field matches the query string.
-
-    Request JSON::
-
-        {
-            "query": "HANOI",
-            "top_k": 50,
-            "case_insensitive": true,
-            "mode": "contains"   # "contains" | "exact" | "any_word"
-        }
-
-    Returns a list of result objects in the same format as other search
-    endpoints so the frontend can reuse the same card renderer.
-    """
-    payload = request.get_json(force=True, silent=True) or {}
-    query: str = str(payload.get('query', '')).strip()
-    if not query:
-        return jsonify({'error': 'empty query'}), 400
-
-    top_k = int(payload.get('top_k', 50) or 50)
-    case_insensitive: bool = bool(payload.get('case_insensitive', True))
-    mode: str = str(payload.get('mode', 'contains')).lower()
-
-    q = query.lower() if case_insensitive else query
-    words = q.split() if mode == 'any_word' else []
-
-    cache = _get_meta_cache()
-    matched: list[dict] = []
-
-    for key, meta in cache.items():
-        ocr_entries = meta.get('ocr_text') or []
-        # Flatten all OCR text for this frame into one string
-        if isinstance(ocr_entries, list):
-            frame_text = ' '.join(
-                entry.get('text', '') if isinstance(entry, dict) else str(entry)
-                for entry in ocr_entries
-            )
-        else:
-            frame_text = str(ocr_entries)
-
-        compare_text = frame_text.lower() if case_insensitive else frame_text
-
-        hit = False
-        if mode == 'exact':
-            hit = compare_text == q
-        elif mode == 'any_word':
-            hit = any(w in compare_text for w in words)
-        else:  # default: contains
-            hit = q in compare_text
-
-        if not hit:
-            continue
-
-        # Build result object consistent with other search endpoints
-        parts = key.split('/', 1)
-        video_name = parts[0] if len(parts) == 2 else ''
-        frame_idx = parts[1] if len(parts) == 2 else ''
-
-        from aic26.config import settings as _s
-        img_path = str(
-            Path(_s.keyframes_dir) / video_name / f"{frame_idx}.jpg"
-        )
-
-        matched.append({
-            'video_name': video_name,
-            'frame_idx': frame_idx,
-            'image_path': img_path,
-            'similarity': 1.0,
-            'ocr_text': ocr_entries,
-            'scene': meta.get('scene', ''),
-            'scene_group': meta.get('scene_group', ''),
-            'caption': meta.get('caption', ''),
-            'detections': meta.get('detections', []),
-        })
-
-        if len(matched) >= top_k:
-            break
-
-    return jsonify({
-        'count': len(matched),
-        'results': matched,
-    })
 
 def _ensure_embeddings_loaded():
     """

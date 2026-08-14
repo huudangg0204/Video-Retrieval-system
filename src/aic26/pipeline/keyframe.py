@@ -52,7 +52,12 @@ class KeyframeExtractor:
             config = global_settings
         
         self.config = config
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        requested = (getattr(config, "device", "cuda") or "cuda").lower()
+        if requested.startswith("cuda") and not torch.cuda.is_available():
+            logger.warning(f"[DEVICE] config.device={requested!r} but CUDA unavailable — using cpu")
+            self.device = torch.device("cpu")
+        else:
+            self.device = torch.device(requested)
         
         logger.info(f"Loading DINOv2 model on {self.device}...")
         self.processor = AutoImageProcessor.from_pretrained('facebook/dinov2-small')

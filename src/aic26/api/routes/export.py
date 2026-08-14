@@ -17,6 +17,26 @@ from aic26.config import settings
 bp = Blueprint('export', __name__)
 
 
+def _get_retriever():
+    """Get retriever from current_app config.
+
+    NOTE: this same helper is duplicated in system.py, video.py, and
+    trake.py — it was missing here entirely, which meant every route in
+    this file raised NameError: name '_get_retriever' is not defined the
+    moment it was called (500 Internal Server Error on every export
+    request). If you're touching this again, consider hoisting it into a
+    shared aic26/api/routes/_common.py instead of a 4th copy-paste.
+    """
+    from flask import current_app
+    retriever = current_app.config.get('AIC26_RETRIEVER')
+    if retriever is None:
+        get_retriever_fn = current_app.config.get('_get_retriever')
+        if get_retriever_fn:
+            retriever = get_retriever_fn()
+            current_app.config['AIC26_RETRIEVER'] = retriever
+    return retriever
+
+
 @bp.route('/export_results', methods=['POST'])
 def export_results():
     """
@@ -105,7 +125,7 @@ def export_trake_results():
 @bp.route('/export_submission', methods=['POST'])
 def export_submission():
     """
-    Export single-frame submission CSV with surrounding frames.
+    Generate a 20-row submission CSV centered on a single frame.
     
     Request JSON:
         {

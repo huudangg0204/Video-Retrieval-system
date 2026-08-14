@@ -229,6 +229,7 @@ def parse_scene_graph_response(
 def extract_scene_graph(
     image: Image.Image,
     model,
+    processor,
     prompt: str | None = None,
     max_triples: int = SCENE_GRAPH_MAX_TRIPLES,
     max_new_tokens: int = SCENE_GRAPH_MAX_NEW_TOKENS,
@@ -238,10 +239,14 @@ def extract_scene_graph(
 
     Args:
         image: PIL Image (any size).
-        model: A vision-language model with `.chat(messages, ...)` method.
-            Messages format: `[{"role": "user", "content": [{"type": "image",
-            "image": <PIL>}, {"type": "text", "text": <prompt>}]}]`
-            (matches Qwen2.5-VL chat template).
+        model: A `Qwen2_5_VLForConditionalGeneration` (or compatible)
+            instance loaded via `.from_pretrained()`. HF Transformers
+            models expose `.generate()`, not a `.chat()` method — this
+            function drives inference through `processor` +
+            `model.generate()` directly.
+        processor: The matching `AutoProcessor.from_pretrained(...)` for
+            `model`. Builds the chat-templated prompt and turns
+            (image, text) into model inputs.
         prompt: Custom prompt. Defaults to SCENE_GRAPH_PROMPT.
         max_triples: Maximum triples to return.
         max_new_tokens: Max tokens for the model's response.
@@ -267,11 +272,30 @@ def extract_scene_graph(
     last_error: str | None = None
     for attempt in range(1, max_retries + 1):
         try:
-            response = model.chat(
-                messages,
-                max_new_tokens=max_new_tokens,
-                temperature=0,  # Deterministic regeneration on retry.
+            import torch
+
+            text = processor.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
             )
+            inputs = processor(
+                text=[text], images=[image], padding=True, return_tensors="pt"
+            ).to(model.device)
+
+            with torch.no_grad():
+                generated_ids = model.generate(
+                    **inputs,
+                    max_new_tokens=max_new_tokens,
+                    do_sample=False,  # deterministic, mirrors old temperature=0
+                )
+            # Strip the prompt tokens — generate() returns prompt + completion.
+            trimmed_ids = [
+                out_ids[len(in_ids):]
+                for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+            ]
+            response = processor.batch_decode(
+                trimmed_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
+            )[0]
+
             triples = parse_scene_graph_response(
                 str(response),
                 max_triples=max_triples,

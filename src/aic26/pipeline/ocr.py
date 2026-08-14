@@ -1,8 +1,12 @@
 """
-OCR text extraction from keyframes using EasyOCR.
+OCR text extraction from keyframes using PaddleOCR.
 
 Extracts text from keyframe images and saves results as CSV
 with checkpoint support for resumable processing.
+
+Parallelization modes:
+- image-level (default): nhiều worker xử lý từng ảnh trong 1 folder → dùng khi chỉ có 1 folder
+- folder-level: mỗi worker xử lý 1 folder → dùng khi có nhiều folder
 
 Migrated from: get_ocr_header.py
 """
@@ -10,9 +14,10 @@ from __future__ import annotations
 
 import json
 import os
+import multiprocessing
+import warnings
 from pathlib import Path
 from typing import List, Dict, Optional
-from collections import defaultdict
 
 import cv2
 import numpy as np
@@ -24,391 +29,515 @@ from loguru import logger
 from aic26.config import Settings
 from aic26.utils.file_utils import ensure_dir
 
+# ── Global state cho worker ──────────────────────────────────────────────────
+_global_ocr = None
+_global_min_conf = 0.35
 
-class OCRExtractor:
+
+def _suppress_paddle_logs():
+    """Tắt toàn bộ log/warning của Paddle và PaddleOCR."""
+    import logging
+    os.environ["PADDLE_CPP_LOG_LEVEL"] = "3"
+    os.environ["FLAGS_call_stack_level"] = "0"
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    warnings.filterwarnings("ignore")
+    for name in ("ppocr", "paddle", "paddlex", "paddle.fluid"):
+        logging.getLogger(name).setLevel(logging.ERROR)
+    logging.disable(logging.WARNING)
+
+
+def _worker_init(min_conf: float):
+    """Khởi tạo OCR model 1 lần duy nhất cho mỗi worker process."""
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    
+    global _global_ocr, _global_min_conf
+    _global_min_conf = min_conf
+
+    os.environ["OMP_NUM_THREADS"] = "1"
+    os.environ["OPENBLAS_NUM_THREADS"] = "1"
+    os.environ["MKL_NUM_THREADS"] = "1"
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+    _suppress_paddle_logs()
+
+    import cv2
+    cv2.setNumThreads(0)
+
+    from paddleocr import PaddleOCR
+    _global_ocr = PaddleOCR(
+        lang="vi",
+        use_doc_orientation_classify=False,
+        use_doc_unwarping=False,
+        use_textline_orientation=False,
+        text_det_limit_side_len=960,
+        text_recognition_batch_size=32,
+        device="gpu",
+        enable_mkldnn=False,
+    )
+
+
+# ── Worker xử lý từng ẢNH (image-level parallelism) ─────────────────────────
+
+def _worker_process_image(args):
     """
-    Extract text from keyframe images using EasyOCR.
-    
-    Features:
-    - Vietnamese language support
-    - Angle classification for rotated text
-    - Checkpoint-based resumable processing
-    - Confidence filtering
-    
-    Usage:
-        ocr = OCRExtractor(settings)
-        ocr.process("./keyframes", "./ocr_results.csv")
+    Xử lý 1 ảnh đơn lẻ. Dùng cho image-level parallelism.
+    Trả về dict row hoặc None nếu không có text.
     """
-    
-    def __init__(self, config: Optional['Settings'] = None) -> None:
-        """
-        Initialize the OCR extractor.
-        
-        Args:
-            config: Settings instance
-        """
-        if config is None:
-            from aic26.config import settings as global_settings
-            config = global_settings
-        
-        self.config = config
-        self._ocr = None
-    
-    def _load_ocr(self):
-        """Lazy-load EasyOCR model."""
-        if self._ocr is None:
-            try:
-                import easyocr
-                logger.info("Loading EasyOCR model...")
-                self._ocr = easyocr.Reader(['vi', 'en'], gpu=True)
-                self.engine = 'easyocr'
-                logger.info("EasyOCR model ready.")
-            except ImportError:
-                logger.error("EasyOCR not installed. Install with: pip install easyocr")
-                raise
-    
-    def process(
-        self,
-        input_dir: str,
-        output_csv: Optional[str] = None,
-        annotate: bool = False,
-        ann_dir: Optional[str] = None,
-        min_conf: float = 0.35,
-        limit: Optional[int] = None,
-    ) -> pd.DataFrame:
-        """
-        Process all keyframe folders for OCR.
-        
-        Args:
-            input_dir: Directory containing video subfolders with keyframes
-            output_csv: Path to output CSV file
-            annotate: Whether to save annotated images
-            ann_dir: Directory for annotated images
-            min_conf: Minimum confidence threshold
-            limit: Limit number of folders to process
-            
-        Returns:
-            DataFrame with OCR results
-        """
-        input_path = Path(input_dir)
-        if not input_path.exists():
-            raise FileNotFoundError(f"Input directory not found: {input_dir}")
-        
-        output_csv = output_csv or str(self.config.ocr_output_path)
-        
-        self._load_ocr()
-        
-        if annotate:
-            ann_dir = ann_dir or os.path.join(str(input_path), "annotations")
-            ensure_dir(ann_dir)
-        
-        # Checkpoint directory
-        checkpoint_dir = os.path.join(str(input_path), "ocr_checkpoints")
-        ensure_dir(checkpoint_dir)
-        
-        # Find video folders
-        folders = sorted(
-            d for d in os.listdir(input_dir)
-            if os.path.isdir(os.path.join(input_dir, d))
-            and d not in ("annotations", "ocr_checkpoints")
-        )
-        
-        if limit:
-            folders = folders[:limit]
-        
-        logger.info(f"Processing {len(folders)} folder(s) for OCR...")
-        
-        all_rows = []
-        
-        for folder in tqdm(folders, desc="OCR folders", unit="folder"):
-            checkpoint_path = os.path.join(
-                checkpoint_dir,
-                f"{folder}_{Path(output_csv).name}",
-            )
-            
-            # Check for existing checkpoint
-            if os.path.exists(checkpoint_path):
-                logger.debug(f"Loading checkpoint for {folder}")
-                try:
-                    checkpoint_df = pd.read_csv(checkpoint_path)
-                    all_rows.extend(checkpoint_df.to_dict(orient="records"))
-                    continue
-                except Exception as e:
-                    logger.warning(f"Failed to load checkpoint: {e}")
-            
-            folder_path = os.path.join(input_dir, folder)
-            folder_rows = self._process_folder(
-                folder_path,
-                folder,
-                min_conf,
-                annotate,
-                ann_dir,
-            )
-            
-            all_rows.extend(folder_rows)
-            
-            # Save checkpoint
-            if folder_rows:
-                try:
-                    pd.DataFrame(folder_rows).to_csv(
-                        checkpoint_path,
-                        index=False,
-                        encoding="utf-8",
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to save checkpoint: {e}")
-        
-        # Save full CSV
-        df = pd.DataFrame(all_rows)
-        df.to_csv(output_csv, index=False, encoding="utf-8")
-        
-        logger.info(
-            f"OCR complete: {len(all_rows)} text boxes in {len(df)} images → {output_csv}"
-        )
-        
-        return df
-    
-    def _process_folder(
-        self,
-        folder_path: str,
-        folder_name: str,
-        min_conf: float,
-        annotate: bool,
-        ann_dir: Optional[str],
-    ) -> List[Dict]:
-        """
-        Process all images in a single folder.
-        
-        Args:
-            folder_path: Path to folder containing images
-            folder_name: Name of the folder (video name)
-            min_conf: Minimum confidence threshold
-            annotate: Whether to save annotated images
-            ann_dir: Directory for annotated images
-            
-        Returns:
-            List of row dicts
-        """
-        image_files = sorted(
-            f for f in os.listdir(folder_path)
-            if f.lower().endswith(('.jpg', '.jpeg', '.png'))
-        )
-        
-        folder_rows = []
-        
-        for img_file in tqdm(
-            image_files,
-            desc=f"  {folder_name}",
-            unit="img",
-            leave=False,
-        ):
-            img_path = os.path.join(folder_path, img_file)
-            
-            # Skip very small files
-            if os.path.getsize(img_path) < 1024:
-                logger.debug(f"Skipping small image: {img_file}")
-                continue
-            
-            try:
-                items = self._detect_text(img_path, min_conf)
-                
-                row = {
-                    "video": folder_name,
-                    "file": img_file,
-                    "path": img_path,
-                    "text_full": " ".join(it["text"] for it in items),
-                    "num_boxes": len(items),
-                    "conf_mean": float(np.mean([it["conf"] for it in items])) if items else None,
-                    "boxes": json.dumps([it["box"] for it in items], ensure_ascii=False),
-                    "texts": json.dumps([it["text"] for it in items], ensure_ascii=False),
-                    "confs": json.dumps([it["conf"] for it in items], ensure_ascii=False),
-                }
-                
-                folder_rows.append(row)
-                
-                # Annotate if requested
-                if annotate and ann_dir:
-                    sub_ann = os.path.join(ann_dir, folder_name)
-                    ensure_dir(sub_ann)
-                    out_img = os.path.join(sub_ann, img_file)
-                    self._draw_text_boxes(img_path, items, out_img)
-                    
-            except Exception as e:
-                logger.warning(f"Error processing {img_file}: {e}")
-        
-        return folder_rows
-    
-    def _detect_text(
-        self,
-        img_path: str,
-        min_conf: float = 0.30,
-    ) -> List[Dict]:
-        """
-        Detect all text in an image.
-        
-        Args:
-            img_path: Path to image file
-            min_conf: Minimum confidence threshold
-            
-        Returns:
-            List of dicts with 'text', 'conf', 'box' keys
-        """
+    img_path, img_file, folder_name, annotate, ann_dir = args
+    min_conf = _global_min_conf
+
+    try:
+        if os.path.getsize(img_path) < 1024:
+            return None
+
+        bgr = cv2.imread(img_path)
+        if bgr is None:
+            return None
+        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+
+        results = _global_ocr.ocr(rgb, cls=True)
+        if not results or not results[0]:
+            return None
+
         items = []
-        
-        # EasyOCR accepts paths directly
-        res = self._ocr.readtext(img_path)
-        
-        if res is None or len(res) == 0:
-            return []
-        
-        for r in res:
-            if len(r) < 3:
-                continue
-            box, txt, conf = r
+        for line in results[0]:
+            box = line[0]
+            txt = line[1][0]
+            conf = line[1][1]
             c = float(conf)
-            if c >= min_conf:
-                items.append({
-                    "text": txt,
-                    "conf": c,
-                    "box": [[float(x), float(y)] for (x, y) in box],
-                })
-        
-        # Sort by line position for readability
+            if c < min_conf:
+                continue
+            box_list = [[float(pt[0]), float(pt[1])] for pt in box]
+            items.append({"text": str(txt), "conf": c, "box": box_list})
+
+        if not items:
+            return None
+
         items.sort(
             key=lambda it: (
                 round(min(p[1] for p in it["box"]) / 10),
                 min(p[0] for p in it["box"]),
             )
         )
-        
-        return items
-    
-    @staticmethod
-    def _draw_text_boxes(
-        img_path: str,
-        items: List[Dict],
-        out_path: str,
-        show_text: bool = True,
-    ) -> str:
-        """
-        Draw bounding boxes and text on an image.
-        
-        Args:
-            img_path: Path to input image
-            items: List of detection items
-            out_path: Path to output image
-            show_text: Whether to display text content
-            
-        Returns:
-            Path to output image
-        """
-        bgr = cv2.imread(img_path)
-        canvas = bgr.copy()
-        
-        for it in items:
-            pts = np.array(it["box"], dtype=np.int32)
-            cv2.polylines(canvas, [pts], True, (0, 255, 0), 2, cv2.LINE_AA)
-            
-            if show_text:
-                txt = f'{it["text"]} ({it["conf"]:.2f})'
+
+        row = {
+            "video": folder_name,
+            "file": img_file,
+            "path": img_path,
+            "text_full": " ".join(it["text"] for it in items),
+            "num_boxes": len(items),
+            "conf_mean": float(np.mean([it["conf"] for it in items])),
+            "boxes": json.dumps([it["box"] for it in items], ensure_ascii=False),
+            "texts": json.dumps([it["text"] for it in items], ensure_ascii=False),
+            "confs": json.dumps([it["conf"] for it in items], ensure_ascii=False),
+        }
+
+        # Annotate nếu cần
+        if annotate and ann_dir:
+            sub_ann = os.path.join(ann_dir, folder_name)
+            os.makedirs(sub_ann, exist_ok=True)
+            canvas = bgr.copy()
+            for it in items:
+                pts = np.array(it["box"], dtype=np.int32)
+                cv2.polylines(canvas, [pts], True, (0, 255, 0), 2, cv2.LINE_AA)
+                label = f'{it["text"]} ({it["conf"]:.2f})'
                 x = int(min(p[0] for p in it["box"]))
                 y = int(min(p[1] for p in it["box"])) - 6
                 cv2.putText(
-                    canvas, txt[:60],
-                    (x, max(y, 12)),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6, (0, 0, 255), 2, cv2.LINE_AA,
+                    canvas, label[:60], (x, max(y, 12)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2, cv2.LINE_AA,
                 )
-        
-        cv2.imwrite(out_path, canvas)
-        return out_path
+            cv2.imwrite(os.path.join(sub_ann, img_file), canvas)
 
-    # ── External OCR import ──────────────────────────────────────
+        return row
 
-    @staticmethod
-    def load_from_csv(csv_path: str) -> pd.DataFrame:
+    except Exception:
+        return None
+
+
+# ── Worker xử lý theo FOLDER (folder-level parallelism, giữ nguyên cũ) ──────
+
+def _worker_process_folder(args):
+    """Hàm worker xử lý 1 thư mục video. Dùng cho folder-level parallelism."""
+    folder_path, folder_name, checkpoint_path, annotate, ann_dir = args
+    min_conf = _global_min_conf
+
+    # Kiểm tra checkpoint
+    if os.path.exists(checkpoint_path):
+        try:
+            cp_df = pd.read_csv(checkpoint_path)
+            if len(cp_df) > 0:
+                return cp_df.to_dict(orient="records")
+        except Exception:
+            pass
+
+    image_files = sorted(
+        f for f in os.listdir(folder_path)
+        if f.lower().endswith(('.jpg', '.jpeg', '.png'))
+    )
+
+    rows = []
+    for img_file in image_files:
+        img_path = os.path.join(folder_path, img_file)
+        row = _worker_process_image((img_path, img_file, folder_name, annotate, ann_dir))
+        if row:
+            rows.append(row)
+
+    # Lưu checkpoint
+    try:
+        if rows:
+            pd.DataFrame(rows).to_csv(checkpoint_path, index=False, encoding="utf-8")
+        else:
+            pd.DataFrame([{"video": folder_name}]).to_csv(checkpoint_path, index=False, encoding="utf-8")
+    except Exception:
+        pass
+
+    return rows
+
+
+# ── OCRExtractor ─────────────────────────────────────────────────────────────
+
+class OCRExtractor:
+    """
+    Extract text from keyframe images using PaddleOCR with Multiprocessing.
+
+    Features:
+    - Vietnamese language support
+    - Checkpoint-based resumable processing
+    - Confidence filtering
+    - 2 chế độ parallel:
+        * parallel_mode="image" (default): N workers xử lý từng ảnh song song
+          → Tốt khi chỉ có 1 folder hoặc muốn tận dụng CPU tối đa cho 1 folder
+        * parallel_mode="folder": mỗi worker xử lý 1 folder
+          → Tốt khi có nhiều folder (hành vi cũ)
+
+    Usage:
+        # Xử lý 1 folder với 4 workers song song theo ảnh:
+        ocr = OCRExtractor(settings)
+        ocr.process("./keyframes/K11_V001", "./ocr_results.csv", parallel_mode="image", num_workers=4)
+
+        # Xử lý nhiều folder, mỗi worker 1 folder:
+        ocr.process("./keyframes", "./ocr_results.csv", parallel_mode="folder", num_workers=4)
+    """
+
+    def __init__(self, config: Optional['Settings'] = None) -> None:
+        if config is None:
+            from aic26.config import settings as global_settings
+            config = global_settings
+        self.config = config
+
+    def process(
+        self,
+        input_dir: Optional[str] = None,
+        output_csv: Optional[str] = None,
+        annotate: bool = False,
+        ann_dir: Optional[str] = None,
+        min_conf: float = 0.35,
+        limit: Optional[int] = None,
+        num_workers: int = 2,
+        parallel_mode: str = "image",   # "image" hoặc "folder"
+        checkpoint_per_image: int = 50,  # ghi CSV sau mỗi N ảnh (chỉ dùng ở image mode)
+    ) -> pd.DataFrame:
         """
-        Load pre-computed OCR results from an external CSV file.
-
-        This enables a workflow where OCR is run externally (e.g., PaddleOCR
-        on a different machine/environment) and imported into the AIC-26
-        pipeline without changing the OCR engine dependency.
-
-        Expected CSV columns (minimum):
-            - video: Video name (e.g., "L01_V001")
-            - file:  Keyframe filename (e.g., "000123.jpg")
-            - text_full: Concatenated OCR text for the frame
-
-        Optional columns:
-            - path, num_boxes, conf_mean, boxes, texts, confs
+        Process keyframe images for OCR.
 
         Args:
-            csv_path: Path to the external OCR CSV file
-
-        Returns:
-            DataFrame with validated OCR results
-
-        Raises:
-            FileNotFoundError: If csv_path does not exist
-            ValueError: If required columns are missing
+            input_dir: Thư mục chứa keyframes. Có thể là:
+                       - Thư mục gốc chứa nhiều folder con (folder mode)
+                       - Thư mục 1 folder ảnh trực tiếp (image mode tự detect)
+            output_csv: Đường dẫn file CSV output.
+            annotate: Vẽ bounding box lên ảnh gốc và lưu vào ann_dir.
+            ann_dir: Thư mục lưu ảnh annotated.
+            min_conf: Ngưỡng confidence tối thiểu (0.0–1.0).
+            limit: Giới hạn số folder xử lý (chỉ dùng ở folder mode).
+            num_workers: Số worker process song song.
+            parallel_mode: "image" = parallel theo ảnh, "folder" = parallel theo folder.
+            checkpoint_per_image: Tần suất ghi CSV tạm (chỉ image mode).
         """
-        if not os.path.exists(csv_path):
-            raise FileNotFoundError(f"OCR CSV not found: {csv_path}")
+        input_dir = input_dir or str(self.config.keyframes_dir)
+        input_path = Path(input_dir)
+        if not input_path.exists():
+            raise FileNotFoundError(f"Input directory not found: {input_dir}")
 
-        df = pd.read_csv(csv_path, encoding="utf-8")
-        required = {"video", "file", "text_full"}
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Missing required columns in OCR CSV: {missing}. "
-                f"Expected at least: {sorted(required)}"
+        output_csv = output_csv or str(self.config.ocr_output_path)
+        out_csv_path = Path(output_csv)
+
+        if annotate:
+            ann_dir = ann_dir or str(input_path / "annotations")
+            ensure_dir(ann_dir)
+
+        # ── Auto-detect mode: nếu input_dir chứa ảnh trực tiếp → image mode ─
+        has_images_directly = any(
+            f.lower().endswith(('.jpg', '.jpeg', '.png'))
+            for f in os.listdir(input_dir)
+        )
+        if has_images_directly and parallel_mode == "folder":
+            logger.warning(
+                "Phát hiện ảnh trực tiếp trong input_dir, tự động chuyển sang parallel_mode='image'"
+            )
+            parallel_mode = "image"
+
+        _suppress_paddle_logs()
+
+        if parallel_mode == "image":
+            return self._process_image_parallel(
+                input_dir=input_dir,
+                input_path=input_path,
+                output_csv=output_csv,
+                out_csv_path=out_csv_path,
+                annotate=annotate,
+                ann_dir=ann_dir,
+                min_conf=min_conf,
+                num_workers=num_workers,
+                checkpoint_per_image=checkpoint_per_image,
+            )
+        else:
+            return self._process_folder_parallel(
+                input_dir=input_dir,
+                input_path=input_path,
+                output_csv=output_csv,
+                out_csv_path=out_csv_path,
+                annotate=annotate,
+                ann_dir=ann_dir,
+                min_conf=min_conf,
+                limit=limit,
+                num_workers=num_workers,
             )
 
+    # ── Image-level parallel ──────────────────────────────────────────────────
+
+    def _process_image_parallel(
+        self,
+        input_dir, input_path, output_csv, out_csv_path,
+        annotate, ann_dir, min_conf, num_workers, checkpoint_per_image,
+    ) -> pd.DataFrame:
+        """N workers xử lý từng ảnh song song trong 1 hoặc nhiều folder."""
+
+        # Thu thập tất cả ảnh cần xử lý
+        # Hỗ trợ cả: input_dir là 1 folder ảnh, hoặc là folder gốc chứa subfolder
+        all_image_tasks = []
+
+        entries = os.listdir(input_dir)
+        subfolders = [
+            e for e in entries
+            if os.path.isdir(os.path.join(input_dir, e))
+            and e not in ("annotations", "ocr_checkpoints", "checkpoints")
+        ]
+
+        if subfolders:
+            # Có subfolder → xử lý nhiều folder với image parallelism
+            for folder_name in sorted(subfolders):
+                folder_path = os.path.join(input_dir, folder_name)
+                for img_file in sorted(os.listdir(folder_path)):
+                    if img_file.lower().endswith(('.jpg', '.jpeg', '.png')):
+                        all_image_tasks.append((
+                            os.path.join(folder_path, img_file),
+                            img_file,
+                            folder_name,
+                            annotate,
+                            ann_dir,
+                        ))
+        else:
+            # Không có subfolder → input_dir chính là folder ảnh
+            folder_name = input_path.name
+            for img_file in sorted(entries):
+                if img_file.lower().endswith(('.jpg', '.jpeg', '.png')):
+                    all_image_tasks.append((
+                        os.path.join(input_dir, img_file),
+                        img_file,
+                        folder_name,
+                        annotate,
+                        ann_dir,
+                    ))
+
+        if not all_image_tasks:
+            logger.info("Không tìm thấy ảnh nào để xử lý.")
+            return pd.DataFrame()
+
+        # Lọc ảnh đã có trong checkpoint CSV (resumable)
+        done_paths = set()
+        if out_csv_path.exists():
+            try:
+                existing = pd.read_csv(output_csv)
+                if "path" in existing.columns:
+                    done_paths = set(existing["path"].dropna().tolist())
+                else:
+                    # Nếu file mất header, cột thứ 3 (index 2) thường là cột path
+                    done_paths = set(existing.iloc[:, 2].dropna().tolist())
+                logger.info(f"Bỏ qua {len(done_paths)} ảnh đã xử lý (từ checkpoint CSV).")
+            except Exception as e:
+                logger.warning(f"Lỗi đọc checkpoint: {e}")
+
+        pending_tasks = [t for t in all_image_tasks if t[0] not in done_paths]
+
+        if not pending_tasks:
+            logger.info("Tất cả ảnh đã được xử lý.")
+            return pd.read_csv(output_csv) if out_csv_path.exists() else pd.DataFrame()
+
+        actual_workers = max(1, min(num_workers, len(pending_tasks), multiprocessing.cpu_count()))
         logger.info(
-            f"Loaded external OCR: {len(df)} rows from {csv_path} "
-            f"(columns: {sorted(df.columns.tolist())})"
+            f"[Image-parallel] {len(pending_tasks)} ảnh còn lại "
+            f"/ {len(all_image_tasks)} tổng | {actual_workers} worker(s)"
         )
+
+        all_rows = []
+        buffer = []
+
+        try:
+            if actual_workers == 1:
+                _worker_init(min_conf)
+                iterator = (_worker_process_image(task) for task in pending_tasks)
+            else:
+                ctx = multiprocessing.get_context("spawn")
+                pool = ctx.Pool(processes=actual_workers, initializer=_worker_init, initargs=(min_conf,))
+                iterator = pool.imap_unordered(_worker_process_image, pending_tasks)
+
+            for row in tqdm(
+                iterator,
+                total=len(pending_tasks),
+                desc="OCR images",
+                position=0,
+                leave=True,
+                dynamic_ncols=True,
+            ):
+                if row is None:
+                    continue
+    
+                all_rows.append(row)
+                buffer.append(row)
+    
+                # Ghi CSV định kỳ để resumable
+                if len(buffer) >= checkpoint_per_image:
+                    try:
+                        buf_df = pd.DataFrame(buffer)
+                        write_header = not out_csv_path.exists()
+                        buf_df.to_csv(output_csv, mode="a", header=write_header, index=False, encoding="utf-8")
+                        buffer.clear()
+                    except Exception as e:
+                        logger.warning(f"Lỗi ghi CSV tạm: {e}")
+        except KeyboardInterrupt:
+            logger.warning("Đã hủy quá trình OCR (Ctrl+C). Đang đóng worker an toàn...")
+        finally:
+            if actual_workers > 1 and 'pool' in locals():
+                pool.terminate()
+                pool.join()
+
+        # Flush buffer còn lại
+        if buffer:
+            try:
+                buf_df = pd.DataFrame(buffer)
+                write_header = not out_csv_path.exists()
+                buf_df.to_csv(output_csv, mode="a", header=write_header, index=False, encoding="utf-8")
+            except Exception as e:
+                logger.warning(f"Lỗi ghi CSV cuối: {e}")
+
+        # Gộp với existing và ghi lại sạch (loại header thừa)
+        final_rows = []
+        if out_csv_path.exists():
+            try:
+                final_rows = pd.read_csv(output_csv).to_dict(orient="records")
+            except Exception:
+                final_rows = all_rows
+
+        # NOTE: pd.DataFrame([]).to_csv() used to write a file with ZERO
+        # columns (no header at all) when there were no rows — pandas.
+        # read_csv() later chokes on that with EmptyDataError. Always pass
+        # `columns=` explicitly so a 0-row result still writes a valid,
+        # parseable header. This also keeps the file as a traceable record
+        # that OCR ran and genuinely found no text, rather than silently
+        # producing nothing.
+        ocr_columns = ["video", "file", "path", "text_full", "num_boxes",
+                       "conf_mean", "boxes", "texts", "confs"]
+        df = pd.DataFrame(final_rows, columns=ocr_columns if not final_rows else None)
+        df.to_csv(output_csv, index=False, encoding="utf-8")
+
+        if len(df) == 0:
+            logger.warning(f"[OCR] {input_dir}: 0/{len(all_image_tasks)} frames had text — wrote header-only CSV to {output_csv}")
+        logger.info(f"OCR complete: {len(all_rows)} ảnh mới → tổng {len(df)} ảnh → {output_csv}")
         return df
 
-    @staticmethod
-    def merge_external_csv(
-        existing_csv: str,
-        external_csv: str,
-        output_csv: str | None = None,
-        overwrite: bool = False,
-    ) -> str:
-        """
-        Merge external OCR results into an existing pipeline OCR CSV.
+    # ── Folder-level parallel (giữ nguyên hành vi cũ) ────────────────────────
 
-        Args:
-            existing_csv: Path to the current pipeline OCR CSV
-            external_csv: Path to the external OCR CSV to merge
-            output_csv: Output path (defaults to existing_csv)
-            overwrite: If True, external rows overwrite existing ones
-                       for the same (video, file) pair. If False,
-                       existing rows are kept.
+    def _process_folder_parallel(
+        self,
+        input_dir, input_path, output_csv, out_csv_path,
+        annotate, ann_dir, min_conf, limit, num_workers,
+    ) -> pd.DataFrame:
+        """Mỗi worker xử lý 1 folder (hành vi cũ)."""
 
-        Returns:
-            Path to the merged output CSV
-        """
-        output_csv = output_csv or existing_csv
+        checkpoint_dir = os.path.join(str(input_path), "ocr_checkpoints")
+        ensure_dir(checkpoint_dir)
 
-        ext_df = OCRExtractor.load_from_csv(external_csv)
-
-        if os.path.exists(existing_csv):
-            cur_df = pd.read_csv(existing_csv, encoding="utf-8")
-            if overwrite:
-                # Drop existing rows that will be replaced
-                keys = set(zip(ext_df["video"], ext_df["file"]))
-                cur_df = cur_df[
-                    ~cur_df.apply(lambda r: (r["video"], r["file"]) in keys, axis=1)
-                ]
-            merged = pd.concat([cur_df, ext_df], ignore_index=True)
-        else:
-            merged = ext_df
-
-        merged.to_csv(output_csv, index=False, encoding="utf-8")
-        logger.info(
-            f"Merged OCR CSV written: {len(merged)} rows -> {output_csv}"
+        folders = sorted(
+            d for d in os.listdir(input_dir)
+            if os.path.isdir(os.path.join(input_dir, d))
+            and d not in ("annotations", "ocr_checkpoints", "checkpoints")
         )
-        return output_csv
+
+        if limit:
+            folders = folders[:limit]
+
+        tasks = [
+            (
+                os.path.join(input_dir, folder),
+                folder,
+                os.path.join(checkpoint_dir, f"{folder}_{Path(output_csv).name}"),
+                annotate,
+                ann_dir,
+            )
+            for folder in folders
+        ]
+
+        if not tasks:
+            logger.info("No folders found to process.")
+            return pd.DataFrame()
+
+        actual_workers = max(1, min(num_workers, len(tasks), multiprocessing.cpu_count()))
+        logger.info(f"[Folder-parallel] {len(folders)} folder(s) | {actual_workers} worker(s)")
+
+        all_rows = []
+
+        try:
+            if actual_workers == 1:
+                _worker_init(min_conf)
+                iterator = (_worker_process_folder(task) for task in tasks)
+            else:
+                ctx = multiprocessing.get_context("spawn")
+                pool = ctx.Pool(processes=actual_workers, initializer=_worker_init, initargs=(min_conf,))
+                iterator = pool.imap_unordered(_worker_process_folder, tasks)
+
+            for rows_batch in tqdm(
+                iterator,
+                total=len(tasks),
+                desc="OCR folders",
+                position=0,
+                leave=True,
+                dynamic_ncols=True,
+            ):
+                if not rows_batch:
+                    continue
+                valid_rows = [r for r in rows_batch if "path" in r]
+                if not valid_rows:
+                    continue
+    
+                all_rows.extend(valid_rows)
+    
+                try:
+                    folder_df = pd.DataFrame(valid_rows)
+                    write_header = not out_csv_path.exists()
+                    folder_df.to_csv(output_csv, mode="a", header=write_header, index=False, encoding="utf-8")
+                except Exception as e:
+                    logger.warning(f"Lỗi append CSV: {e}")
+        except KeyboardInterrupt:
+            logger.warning("Đã hủy quá trình OCR (Ctrl+C). Đang đóng worker an toàn...")
+        finally:
+            if actual_workers > 1 and 'pool' in locals():
+                pool.terminate()
+                pool.join()
+
+        df = pd.DataFrame(all_rows)
+        df.to_csv(output_csv, index=False, encoding="utf-8")
+
+        logger.info(f"OCR complete: {len(all_rows)} ảnh → {output_csv}")
+        return df

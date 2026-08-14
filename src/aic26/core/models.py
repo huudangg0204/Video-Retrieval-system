@@ -42,10 +42,18 @@ class ModelRegistry:
     
     def __init__(self) -> None:
         """Initialize core models on the appropriate device."""
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        requested = (settings.device or "cuda").lower()
+        if requested.startswith("cuda") and not torch.cuda.is_available():
+            logger.warning(
+                f"[DEVICE] settings.device={requested!r} but CUDA unavailable — using cpu "
+                f"(set DEVICE=cpu in .env to silence this)"
+            )
+            self.device = torch.device("cpu")
+        else:
+            self.device = torch.device(requested)
         logger.info(f"Using device: {self.device}")
         
-        if torch.cuda.is_available():
+        if self.device.type == "cuda":
             logger.info(f"GPU: {torch.cuda.get_device_name(0)}")
             logger.info(f"VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
         

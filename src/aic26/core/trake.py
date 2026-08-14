@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from loguru import logger
@@ -103,12 +104,19 @@ class TrakeEngine:
             # Sort by frame, then by lag (event order)
             vid_candidates.sort(key=lambda x: (x["frame"], -x["lag"]))
             
-            # Deduplicate: keep highest similarity per frame
-            deduped: Dict[int, Dict] = {}
+            # Deduplicate within the SAME (frame, lag) pair, keeping the
+            # highest similarity. IMPORTANT: the dedup key must include
+            # `lag` — the same frame number is frequently a candidate for
+            # multiple DIFFERENT events (common with a small candidate
+            # pool, but possible any time two event descriptions both
+            # match one frame). Keying on frame alone silently discarded
+            # whichever event had the lower score at that frame, deleting
+            # that event's candidacy outright and breaking the DP chain.
+            deduped: Dict[tuple, Dict] = {}
             for c in vid_candidates:
-                f = c["frame"]
-                if f not in deduped or deduped[f]["sim"] < c["sim"]:
-                    deduped[f] = c
+                key = (c["frame"], c["lag"])
+                if key not in deduped or deduped[key]["sim"] < c["sim"]:
+                    deduped[key] = c
             vid_candidates = sorted(deduped.values(), key=lambda x: x["frame"])
             
             # Greedy DP
@@ -319,7 +327,13 @@ class TrakeEngine:
             lag = cand["lag"]
             if lag != n_events:
                 continue
-            if trace.get(lag - 1, {}).get(cand["frame"]) is None:
+            # trace[] only gets entries written for lag > 1 (see the DP
+            # loop above) — for lag == 1 there's no predecessor to check,
+            # the candidate is already a complete (length-1) solution.
+            # Gating on trace here unconditionally meant single-event
+            # TRAKE queries could never produce a solution, no matter how
+            # good the candidates were.
+            if lag > 1 and trace.get(lag - 1, {}).get(cand["frame"]) is None:
                 continue
             
             sequence = [None] * n_events
@@ -361,7 +375,14 @@ class TrakeEngine:
                 continue
             
             frame_ids = [s["frame_str"] for s in solution]
-            video_name = solution[0]["image_path"].split(os.sep)[-2]
+            # NOTE: image_path is consistently forward-slash formatted
+            # throughout this codebase (see video.py, ocr_search.py,
+            # etc.), but os.sep is '\\' on Windows — splitting a
+            # forward-slash path with os.sep there yields a 1-element
+            # list, and [-2] on that raises "list index out of range".
+            # Path(...).parent.name handles both slash styles correctly
+            # on every platform.
+            video_name = Path(solution[0]["image_path"]).parent.name
             media_info = load_media_info(video_name)
             
             details = [

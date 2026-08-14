@@ -37,7 +37,7 @@ watch_urls/
 
 # Models
 *.pt
-*.pthbỏ
+*.pth
 *.pkl
 *.onnx
 models/

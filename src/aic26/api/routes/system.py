@@ -5,11 +5,17 @@ Endpoints for system statistics, stored queries, and grouping.
 """
 from __future__ import annotations
 
+import os
+import threading
 from flask import Blueprint, request, jsonify
 
 from loguru import logger
 
 bp = Blueprint('system', __name__)
+
+# ── Background FAISS build state ─────────────────────────────────────────────
+_faiss_build_state: dict = {"status": "idle", "message": "", "result": None}
+_faiss_build_lock = threading.Lock()
 
 
 def _get_retriever():
@@ -97,3 +103,77 @@ def group_by_video():
     )
     
     return jsonify(grouped)
+
+
+@bp.route('/build_faiss_index', methods=['POST'])
+def build_faiss_index():
+    """
+    Trigger a FAISS index rebuild from current embeddings.
+
+    Runs IndexBuilder in a background thread so the request returns immediately.
+    Poll /api/build_faiss_index/status to track progress.
+    """
+    global _faiss_build_state
+
+    with _faiss_build_lock:
+        if _faiss_build_state["status"] == "running":
+            return jsonify({"status": "running", "message": "Build already in progress"}), 409
+
+        _faiss_build_state = {"status": "running", "message": "Starting...", "result": None}
+
+    def _run():
+        global _faiss_build_state
+        try:
+            from aic26.config import settings
+            from aic26.pipeline.indexer import IndexBuilder
+            builder = IndexBuilder()
+
+            # Rebuild the SAME index shape the live retriever is configured
+            # for. Calling build() (single-stream) while
+            # use_dual_embedding=true would silently drop the CLIP-32
+            # stream from search until someone reruns the dual build by hand.
+            clip32_dir = str(getattr(settings, "clip32_embedding_dir", ""))
+            use_dual = bool(getattr(settings, "use_dual_embedding", False))
+
+            if use_dual and clip32_dir and os.path.isdir(clip32_dir) and os.listdir(clip32_dir):
+                logger.info("Dual-stream enabled: building EVA-02 + CLIP-32 index")
+                result = builder.build_dual(
+                    eva02_dir=str(settings.embedding_dir),
+                    clip32_dir=clip32_dir,
+                )
+            else:
+                if use_dual:
+                    logger.warning(
+                        f"[INDEX-BUILD] use_dual_embedding=true but clip32_embedding_dir "
+                        f"({clip32_dir}) missing/empty — built single-stream EVA-02 index instead"
+                    )
+                result = builder.build()
+
+            with _faiss_build_lock:
+                _faiss_build_state = {
+                    "status": "done",
+                    "message": (
+                        f"Built {result['embeddings_loaded']} vectors "
+                        f"({result['file_size_mb']:.1f} MB) → {result['output_path']}"
+                    ),
+                    "result": result,
+                }
+            logger.info(f"FAISS build finished: {result}")
+        except Exception as exc:
+            logger.error(f"FAISS build failed: {exc}")
+            with _faiss_build_lock:
+                _faiss_build_state = {
+                    "status": "error",
+                    "message": str(exc),
+                    "result": None,
+                }
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"status": "running", "message": "FAISS build started in background"})
+
+
+@bp.route('/build_faiss_index/status', methods=['GET'])
+def build_faiss_index_status():
+    """Return current status of the FAISS build job."""
+    with _faiss_build_lock:
+        return jsonify(dict(_faiss_build_state))

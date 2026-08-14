@@ -95,8 +95,17 @@ def create_app(config=None) -> Flask:
     def download_file(filename: str):
         """Download an exported CSV file."""
         from flask import send_from_directory
+
+        # NOTE: send_from_directory resolves a RELATIVE directory arg
+        # against Flask's app.root_path (the aic26/api/ package
+        # directory), not the process's working directory. Exporter
+        # (core/export.py) writes files relative to the process CWD via
+        # plain os.path.join — so a relative settings.output_dir made
+        # this route look in the wrong physical directory and 404 on
+        # every export, even though the file existed. abspath() pins it
+        # to the same directory the file was actually written to.
         return send_from_directory(
-            str(config.output_dir),
+            os.path.abspath(str(config.output_dir)),
             filename,
             as_attachment=True,
         )
@@ -135,6 +144,7 @@ def _init_retriever(app: Flask, config) -> None:
     
     # Also store directly if pre-loaded
     app.config['AIC26_RETRIEVER'] = retriever_instance
+    logger.info("Retrieval engine ready.")
 
 
 def get_retriever(app: Flask = None):
