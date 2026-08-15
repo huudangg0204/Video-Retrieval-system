@@ -52,7 +52,7 @@ except ImportError:
         GENAI_SDK_TYPE = None
 
 # Config mặc định
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-3.1-flash-lite"
 DEFAULT_DELAY = 4.0
 RETRY_ATTEMPTS = 3
 
@@ -66,7 +66,7 @@ Trả về JSON duy nhất với cấu trúc sau:
     {
       "start_time": "HH:MM:SS",
       "end_time": "HH:MM:SS",
-      "description": "mô tả cụ thể những gì đang xảy ra — ai làm gì, nói gì, thái độ ra sao",
+      "description": "Cố gắng mô tả cụ thể những gì đang xảy ra, không bỏ sót khoảnh khắc nào",
       "category": "thể loại/danh mục của phân đoạn",
       "entities": ["danh sách các đối tượng, tên người, tổ chức, địa danh xuất hiện trong đoạn"],
       "keywords": ["3-5 từ khoá đại diện cho khoảnh khắc này"]
@@ -75,6 +75,7 @@ Trả về JSON duy nhất với cấu trúc sau:
 }
 
 Yêu cầu bắt buộc:
+- mỗi segment có độ dài không quá 4 phút, nếu không có hành động, sự kiện cụ thể thì có thể hơn.
 - Segments liên tục, không có khoảng trống thời gian giữa các đoạn
 - Bắt đầu từ 00:00:00, kết thúc tại thời điểm cuối video
 - Định dạng thời gian start_time và end_time bắt buộc dạng HH:MM:SS (ví dụ 00:01:15)
