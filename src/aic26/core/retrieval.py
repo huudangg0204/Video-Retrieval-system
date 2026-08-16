@@ -85,6 +85,7 @@ class EVA02ImageRetrieval:
             self.embedding_dir,
             self.keyframes_dir,
             clip32_dir=self.clip32_dir,
+            faiss_index_path=str(settings.faiss_index_path),
         )
 
         # Persistent query store
@@ -109,6 +110,10 @@ class EVA02ImageRetrieval:
         if self._index.is_dual:
             streams.append("clip32")
         logger.info(f"Retrieval system ready (streams: {','.join(streams)}).")
+
+        # Segment search engine is lazy-loaded on first call to search_segments()
+        # to avoid loading BGE-M3 weights at startup when not needed.
+        self._segment_engine = None
     
     # ── Search ────────────────────────────────────────────────────────
     
@@ -136,6 +141,63 @@ class EVA02ImageRetrieval:
         logger.info(f"Text search: '{query[:100]}...' (top_k={top_k})")
         return self._searcher.search_text(
             query, top_k, save_to_db, objects, threshold,
+        )
+
+    def search_segments(
+        self,
+        query: str,
+        top_k: int = 20,
+    ) -> Dict[str, Any]:
+        """
+        Stage-1: Segment-level search using BGE-M3.
+
+        Searches the pre-built segment FAISS index and returns matching
+        video segments plus unique candidate video IDs for Stage-2 use.
+
+        Args:
+            query: Free-text query in Vietnamese or English.
+            top_k: Maximum number of segments to return.
+
+        Returns:
+            Dict with:
+              - "segments": list of dicts (video_id, start_time, end_time,
+                description, category, keywords, entities, score)
+              - "candidate_video_ids": unique video IDs ordered by rank
+        """
+        if self._segment_engine is None:
+            from aic26.core.segment_search import get_segment_search_engine
+            self._segment_engine = get_segment_search_engine()
+        return self._segment_engine.search(query, top_k=top_k)
+
+    def search_text_filtered(
+        self,
+        query: str,
+        video_ids: List[str],
+        top_k: int = settings.default_top_k,
+        save_to_db: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """
+        Stage-2: Filtered keyframe search using EVA-02, restricted to the
+        supplied list of candidate video IDs from Stage-1.
+
+        Slices the embedding matrix to only the keyframes of the requested
+        videos and performs a fast dot-product search (O(M) with M << N).
+
+        Args:
+            query: Text description to search for (Vi or En).
+            video_ids: Candidate video names from Stage-1 segment search.
+            top_k: Number of keyframe results to return.
+            save_to_db: Whether to persist results to VectorDatabase.
+
+        Returns:
+            List of result dicts with image_path, video_name, similarity, etc.
+        """
+        logger.info(
+            f"Filtered text search: '{query[:100]}' across "
+            f"{len(video_ids)} video(s) (top_k={top_k})"
+        )
+        return self._searcher.search_text_filtered(
+            query, video_ids, top_k, save_to_db,
         )
     
     def search_text_all(

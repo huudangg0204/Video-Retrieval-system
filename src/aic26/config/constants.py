@@ -42,6 +42,7 @@ EVA02_EMBEDDING_DIM: Final[int] = 768
 BLIP_ITM_DIM: Final[int] = 768
 DINOV2_EMBEDDING_DIM: Final[int] = 384
 CLIP32_EMBEDDING_DIM: Final[int] = 512  # openai/clip-vit-base-patch32 projection dim
+BGE_M3_EMBEDDING_DIM: Final[int] = 1024  # BAAI/bge-m3 dense embedding dim
 
 # ── FAISS index types ───────────────────────────────────────────────────
 FAISS_INDEX_TYPES: Final[dict[str, str]] = {

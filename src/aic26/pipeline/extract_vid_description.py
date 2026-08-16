@@ -52,7 +52,7 @@ except ImportError:
         GENAI_SDK_TYPE = None
 
 # Config mặc định
-DEFAULT_MODEL = "gemini-3.1-flash-lite"
+DEFAULT_MODEL = "gemini-3.5-flash-lite"
 DEFAULT_DELAY = 4.0
 RETRY_ATTEMPTS = 3
 

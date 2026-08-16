@@ -206,6 +206,9 @@ def search_text():
     object_mode: str = str(payload.get('object_mode', 'and')).lower()
     scene_group: str = str(payload.get('scene_group', '')).strip()
 
+    # —— Stage-2: Filtered search when video_ids is provided —————————
+    video_ids: list[str] = payload.get('video_ids') or []
+
     candidate_ids: set[str] | None = _apply_pre_filters(
         required_objects=required_objects,
         object_mode=object_mode,
@@ -219,13 +222,26 @@ def search_text():
     logger.info(f"Text search: '{query[:80]}...' (top_k={top_k}, fetch_k={fetch_k})")
 
     start = time.time()
-    results = retriever.search_text(
-        query=query,
-        top_k=fetch_k,
-        save_to_db=True,
-        objects=objects,
-        threshold=threshold,
-    )
+
+    # Stage-2: delegate to fast filtered search when video_ids are supplied
+    if video_ids:
+        logger.info(
+            f"[Stage-2] Filtered search across {len(video_ids)} video(s): {video_ids[:5]}"
+        )
+        results = retriever.search_text_filtered(
+            query=query,
+            video_ids=video_ids,
+            top_k=fetch_k,
+            save_to_db=True,
+        )
+    else:
+        results = retriever.search_text(
+            query=query,
+            top_k=fetch_k,
+            save_to_db=True,
+            objects=objects,
+            threshold=threshold,
+        )
 
     # Apply candidate filter when active
     if candidate_ids is not None:
@@ -244,6 +260,54 @@ def search_text():
         'results': results,
     })
 
+
+@bp.route('/search/segments', methods=['POST'])
+def search_segments():
+    """
+    Stage-1: Search video segments by text query using BGE-M3.
+
+    Returns top-K matching segments with metadata and a deduplicated list
+    of candidate video IDs ordered by relevance for use in Stage-2.
+
+    Request JSON:
+        {
+            "query": "cảnh cứu hộ xe bị tai nạn",
+            "top_k": 20
+        }
+
+    Returns:
+        JSON with status, query, total_segments, candidate_video_ids,
+        results (segment list with score), and elapsed time.
+    """
+    payload = request.get_json(force=True, silent=True) or {}
+    query = payload.get('query', '')
+
+    if not query.strip():
+        return jsonify({'error': 'empty query'}), 400
+
+    top_k = int(payload.get('top_k', 20) or 20)
+
+    retriever = _get_retriever()
+    if retriever is None:
+        return jsonify({'error': 'retrieval engine not initialized'}), 503
+
+    start = time.time()
+    try:
+        result = retriever.search_segments(query=query, top_k=top_k)
+    except Exception as e:
+        logger.error(f"Segment search error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+    elapsed = time.time() - start
+
+    return jsonify({
+        'status': 'success',
+        'query': query,
+        'total_segments': len(result.get('segments', [])),
+        'candidate_video_ids': result.get('candidate_video_ids', []),
+        'results': result.get('segments', []),
+        'elapsed': round(elapsed, 3),
+    })
 
 
 @bp.route('/search_image', methods=['POST'])

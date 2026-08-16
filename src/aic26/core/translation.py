@@ -146,11 +146,14 @@ class LocalTranslator:
         if self._model is not None:
             return
         import torch
-        from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+        from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, PreTrainedTokenizerFast
 
         self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Loading local translation model: {self.model_name} on {self._device}...")
-        self._tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        try:
+            self._tokenizer = PreTrainedTokenizerFast.from_pretrained(self.model_name)
+        except Exception:
+            self._tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self._model = (
             AutoModelForSeq2SeqLM.from_pretrained(self.model_name)
             .to(self._device)

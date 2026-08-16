@@ -174,6 +174,68 @@
     .browse-subpanel { display:none; }
     .browse-subpanel.active { display:block; }
 
+    /* ── 2-Stage Segment Cards ────────────────────────────────── */
+    .segment-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 12px;
+      padding: 14px;
+      transition: all .18s;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .segment-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 6px 20px var(--shadow-card);
+      transform: translateY(-1px);
+    }
+    .segment-card .seg-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .segment-card .seg-vid {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .segment-card .seg-time {
+      background: var(--bg-input);
+      border: 1px solid var(--border-input);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+    .segment-card .seg-score {
+      background: var(--badge-bg);
+      color: #fbbf24;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      backdrop-filter: blur(4px);
+    }
+    .segment-card .seg-desc {
+      font-size: 12px;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+    .segment-card .seg-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      font-size: 11px;
+    }
+
     /* Responsive */
     @media (max-width:768px) {
       .modal-box { flex-direction:column; }
@@ -202,11 +264,12 @@
 
   <!-- Block Tabs -->
   <div id="blockBar" class="flex gap-1 overflow-x-auto flex-1" style="scrollbar-width:none;">
-    <button id="tab-text"    class="block-tab active" onclick="switchBlock('text')">    <i class="fa fa-keyboard"></i>   Text   </button>
-    <button id="tab-image"   class="block-tab"        onclick="switchBlock('image')">   <i class="fa fa-image"></i>     Image  </button>
-    <button id="tab-trake"   class="block-tab"        onclick="switchBlock('trake')">   <i class="fa fa-clock"></i>     TRAKE  </button>
-    <button id="tab-ocr"     class="block-tab"        onclick="switchBlock('ocr')">     <i class="fa fa-font"></i>      OCR    </button>
-    <button id="tab-browse"  class="block-tab"        onclick="switchBlock('browse')">  <i class="fa fa-folder-open"></i> Browse </button>
+    <button id="tab-text"     class="block-tab active" onclick="switchBlock('text')">    <i class="fa fa-keyboard"></i>   Text   </button>
+    <button id="tab-twostage" class="block-tab"        onclick="switchBlock('twostage')"><i class="fa fa-layer-group"></i> 2-Stage </button>
+    <button id="tab-image"    class="block-tab"        onclick="switchBlock('image')">   <i class="fa fa-image"></i>     Image  </button>
+    <button id="tab-trake"    class="block-tab"        onclick="switchBlock('trake')">   <i class="fa fa-clock"></i>     TRAKE  </button>
+    <button id="tab-ocr"      class="block-tab"        onclick="switchBlock('ocr')">     <i class="fa fa-font"></i>      OCR    </button>
+    <button id="tab-browse"   class="block-tab"        onclick="switchBlock('browse')">  <i class="fa fa-folder-open"></i> Browse </button>
   </div>
 
   <!-- Global top-bar controls -->
@@ -292,6 +355,83 @@
 
     <button onclick="searchText()" class="btn-primary">
       <i class="fa fa-search mr-1"></i> Search
+    </button>
+  </div>
+
+  <!-- BLOCK: TWO-STAGE HIERARCHICAL SEARCH -->
+  <div id="block-twostage" class="block-panel p-4 gap-4 flex-col">
+    <div>
+      <div class="flex items-center justify-between mb-1">
+        <div class="sec-label mb-0" style="color:var(--text-primary);">🎯 2-Stage Hierarchical</div>
+        <span class="text-[10px] px-2 py-0.5 rounded font-mono font-semibold" style="background:var(--bg-elevated); color:var(--tag-color);">BGE-M3 + EVA-02</span>
+      </div>
+      <p class="text-xs" style="color:var(--text-muted); line-height:1.4;">
+        Stage 1: Quét phân đoạn video (BGE-M3).<br>
+        Stage 2: Lọc keyframe chính xác trong candidate videos (EVA-02).
+      </p>
+    </div>
+
+    <!-- Stage 1 Section -->
+    <div style="background:var(--bg-input); border:1px solid var(--border-input); border-radius:10px; padding:12px;" class="flex flex-col gap-2.5">
+      <div class="flex items-center justify-between">
+        <div class="sec-label mb-0" style="color:var(--tag-color);"><i class="fa fa-list-ol mr-1"></i> Stage 1: Segment Retrieval</div>
+        <span class="text-[10px] text-gray-400">BAAI/bge-m3</span>
+      </div>
+      <div>
+        <div class="sec-label">💬 Segment Query (Vi / En)</div>
+        <textarea id="twoStageQuery" class="aic-textarea" rows="3" placeholder="Mô tả sự kiện, câu chuyện hoặc bối cảnh phân đoạn..."></textarea>
+      </div>
+      <div class="flex items-center gap-2">
+        <input id="twoStageSegTopk" class="aic-input" placeholder="Top Segments" value="20" type="number" min="1" max="200" title="Số lượng segment tối đa trả về">
+        <button onclick="searchSegmentsUI()" class="btn-primary" style="background:linear-gradient(135deg,#06b6d4,#3b82f6); white-space:nowrap; padding:8px 12px;">
+          <i class="fa fa-filter mr-1"></i> Tìm Segments
+        </button>
+      </div>
+    </div>
+
+    <!-- Stage 2 Section -->
+    <div style="background:var(--bg-input); border:1px solid var(--border-input); border-radius:10px; padding:12px;" class="flex flex-col gap-2.5">
+      <div class="flex items-center justify-between">
+        <div class="sec-label mb-0" style="color:#fbbf24;"><i class="fa fa-crosshairs mr-1"></i> Stage 2: Filtered Keyframe Search</div>
+        <span class="text-[10px] text-gray-400">EVA-02 CLIP</span>
+      </div>
+
+      <!-- Candidate Videos List -->
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <div class="sec-label mb-0">🎬 Candidate Videos (<span id="twoStageCandCount">0</span>)</div>
+          <div class="flex gap-2">
+            <button onclick="selectAllStage1Candidates()" class="text-xs text-indigo-400 hover:underline">All</button>
+            <span class="text-xs text-gray-500">|</span>
+            <button onclick="clearTwoStageVids()" class="text-xs text-gray-400 hover:underline">Clear</button>
+          </div>
+        </div>
+        <div id="twoStageVidTags" class="flex flex-wrap gap-1 mb-2 min-h-[28px] max-h-[90px] overflow-y-auto p-1 rounded" style="background:var(--bg-panel); border:1px solid var(--border-card);">
+          <span style="color:var(--text-faint); font-size:11px; font-style:italic; padding:2px 4px;">Chưa có video ứng viên nào...</span>
+        </div>
+        <!-- Manual video ID adder -->
+        <div class="relative">
+          <input id="twoStageVidInput" class="aic-input text-xs" placeholder="Thêm video ID (gõ tên rồi Enter, e.g. L30_V001)..." onkeydown="handleTwoStageVidKey(event)">
+        </div>
+      </div>
+
+      <!-- Keyframe query (optional override) -->
+      <div>
+        <div class="sec-label">🖼️ Keyframe Query (Tùy chọn)</div>
+        <input id="twoStageKeyframeQuery" class="aic-input text-xs" placeholder="Để trống để dùng Query của Stage 1...">
+      </div>
+
+      <div class="flex items-center gap-2">
+        <input id="twoStageKeyframeTopk" class="aic-input" placeholder="Top Keyframes" value="50" type="number" min="1" max="500" title="Số lượng keyframe tối đa trả về">
+        <button onclick="searchFilteredKeyframesUI()" class="btn-primary" style="white-space:nowrap; padding:8px 12px;">
+          <i class="fa fa-search mr-1"></i> Lọc Keyframes
+        </button>
+      </div>
+    </div>
+
+    <!-- 1-Click End-to-End Search -->
+    <button onclick="runTwoStageEndToEnd()" class="btn-primary" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);">
+      <i class="fa fa-bolt mr-1"></i> Chạy 2 Tầng Tự Động (1-Click)
     </button>
   </div>
 
@@ -409,11 +549,12 @@
 
   <!-- Results container — each block has its own scroll context -->
   <div class="flex-1 overflow-y-auto p-5" id="resultsArea">
-    <div id="resultsGrid-text"   class="results-grid grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
-    <div id="resultsGrid-image"  class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
-    <div id="resultsGrid-trake"  class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
-    <div id="resultsGrid-ocr"    class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
-    <div id="resultsGrid-browse" class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+    <div id="resultsGrid-text"     class="results-grid grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+    <div id="resultsGrid-twostage" class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+    <div id="resultsGrid-image"    class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+    <div id="resultsGrid-trake"    class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+    <div id="resultsGrid-ocr"      class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+    <div id="resultsGrid-browse"   class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
     <!-- Initial empty state -->
     <div id="emptyState" class="flex flex-col items-center justify-center py-24 text-center">
       <i class="fa fa-search text-5xl mb-4" style="color:#2d3146;"></i>
@@ -544,13 +685,15 @@ const OIV7_LABELS = [
 // ─────────────────────────────────────────────
 const workspace = {
   activeBlock: 'text',
-  text:   { results:[], filtered:[], fuse:null, scroll:0 },
-  image:  { results:[], filtered:[], fuse:null, scroll:0 },
-  trake:  { results:[], filtered:[], fuse:null, scroll:0 },
-  ocr:    { results:[], filtered:[], fuse:null, scroll:0 },
-  browse: { results:[], filtered:[], fuse:null, scroll:0 },
+  text:     { results:[], filtered:[], fuse:null, scroll:0 },
+  twostage: { results:[], filtered:[], segments:[], candidate_video_ids:[], viewMode:'segments', fuse:null, scroll:0 },
+  image:    { results:[], filtered:[], fuse:null, scroll:0 },
+  trake:    { results:[], filtered:[], fuse:null, scroll:0 },
+  ocr:      { results:[], filtered:[], fuse:null, scroll:0 },
+  browse:   { results:[], filtered:[], fuse:null, scroll:0 },
 };
 let objTags = []; // selected object tags for text block
+let twoStageSelectedVids = []; // selected candidate video IDs for 2-stage search
 
 // ─────────────────────────────────────────────
 // Block Switching
@@ -677,6 +820,12 @@ function showInfo(text) {
 function clearActiveResults() {
   const name = workspace.activeBlock;
   workspace[name] = { results:[], filtered:[], fuse:null, scroll:0 };
+  if (name === 'twostage') {
+    workspace['twostage'].segments = [];
+    workspace['twostage'].candidate_video_ids = [];
+    workspace['twostage'].viewMode = 'segments';
+    clearTwoStageVids();
+  }
   document.getElementById(`resultsGrid-${name}`).innerHTML = '';
   document.getElementById('infoBar').classList.add('hidden');
   document.getElementById('emptyState').style.display = 'flex';
@@ -718,7 +867,11 @@ function handleBackendResponse(data, title, blockName) {
     workspace[block].filtered = [...results];
   }
 
-  renderResults(workspace[block].filtered, block);
+  if (block === 'twostage') {
+    renderTwoStageResults();
+  } else {
+    renderResults(workspace[block].filtered, block);
+  }
   showInfo(`${title} — ${data.elapsed ? data.elapsed.toFixed(2)+'s | ' : ''}${results.length} results`);
   document.getElementById('emptyState').style.display = 'none';
 }
@@ -764,8 +917,319 @@ function applyFuseFilter() {
   } else if (st.fuse) {
     st.filtered = st.fuse.search(q).map(r => r.item);
   }
-  renderResults(st.filtered, name);
+  if (name === 'twostage') {
+    renderTwoStageResults();
+  } else {
+    renderResults(st.filtered, name);
+  }
   document.getElementById('infoStatus').innerText = `Showing ${st.filtered.length} / ${st.results.length}`;
+}
+
+// ─────────────────────────────────────────────
+// 2-STAGE HIERARCHICAL SEARCH (BGE-M3 + EVA-02)
+// ─────────────────────────────────────────────
+function addTwoStageVidTag(vid) {
+  vid = vid.trim();
+  if (!vid || twoStageSelectedVids.includes(vid)) return;
+  twoStageSelectedVids.push(vid);
+  renderTwoStageVidTags();
+}
+
+function removeTwoStageVidTag(vid) {
+  twoStageSelectedVids = twoStageSelectedVids.filter(v => v !== vid);
+  renderTwoStageVidTags();
+}
+
+function clearTwoStageVids() {
+  twoStageSelectedVids = [];
+  renderTwoStageVidTags();
+}
+
+function selectAllStage1Candidates() {
+  const cands = workspace['twostage'].candidate_video_ids || [];
+  if (cands.length) {
+    twoStageSelectedVids = [...cands];
+    renderTwoStageVidTags();
+  }
+}
+
+function renderTwoStageVidTags() {
+  const container = document.getElementById('twoStageVidTags');
+  const countEl = document.getElementById('twoStageCandCount');
+  if (countEl) countEl.innerText = twoStageSelectedVids.length;
+  if (!container) return;
+  if (!twoStageSelectedVids.length) {
+    container.innerHTML = `<span style="color:var(--text-faint); font-size:11px; font-style:italic; padding:2px 4px;">Chưa có video ứng viên nào...</span>`;
+    return;
+  }
+  container.innerHTML = twoStageSelectedVids.map(v =>
+    `<span class="obj-tag" style="background:#1e293b; border-color:#38bdf8; color:#7dd3fc;">
+       ${v}
+       <span class="rm" onclick="removeTwoStageVidTag('${v}')">✕</span>
+     </span>`
+  ).join('');
+}
+
+function handleTwoStageVidKey(e) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = document.getElementById('twoStageVidInput').value.trim();
+    if (val) {
+      val.split(/[\s,]+/).filter(Boolean).forEach(v => addTwoStageVidTag(v));
+      document.getElementById('twoStageVidInput').value = '';
+    }
+  }
+}
+
+async function searchSegmentsUI() {
+  const q = document.getElementById('twoStageQuery').value.trim();
+  if (!q) { alert('Vui lòng nhập truy vấn mô tả phân đoạn'); return; }
+  const topk = parseInt(document.getElementById('twoStageSegTopk').value) || 20;
+
+  showLoading('twostage');
+
+  try {
+    const res = await fetch('/api/search/segments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q, top_k: topk })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert('Lỗi: ' + (err.error || 'Segment search failed'));
+      return;
+    }
+    const data = await res.json();
+    const segments = data.results || [];
+    const candidate_video_ids = data.candidate_video_ids || [];
+
+    workspace['twostage'].segments = segments;
+    workspace['twostage'].candidate_video_ids = candidate_video_ids;
+    workspace['twostage'].viewMode = 'segments';
+
+    // Auto-populate candidate video tags
+    twoStageSelectedVids = [...candidate_video_ids];
+    renderTwoStageVidTags();
+
+    renderTwoStageResults();
+    showInfo(`Stage 1: ${segments.length} segments (${candidate_video_ids.length} videos) | ${data.elapsed ? data.elapsed.toFixed(2)+'s' : ''}`);
+    document.getElementById('emptyState').style.display = 'none';
+  } catch (e) {
+    alert('Lỗi kết nối: ' + e.message);
+  }
+}
+
+async function searchFilteredKeyframesUI() {
+  const baseQuery = document.getElementById('twoStageQuery').value.trim();
+  const overrideQuery = document.getElementById('twoStageKeyframeQuery').value.trim();
+  const q = overrideQuery || baseQuery;
+
+  if (!q) { alert('Vui lòng nhập truy vấn tìm kiếm keyframes'); return; }
+  if (!twoStageSelectedVids.length) {
+    alert('Chưa chọn candidate videos. Hãy chạy Stage 1 hoặc thêm video ID thủ công.');
+    return;
+  }
+
+  const topk = parseInt(document.getElementById('twoStageKeyframeTopk').value) || 50;
+
+  showLoading('twostage');
+
+  try {
+    const res = await fetch('/api/search_text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: q,
+        video_ids: twoStageSelectedVids,
+        top_k: topk
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert('Lỗi: ' + (err.error || 'Filtered search failed'));
+      return;
+    }
+    const data = await res.json();
+    workspace['twostage'].results = data.results || [];
+    workspace['twostage'].filtered = [...(data.results || [])];
+    workspace['twostage'].viewMode = 'keyframes';
+
+    handleBackendResponse(data, `Stage 2: "${q}" (${twoStageSelectedVids.length} vids)`, 'twostage');
+  } catch (e) {
+    alert('Lỗi kết nối: ' + e.message);
+  }
+}
+
+async function runTwoStageEndToEnd() {
+  const q = document.getElementById('twoStageQuery').value.trim();
+  if (!q) { alert('Vui lòng nhập truy vấn mô tả phân đoạn'); return; }
+  const segTopk = parseInt(document.getElementById('twoStageSegTopk').value) || 20;
+  const kfTopk = parseInt(document.getElementById('twoStageKeyframeTopk').value) || 50;
+  const overrideQuery = document.getElementById('twoStageKeyframeQuery').value.trim();
+  const kfQuery = overrideQuery || q;
+
+  showLoading('twostage');
+
+  try {
+    // 1. Run Stage 1: Segment search
+    const res1 = await fetch('/api/search/segments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q, top_k: segTopk })
+    });
+    if (!res1.ok) {
+      const err = await res1.json();
+      alert('Lỗi Stage 1: ' + (err.error || 'Segment search failed'));
+      return;
+    }
+    const data1 = await res1.json();
+    const segments = data1.results || [];
+    const candidate_video_ids = data1.candidate_video_ids || [];
+
+    workspace['twostage'].segments = segments;
+    workspace['twostage'].candidate_video_ids = candidate_video_ids;
+    twoStageSelectedVids = [...candidate_video_ids];
+    renderTwoStageVidTags();
+
+    if (!candidate_video_ids.length) {
+      workspace['twostage'].viewMode = 'segments';
+      renderTwoStageResults();
+      showInfo(`Stage 1: Không tìm thấy phân đoạn nào.`);
+      return;
+    }
+
+    // 2. Run Stage 2: Filtered keyframe search
+    const res2 = await fetch('/api/search_text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: kfQuery,
+        video_ids: candidate_video_ids,
+        top_k: kfTopk
+      })
+    });
+    if (!res2.ok) {
+      const err = await res2.json();
+      alert('Lỗi Stage 2: ' + (err.error || 'Keyframe search failed'));
+      return;
+    }
+    const data2 = await res2.json();
+    workspace['twostage'].results = data2.results || [];
+    workspace['twostage'].filtered = [...(data2.results || [])];
+    workspace['twostage'].viewMode = 'keyframes';
+
+    handleBackendResponse(data2, `2-Stage: "${q}" (${segments.length} segs → ${data2.results?.length || 0} frames)`, 'twostage');
+  } catch (e) {
+    alert('Lỗi kết nối: ' + e.message);
+  }
+}
+
+function searchVideoInTwoStage(videoId) {
+  twoStageSelectedVids = [videoId];
+  renderTwoStageVidTags();
+  searchFilteredKeyframesUI();
+}
+
+function openBrowseFolderFromTwoStage(vid) {
+  switchBlock('browse');
+  document.getElementById('browseFolder').value = vid;
+  browseFolder();
+}
+
+function setTwoStageViewMode(mode) {
+  workspace['twostage'].viewMode = mode;
+  renderTwoStageResults();
+}
+
+function renderTwoStageResults() {
+  const st = workspace['twostage'];
+  const grid = document.getElementById('resultsGrid-twostage');
+  const segCount = (st.segments || []).length;
+  const kfCount = (st.filtered || st.results || []).length;
+
+  if (segCount === 0 && kfCount === 0) {
+    grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-16 text-center">
+      <i class="fa fa-layer-group text-4xl mb-3" style="color:#2d3146;"></i>
+      <p style="color:#4a5568;" class="text-sm">Chưa có kết quả 2-Stage Search. Nhập truy vấn và chạy Stage 1.</p></div>`;
+    return;
+  }
+
+  // Switcher bar
+  const switchBar = `
+    <div class="col-span-full flex items-center justify-between p-2.5 rounded-xl mb-1" style="background:var(--bg-card); border:1px solid var(--border-card);">
+      <div class="flex items-center gap-2">
+        <button onclick="setTwoStageViewMode('segments')" class="btn-secondary text-xs" style="${st.viewMode === 'segments' ? 'background:linear-gradient(135deg,#06b6d4,#3b82f6); color:#fff; border-color:transparent;' : ''}">
+          <i class="fa fa-list-ol mr-1"></i> Phân đoạn (${segCount})
+        </button>
+        <button onclick="setTwoStageViewMode('keyframes')" class="btn-secondary text-xs" style="${st.viewMode === 'keyframes' ? 'background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; border-color:transparent;' : ''}">
+          <i class="fa fa-image mr-1"></i> Keyframes (${kfCount})
+        </button>
+      </div>
+      <div class="text-xs text-gray-400 flex items-center gap-2">
+        <span>Candidates: <strong class="text-indigo-400">${(st.candidate_video_ids||[]).length} videos</strong></span>
+      </div>
+    </div>
+  `;
+
+  if (st.viewMode === 'segments') {
+    if (!segCount) {
+      grid.innerHTML = switchBar + `<div class="col-span-full text-center py-10" style="color:#6272a4;">Chưa có phân đoạn nào từ Stage 1.</div>`;
+      return;
+    }
+    const segCards = (st.segments || []).map((seg) => {
+      const kwHtml = (seg.keywords || []).map(k => `<span class="obj-tag" style="font-size:10px; padding:1px 6px;">${k}</span>`).join(' ');
+      const entHtml = (seg.entities || []).map(e => `<span style="background:var(--bg-elevated); color:var(--text-secondary); border-radius:12px; padding:1px 6px; font-size:10px;">${e}</span>`).join(' ');
+      return `
+        <div class="segment-card">
+          <div class="seg-header">
+            <div class="seg-vid">
+              <i class="fa fa-film" style="color:#6366f1;"></i>
+              <span>${seg.video_id}</span>
+              <span class="seg-time"><i class="fa fa-clock mr-1"></i>${seg.start_time} → ${seg.end_time}</span>
+            </div>
+            <div class="seg-score"><i class="fa fa-star text-yellow-400 mr-1"></i>${seg.score?.toFixed(3)}</div>
+          </div>
+          ${seg.category ? `<div style="font-size:11px; color:var(--tag-color); font-weight:600;"><i class="fa fa-tag mr-1"></i>${seg.category}</div>` : ''}
+          <div class="seg-desc">${seg.description || 'Không có mô tả.'}</div>
+          ${(seg.keywords?.length || seg.entities?.length) ? `<div class="seg-meta">${kwHtml} ${entHtml}</div>` : ''}
+          <div class="pt-2 mt-auto border-t flex justify-between items-center" style="border-color:var(--border-card);">
+            <button onclick="searchVideoInTwoStage('${seg.video_id}')" class="btn-secondary text-xs" style="padding:4px 8px;">
+              <i class="fa fa-crosshairs mr-1 text-indigo-400"></i> Lọc Keyframes Video Này
+            </button>
+            <button onclick="openBrowseFolderFromTwoStage('${seg.video_id}')" class="btn-secondary text-xs" style="padding:4px 8px;">
+              <i class="fa fa-folder-open mr-1 text-teal-400"></i> Xem Video
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    grid.innerHTML = switchBar + `<div class="col-span-full grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr));">${segCards}</div>`;
+  } else {
+    // Keyframes mode
+    const keyframeList = st.filtered || st.results || [];
+    if (!keyframeList.length) {
+      grid.innerHTML = switchBar + `<div class="col-span-full text-center py-10" style="color:#6272a4;">Chưa có keyframe nào từ Stage 2. Nhấn "Lọc Keyframes" để quét.</div>`;
+      return;
+    }
+    const sz = document.getElementById('gridSize')?.value || 220;
+    const cardsHtml = keyframeList.map((r) => {
+      const sim = typeof r.similarity === 'number' ? r.similarity.toFixed(3) : '—';
+      const fvid = r.frame_idx_video || r.frame_idx || '?';
+      const ts = r.time_str || '';
+      const encoded = encodeURIComponent(JSON.stringify(r));
+      return `<div class="frame-card" onclick="openModal('${encoded}')">
+        <div class="relative">
+          <img src="${getImgUrl(r.image_path)}" loading="lazy" class="w-full object-cover" style="max-height:200px;">
+          <div class="sim-badge"><i class="fa fa-star" style="color:#fbbf24;"></i> ${sim}</div>
+        </div>
+        <div class="card-footer">
+          <div class="vid-name">${r.video_name}</div>
+          <div class="meta-row"><span><i class="fa fa-film" style="color:#4f4f7a;"></i> ${fvid}</span><span>${ts}</span></div>
+        </div>
+      </div>`;
+    }).join('');
+    grid.innerHTML = switchBar + `<div class="col-span-full grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(${sz}px,1fr));">${cardsHtml}</div>`;
+  }
 }
 
 // ─────────────────────────────────────────────

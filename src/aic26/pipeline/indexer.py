@@ -165,23 +165,23 @@ class IndexBuilder:
     def _load_with_paths(
         self,
         folder_path: str,
+        keyframes_dir: str | None = None,
         expected_paths: list[str] | None = None,
         expected_videos: list[str] | None = None,
-    ) -> tuple:
+    ) -> tuple[np.ndarray, list[str], list[str]]:
         """
-        Load all .npy files in a folder and stack them, optionally validating
-        that the resulting row order matches an expected image_paths / video_names
-        list (used to lockstep the two streams during dual build).
+        Load all .npy files in a folder and stack them, pairing with actual keyframe paths.
         """
+        kdir = keyframes_dir or str(self.config.keyframes_dir)
         npy_files = sorted(
             f for f in os.listdir(folder_path) if f.endswith(".npy")
         )
         if not npy_files:
             raise FileNotFoundError(f"No .npy files in {folder_path}")
 
-        all_embs: list = []
-        all_paths: list = []
-        all_vids: list = []
+        all_embs: list[np.ndarray] = []
+        all_paths: list[str] = []
+        all_vids: list[str] = []
 
         for npy in npy_files:
             video_name = os.path.splitext(npy)[0]
@@ -193,27 +193,140 @@ class IndexBuilder:
                 continue
             if emb.ndim == 1:
                 emb = emb.reshape(1, -1)
-            n = emb.shape[0]
-            all_embs.append(emb)
-            if expected_paths is None:
-                all_paths.extend([f"{video_name}/{i:06d}.jpg" for i in range(n)])
-                all_vids.extend([video_name] * n)
+
+            if expected_paths is not None:
+                all_embs.append(emb)
+                continue
+
+            vid_folder = os.path.join(kdir, video_name)
+            if os.path.exists(vid_folder):
+                frames = sorted(
+                    f for f in os.listdir(vid_folder)
+                    if f.lower().endswith((".jpg", ".jpeg", ".png"))
+                )
+                n = min(len(frames), len(emb))
+                for i in range(n):
+                    all_paths.append(os.path.join(vid_folder, frames[i]).replace(os.sep, "/"))
+                    all_vids.append(video_name)
+                all_embs.append(emb[:n])
+            else:
+                n = len(emb)
+                for i in range(n):
+                    all_paths.append(f"{kdir}/{video_name}/{i:04d}.jpg")
+                    all_vids.append(video_name)
+                all_embs.append(emb)
+
+        if not all_embs:
+            return np.array([]), [], []
 
         combined = np.vstack(all_embs).astype(np.float32)
 
-        if expected_paths is None:
-            return combined, all_paths, all_vids
+        if expected_paths is not None:
+            if len(expected_paths) != combined.shape[0]:
+                raise ValueError(
+                    f"Stream length {combined.shape[0]} != expected {len(expected_paths)}"
+                )
+            return combined, expected_paths, expected_videos or []
 
-        # Validation mode: caller provides the canonical paths, we just stack.
-        if len(expected_paths) != combined.shape[0]:
+        return combined, all_paths, all_vids
+
+    def build_dual(
+        self,
+        eva02_dir: str,
+        clip32_dir: str,
+        output_path: Optional[str] = None,
+        index_type: str = "flat_ip",
+    ) -> dict:
+        """
+        Build a FAISS index pair from two embedding streams (EVA-02 + CLIP-32).
+        """
+        eva02_path = Path(eva02_dir)
+        clip32_path = Path(clip32_dir)
+        if not eva02_path.exists():
+            raise FileNotFoundError(f"EVA-02 embedding dir not found: {eva02_path}")
+        if not clip32_path.exists():
+            raise FileNotFoundError(f"CLIP-32 embedding dir not found: {clip32_path}")
+
+        output_path = output_path or str(self.config.faiss_index_path)
+        ensure_dir(os.path.dirname(output_path))
+
+        logger.info(f"Loading EVA-02 embeddings from {eva02_path}...")
+        eva02_emb, image_paths, video_names = self._load_with_paths(str(eva02_path))
+        logger.info(f"Loading CLIP-32 embeddings from {clip32_path}...")
+        clip32_emb, _, _ = self._load_with_paths(
+            str(clip32_path), expected_paths=image_paths, expected_videos=video_names
+        )
+
+        if eva02_emb.shape[0] != clip32_emb.shape[0]:
             raise ValueError(
-                f"Stream length {combined.shape[0]} != expected {len(expected_paths)}"
+                f"Stream row count mismatch: eva02={eva02_emb.shape[0]} clip32={clip32_emb.shape[0]}"
             )
-        if len(expected_videos) != combined.shape[0]:
-            raise ValueError(
-                f"Stream video_names {combined.shape[0]} != expected {len(expected_videos)}"
-            )
-        return combined, expected_paths, expected_videos
+
+        d_eva = eva02_emb.shape[1]
+        d_clip = clip32_emb.shape[1]
+        eva02_f32 = eva02_emb.astype(np.float32)
+        clip32_f32 = clip32_emb.astype(np.float32)
+
+        if index_type == "flat_ip":
+            eva02_index = faiss.IndexFlatIP(d_eva)
+            clip32_index = faiss.IndexFlatIP(d_clip)
+        else:
+            eva02_index = faiss.IndexFlatL2(d_eva)
+            clip32_index = faiss.IndexFlatL2(d_clip)
+
+        eva02_index.add(eva02_f32)
+        clip32_index.add(clip32_f32)
+        logger.info(
+            f"FAISS dual index built: eva02={d_eva}-d, clip32={d_clip}-d, "
+            f"n={eva02_index.ntotal}"
+        )
+
+        w_eva = float(getattr(self.config, "eva02_search_weight", 0.6))
+        w_clip = float(getattr(self.config, "clip32_search_weight", 0.4))
+
+        db_data = {
+            "queries": [],
+            "embeddings": eva02_f32,
+            "clip32_embeddings": clip32_f32,
+            "image_paths": image_paths,
+            "video_names": video_names,
+            "frame_indices": [],
+            "similarities": [],
+            "timestamps": [],
+            "eva02_index": eva02_index,
+            "clip32_index": clip32_index,
+            "faiss_index": eva02_index,  # backwards compat
+            "weight_eva02": w_eva,
+            "weight_clip32": w_clip,
+            "dual": True,
+            "metadata": {
+                "build_date": np.datetime64("now").astype(str),
+                "num_embeddings": eva02_index.ntotal,
+                "eva02_dim": d_eva,
+                "clip32_dim": d_clip,
+                "index_type": index_type,
+                "weight_eva02": w_eva,
+                "weight_clip32": w_clip,
+            },
+        }
+
+        with open(output_path, "wb") as f:
+            pickle.dump(db_data, f)
+
+        file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
+        logger.info(
+            f"Dual FAISS saved to {output_path} "
+            f"({file_size_mb:.1f} MB, {eva02_index.ntotal} vectors × 2 streams)"
+        )
+        return {
+            "embeddings_loaded": eva02_index.ntotal,
+            "eva02_dim": d_eva,
+            "clip32_dim": d_clip,
+            "index_type": index_type,
+            "output_path": output_path,
+            "file_size_mb": file_size_mb,
+            "dual": True,
+        }
 
     def build(
         self,
@@ -223,117 +336,63 @@ class IndexBuilder:
     ) -> dict:
         """
         Build FAISS index from embedding files.
-        
-        Args:
-            embedding_dir: Directory containing .npy embedding files
-            output_path: Path to save the FAISS database
-            index_type: Type of FAISS index ('flat_ip' or 'flat_l2')
-            
-        Returns:
-            Dict with build statistics
         """
         embedding_path = Path(embedding_dir) if embedding_dir else Path(self.config.embedding_dir)
-        
         if not embedding_path.exists():
             raise FileNotFoundError(f"Embedding directory not found: {embedding_path}")
-        
+
         output_path = output_path or str(self.config.faiss_index_path)
-        output_dir = os.path.dirname(output_path)
-        ensure_dir(output_dir)
-        
+        ensure_dir(os.path.dirname(output_path))
+
         logger.info(f"Loading embeddings from {embedding_path}...")
-        embeddings = self._load_embeddings(str(embedding_path))
-        
+        embeddings, image_paths, video_names = self._load_with_paths(str(embedding_path))
+
         if len(embeddings) == 0:
             logger.error("No embeddings loaded")
             return {"embeddings_loaded": 0, "index_size": 0}
-        
-        logger.info(f"Loaded {len(embeddings)} embeddings, dim={embeddings.shape[1]}")
-        
-        # Create FAISS index
+
         d = embeddings.shape[1]
-        
         if index_type == "flat_ip":
             index = faiss.IndexFlatIP(d)
-            logger.info(f"Created IndexFlatIP with dimension {d}")
         else:
             index = faiss.IndexFlatL2(d)
-            logger.info(f"Created IndexFlatL2 with dimension {d}")
-        
-        # Add embeddings
+
         embeddings_f32 = embeddings.astype(np.float32)
         index.add(embeddings_f32)
-        
-        # Create database
+
         db_data = {
-            'queries': [],
-            'embeddings': embeddings_f32,
-            'image_paths': [],
-            'video_names': [],
-            'frame_indices': [],
-            'similarities': [],
-            'timestamps': [],
-            'metadata': {
-                'build_date': np.datetime64('now').astype(str),
-                'num_embeddings': len(embeddings),
-                'dimension': d,
-                'index_type': index_type,
+            "queries": [],
+            "embeddings": embeddings_f32,
+            "image_paths": image_paths,
+            "video_names": video_names,
+            "frame_indices": [],
+            "similarities": [],
+            "timestamps": [],
+            "eva02_index": index,
+            "faiss_index": index,
+            "dual": False,
+            "metadata": {
+                "build_date": np.datetime64("now").astype(str),
+                "num_embeddings": len(embeddings),
+                "dimension": d,
+                "index_type": index_type,
             },
-            'faiss_index': index,
         }
-        
-        # Save
+
         with open(output_path, "wb") as f:
             pickle.dump(db_data, f)
-        
+
         file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
-        
         logger.info(
             f"FAISS index built and saved to {output_path} "
             f"({file_size_mb:.1f} MB, {len(embeddings)} vectors)"
         )
-        
+
         return {
             "embeddings_loaded": len(embeddings),
             "dimension": d,
             "index_type": index_type,
             "output_path": output_path,
             "file_size_mb": file_size_mb,
+            "dual": False,
         }
-    
-    def _load_embeddings(self, folder_path: str) -> np.ndarray:
-        """
-        Load all .npy embedding files from a folder.
-        
-        Args:
-            folder_path: Path to folder containing .npy files
-            
-        Returns:
-            Stacked numpy array of all embeddings
-        """
-        npy_files = sorted(
-            f for f in os.listdir(folder_path)
-            if f.endswith(".npy")
-        )
-        
-        if not npy_files:
-            logger.warning(f"No .npy files found in {folder_path}")
-            return np.array([])
-        
-        all_embeddings = []
-        
-        for file in npy_files:
-            file_path = os.path.join(folder_path, file)
-            try:
-                emb = np.load(file_path)
-                if emb.ndim == 1:
-                    emb = emb.reshape(1, -1)
-                all_embeddings.append(emb)
-                logger.debug(f"Loaded {file}: {emb.shape}")
-            except Exception as e:
-                logger.error(f"Failed to load {file}: {e}")
-        
-        if not all_embeddings:
-            return np.array([])
-        
-        return np.vstack(all_embeddings)

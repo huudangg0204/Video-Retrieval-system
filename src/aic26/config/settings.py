@@ -139,6 +139,26 @@ class Settings(BaseSettings):
         description="Directory containing .npy CLIP ViT-B-32 embedding files",
     )
 
+    # ── BGE-M3 / Segment Index (Two-Stage Hierarchical Search) ──────────────
+    bge_m3_model_name: str = Field(
+        default="BAAI/bge-m3",
+        description="HuggingFace model id for BAAI/bge-m3 (Stage-1 segment retrieval)",
+    )
+
+    segment_index_path: Path = Field(
+        default_factory=lambda: Path("data/faiss/segment_index.pkl"),
+        description=(
+            "Path to the FAISS segment index pickle built by "
+            "pipeline/segment_indexer.py::SegmentIndexBuilder. "
+            "Stores BGE-M3 1024-d embeddings + metadata for video segments."
+        ),
+    )
+
+    vid_description_dir: Path = Field(
+        default_factory=lambda: Path("data/vid-description"),
+        description="Directory containing per-lesson video description JSON files (from extract_vid_description.py)",
+    )
+
     use_dual_embedding: bool = Field(
         default=True,
         description="If true, encode with EVA-02 + BLIP-2 and weighted-blend cosine similarity at search time",

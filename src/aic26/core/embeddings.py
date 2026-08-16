@@ -9,6 +9,7 @@ Migrated from: core/embeddings.py
 from __future__ import annotations
 
 import os
+import pickle
 from typing import List, Optional, Tuple
 
 import numpy as np
@@ -25,17 +26,11 @@ from aic26.core.models import ModelRegistry
 
 class EmbeddingIndex:
     """
-    Loads and manages pre-computed EVA-02 embeddings.
+    Loads and manages pre-computed embeddings and FAISS index.
     
-    Provides:
-    - Text and image encoding using EVA-02 CLIP
-    - Similarity computation (cosine)
-    - Top-k and threshold-based retrieval
-    
-    Usage:
-        index = EmbeddingIndex(models, embedding_dir, keyframes_dir)
-        text_emb = index.encode_text("a red car")
-        sims = index.cosine_similarity(text_emb, index.embeddings)
+    Prioritizes direct querying on FAISS index (IndexFlatIP) for high performance
+    and scalability. Automatically falls back to in-memory .npy array search if the
+    FAISS index file is not found.
     """
     
     def __init__(
@@ -44,27 +39,47 @@ class EmbeddingIndex:
         embedding_dir: str,
         keyframes_dir: str,
         clip32_dir: str | None = None,
+        faiss_index_path: str | None = None,
     ) -> None:
         """
         Initialize the embedding index.
 
         Args:
-            models: ModelRegistry with loaded EVA-02 model
+            models: ModelRegistry with loaded models
             embedding_dir: Directory containing .npy embedding files (EVA-02)
             keyframes_dir: Directory containing keyframe images
-            clip32_dir: Optional directory with CLIP ViT-B-32 .npy files.
-                        If present and loadable (row count matches EVA-02),
-                        self.clip32_embeddings is populated and
-                        self.is_dual becomes True.
+            clip32_dir: Optional directory with CLIP ViT-B-32 .npy files
+            faiss_index_path: Path to pre-built FAISS index pickle file
         """
         self.models = models
         self.embedding_dir = embedding_dir
         self.keyframes_dir = keyframes_dir
         self.clip32_dir = clip32_dir
-        self.clip32_embeddings: np.ndarray = np.array([])
-        self.is_dual = False
+        self.faiss_index_path = faiss_index_path or str(settings.faiss_index_path)
 
-        logger.info("Loading embeddings...")
+        self.clip32_embeddings: np.ndarray = np.array([])
+        self.eva02_index = None
+        self.clip32_index = None
+        self.is_dual = False
+        self.use_faiss = False
+        self._path_to_idx = {}
+        # Map video_name -> list of row indices in self.embeddings.
+        # Pre-computed for O(1) Stage-2 filtered search (search_text_filtered).
+        self.video_to_indices: dict[str, list[int]] = {}
+
+        # ── Priority 1: Direct FAISS Index ────────────────────────
+        if self._load_from_faiss_index(self.faiss_index_path):
+            return
+
+        # ── Priority 2 (Fallback): In-Memory .npy Array ───────────
+        logger.warning(
+            f"⚠️ [NUMPY FALLBACK] FAISS index not found at '{self.faiss_index_path}'. "
+            f"Falling back to in-memory .npy embeddings. "
+            f"For optimal speed and scalability on large datasets, build the FAISS index with: "
+            f"'aic26 pipeline build-index'"
+        )
+
+        logger.info("Loading .npy embeddings into RAM...")
         self.embeddings, self.image_paths, self.video_names = self._load_all()
 
         n_images = len(self.image_paths)
@@ -74,7 +89,7 @@ class EmbeddingIndex:
             f"Embedding shape: {self.embeddings.shape}"
         )
 
-        if clip32_dir:
+        if clip32_dir and settings.use_dual_embedding:
             try:
                 self.clip32_embeddings, _, _ = self._load_all(clip32_dir)
                 if (
@@ -95,6 +110,103 @@ class EmbeddingIndex:
             except Exception as e:
                 logger.warning(f"Failed to load CLIP-32 stream: {e}")
                 self.clip32_embeddings = np.array([])
+
+    def _load_from_faiss_index(self, index_path: str) -> bool:
+        """
+        Attempt to load pre-built FAISS index from disk.
+        Returns True if successfully loaded, False otherwise.
+        """
+        if not index_path or not os.path.exists(index_path):
+            return False
+
+        try:
+            with open(index_path, "rb") as f:
+                db_data = pickle.load(f)
+
+            if not isinstance(db_data, dict):
+                logger.warning(f"FAISS index file {index_path} has invalid format.")
+                return False
+
+            self.eva02_index = db_data.get("eva02_index") or db_data.get("faiss_index")
+            if self.eva02_index is None:
+                logger.warning(f"No FAISS index object found in {index_path}.")
+                return False
+
+            self.image_paths = db_data.get("image_paths", [])
+            self.video_names = db_data.get("video_names", [])
+            self.embeddings = db_data.get("embeddings", np.array([]))
+
+            if settings.use_dual_embedding and "clip32_index" in db_data:
+                self.clip32_index = db_data["clip32_index"]
+                self.clip32_embeddings = db_data.get("clip32_embeddings", np.array([]))
+                self.is_dual = True
+                logger.info(
+                    f"Dual-stream FAISS loaded: EVA-02 ({self.eva02_index.ntotal} vectors) + "
+                    f"CLIP-32 ({self.clip32_index.ntotal} vectors)"
+                )
+            else:
+                self.is_dual = False
+
+            # Build fast lookup map
+            self._path_to_idx = {
+                path.replace(os.sep, "/"): i for i, path in enumerate(self.image_paths)
+            }
+            for i, path in enumerate(self.image_paths):
+                self._path_to_idx[path] = i
+
+            # Build video_to_indices for Stage-2 filtered search
+            from collections import defaultdict as _dd
+            _vti: dict[str, list[int]] = _dd(list)
+            for i, vname in enumerate(self.video_names):
+                _vti[vname].append(i)
+            self.video_to_indices = dict(_vti)
+
+            self.use_faiss = True
+            logger.info(
+                f"⚡ [FAISS INDEX ACTIVE] Successfully loaded FAISS index from '{index_path}' "
+                f"({self.eva02_index.ntotal} vectors). Queries will execute directly via FAISS IndexFlatIP."
+            )
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to load FAISS index from '{index_path}': {e}")
+            return False
+
+    def search_faiss(
+        self,
+        query_emb: np.ndarray,
+        top_k: int,
+        stream: str = "eva02",
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Query FAISS index directly for high-performance top-k retrieval.
+
+        Args:
+            query_emb: L2-normalized float32 query vector shape (1, D)
+            top_k: Number of nearest neighbors to retrieve
+            stream: "eva02" or "clip32"
+
+        Returns:
+            Tuple of (indices_1d, scores_1d) sorted descending by score.
+        """
+        index = self.eva02_index if stream == "eva02" else self.clip32_index
+        if index is None:
+            raise ValueError(f"FAISS index for stream '{stream}' is not available.")
+
+        k = min(top_k, index.ntotal)
+        if k <= 0:
+            return np.array([], dtype=int), np.array([], dtype=np.float32)
+
+        q = query_emb.astype(np.float32)
+        if q.ndim == 1:
+            q = q.reshape(1, -1)
+
+        scores, indices = index.search(q, k)
+        return indices[0], scores[0]
+
+    def __len__(self) -> int:
+        if self.use_faiss and self.eva02_index is not None:
+            return self.eva02_index.ntotal
+        return len(self.image_paths)
     
     # ── Encoders ──────────────────────────────────────────────────
     
@@ -365,5 +477,11 @@ class EmbeddingIndex:
         # primary stream, otherwise we'd clobber it with a second copy)
         if override_dir is None:
             self._path_to_idx = {p: i for i, p in enumerate(all_paths)}
+            # Build video_to_indices for Stage-2 filtered search
+            from collections import defaultdict as _dd
+            _vti: dict[str, list[int]] = _dd(list)
+            for i, vname in enumerate(all_vids):
+                _vti[vname].append(i)
+            self.video_to_indices = dict(_vti)
 
         return combined, all_paths, all_vids

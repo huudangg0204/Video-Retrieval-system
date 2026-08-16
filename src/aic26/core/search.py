@@ -9,7 +9,7 @@ Migrated from: core/search.py
 from __future__ import annotations
 
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from loguru import logger
 
@@ -133,8 +133,8 @@ class SearchEngine:
             - watch_url (if media info available)
             - fps, frame_idx_video, time_str (if mapping available)
         """
-        if len(self.index.embeddings) == 0:
-            logger.error("No embeddings loaded. Cannot search.")
+        if len(self.index) == 0:
+            logger.error("No embeddings or index loaded. Cannot search.")
             return []
 
         logger.debug(f"Searching: '{query[:80]}...' (top_k={top_k})")
@@ -203,8 +203,8 @@ class SearchEngine:
         Returns:
             List of all matching result dicts
         """
-        if len(self.index.embeddings) == 0:
-            logger.error("No embeddings loaded")
+        if len(self.index) == 0:
+            logger.error("No embeddings or index loaded")
             return []
 
         query_en = self.translator.translate(query)
@@ -212,15 +212,39 @@ class SearchEngine:
             logger.info(f"Translated query: '{query}' -> '{query_en}'")
 
         text_emb = self.index.encode_text(query_en)
-        sims = self.index.cosine_similarity(text_emb, self.index.embeddings)[0]
-        if self.index.is_dual:
-            text_emb_clip32 = self.index.encode_text_clip32(query_en)
-            sims_clip32 = self.index.cosine_similarity(
-                text_emb_clip32, self.index.clip32_embeddings
-            )[0]
-            sims = sims * self.weight_eva02 + sims_clip32 * self.weight_clip32
+        if self.index.use_faiss:
+            # Query FAISS index for all items
+            n = len(self.index)
+            idx_all, sims_all = self.index.search_faiss(text_emb, n, stream="eva02")
+            if self.index.is_dual:
+                text_emb_clip32 = self.index.encode_text_clip32(query_en)
+                idx32, sims32 = self.index.search_faiss(text_emb_clip32, n, stream="clip32")
+                eva_dict = dict(zip(idx_all, sims_all))
+                clip_dict = dict(zip(idx32, sims32))
+                sims = np.array(
+                    [
+                        eva_dict.get(i, 0.0) * self.weight_eva02 + clip_dict.get(i, 0.0) * self.weight_clip32
+                        for i in range(n)
+                    ],
+                    dtype=np.float32,
+                )
+                idx, scores = self.index.threshold_indices(sims, score)
+            else:
+                keep = sims_all >= score
+                idx, scores = idx_all[keep], sims_all[keep]
+        else:
+            logger.info(
+                "ℹ️ [SEARCH MODE: NUMPY FALLBACK] Performing threshold search on in-memory .npy matrix."
+            )
+            sims = self.index.cosine_similarity(text_emb, self.index.embeddings)[0]
+            if self.index.is_dual:
+                text_emb_clip32 = self.index.encode_text_clip32(query_en)
+                sims_clip32 = self.index.cosine_similarity(
+                    text_emb_clip32, self.index.clip32_embeddings
+                )[0]
+                sims = sims * self.weight_eva02 + sims_clip32 * self.weight_clip32
 
-        idx, scores = self.index.threshold_indices(sims, score)
+            idx, scores = self.index.threshold_indices(sims, score)
 
         if len(scores) == 0:
             logger.info(f"No results above threshold {score}")
@@ -255,15 +279,18 @@ class SearchEngine:
         Returns:
             List of result dicts sorted by visual similarity
         """
-        if len(self.index.embeddings) == 0:
-            logger.error("No embeddings loaded")
+        if len(self.index) == 0:
+            logger.error("No embeddings or index loaded")
             return []
 
         img_emb = self.index.encode_image(image_path)
         if self.index.is_dual:
             img_emb_clip32 = self.index.encode_image_clip32(image_path)
             idx, scores = self._dual_topk_indices(img_emb, img_emb_clip32, top_k)
+        elif self.index.use_faiss:
+            idx, scores = self.index.search_faiss(img_emb, top_k, stream="eva02")
         else:
+            logger.info("ℹ️ [SEARCH MODE: NUMPY FALLBACK] Performing image similarity on in-memory .npy matrix.")
             sims = self.index.cosine_similarity(img_emb, self.index.embeddings)[0]
             idx, scores = self.index.topk_indices(sims, top_k)
 
@@ -305,6 +332,123 @@ class SearchEngine:
             }
             for f in frames
         ]
+
+    def search_text_filtered(
+        self,
+        query: str,
+        video_ids: List[str],
+        top_k: int = settings.default_top_k,
+        save_to_db: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """
+        Stage-2 filtered keyframe search: EVA-02 search restricted to a
+        subset of video IDs supplied from Stage-1 segment retrieval.
+
+        Instead of scanning the full corpus (potentially 500k+ keyframes),
+        this method slices the embedding matrix to only the rows belonging
+        to the requested videos and performs a fast numpy dot product.
+
+        Args:
+            query: Text query (Vi or En — translated automatically).
+            video_ids: List of candidate video names from Stage-1.
+            top_k: Number of keyframe results to return.
+            save_to_db: Whether to persist results to VectorDatabase.
+
+        Returns:
+            List of result dicts (same schema as search_text):
+            image_path, video_name, similarity, frame_idx, watch_url,
+            fps, frame_idx_video, time_str (when available).
+        """
+        if len(self.index) == 0:
+            logger.error("No embeddings or index loaded. Cannot search.")
+            return []
+
+        if not video_ids:
+            logger.warning("search_text_filtered called with empty video_ids.")
+            return []
+
+        if not self.index.video_to_indices:
+            logger.warning(
+                "video_to_indices map is empty — index may not have been built correctly. "
+                "Falling back to full search_text()."
+            )
+            return self.search_text(query, top_k=top_k, save_to_db=save_to_db)
+
+        # Translate Vi -> En
+        query_en = self.translator.translate(query)
+        if query_en != query:
+            logger.info(f"[Filtered] Translated: '{query}' -> '{query_en}'")
+
+        # Encode query with EVA-02
+        query_vec = self.index.encode_text(query_en)  # shape (1, 768)
+
+        # Gather row indices for requested videos
+        target_indices: List[int] = []
+        missing = []
+        for vid in video_ids:
+            idxs = self.index.video_to_indices.get(vid)
+            if idxs:
+                target_indices.extend(idxs)
+            else:
+                missing.append(vid)
+
+        if missing:
+            logger.debug(
+                f"[Filtered] {len(missing)} video(s) not found in index: {missing[:5]}"
+            )
+
+        if not target_indices:
+            logger.warning(
+                f"[Filtered] None of the supplied video_ids found in index: {video_ids[:5]}"
+            )
+            return []
+
+        target_np = np.array(target_indices, dtype=np.int64)
+
+        if len(self.index.embeddings) == 0:
+            logger.error("Embedding matrix is empty; cannot perform filtered search.")
+            return []
+
+        # Slice embedding sub-matrix and compute dot products
+        sub_embeddings = self.index.embeddings[target_np]  # (M, 768)
+        scores = np.dot(sub_embeddings, query_vec.T).squeeze()  # (M,)
+        if scores.ndim == 0:
+            scores = scores.reshape(1)
+
+        # Fast top-k via argpartition (O(M) instead of O(M log M))
+        k = min(top_k, len(scores))
+        if k <= 0:
+            return []
+
+        if len(scores) > k:
+            top_sub_idx = np.argpartition(scores, -k)[-k:]
+            top_sub_idx = top_sub_idx[np.argsort(-scores[top_sub_idx])]
+        else:
+            top_sub_idx = np.argsort(-scores)
+
+        final_indices = target_np[top_sub_idx]         # original corpus indices
+        final_scores = scores[top_sub_idx]
+
+        logger.info(
+            f"[Filtered] Searched {len(target_indices)} keyframes across "
+            f"{len(video_ids)} video(s); returning top-{k} results."
+        )
+
+        # Build result dicts
+        results, sel_embs = self._build_results(final_indices, final_scores)
+
+        # Enrich with timing metadata
+        for res in results:
+            self._enrich_with_timing(res)
+
+        if save_to_db and results:
+            self.vector_db.add_query_results(
+                f"[FILTERED] {query}",
+                results,
+                np.asarray(sel_embs, dtype=np.float32),
+            )
+
+        return results
     
     def detect_objects(
         self,
@@ -368,12 +512,13 @@ class SearchEngine:
         for i, idx in enumerate(indices):
             img_path = self.index.image_paths[idx].replace(os.sep, "/")
             video_name = self.index.video_names[idx]
-            frame_str = os.path.splitext(os.path.basename(img_path))[0]
 
             # Cache media info per video
             if video_name not in _media_cache:
                 _media_cache[video_name] = load_media_info(video_name)
             media_info = _media_cache[video_name]
+
+            frame_str = os.path.splitext(os.path.basename(img_path))[0]
 
             results.append({
                 "image_path": img_path,
@@ -382,7 +527,10 @@ class SearchEngine:
                 "frame_idx": frame_str,
                 "watch_url": media_info.get("watch_url", ""),
             })
-            sel_embs.append(self.index.embeddings[idx])
+            if len(self.index.embeddings) > idx:
+                sel_embs.append(self.index.embeddings[idx])
+            else:
+                sel_embs.append(np.zeros((768,), dtype=np.float32))
 
         emb_arr = np.asarray(sel_embs, dtype=np.float32) if sel_embs else np.array([])
         return results, emb_arr
@@ -408,26 +556,80 @@ class SearchEngine:
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Weighted-average top-k over any combination of the available embedding
-        streams (EVA-02, CLIP ViT-B-32).
+        streams (EVA-02, CLIP ViT-B-32, BM25).
 
-        Implements the MemoriEase 3.0 (LSC'25) recipe generalized to N
-        streams: pull a wider candidate pool from each stream, union them,
-        blend the per-stream cosine similarities by their configured
-        weights, then take the final top_k.
-
-        Active streams:
-          - EVA-02: always (768-dim, encodes query text)
-          - CLIP-32: only when `self.index.is_dual and query_emb_clip32 is not None`
-
-        Returns:
-            (indices, blended_scores) — both 1-D arrays of length top_k (or
-            shorter if the index has fewer than top_k items).
+        When FAISS index is present (self.index.use_faiss == True), candidate search
+        is performed directly in C++ via FAISS IndexFlatIP.search().
+        When FAISS index is missing (self.index.use_faiss == False), falls back
+        to NumPy in-memory dot product and logs an informational warning.
         """
-        n = len(self.index.embeddings)
+        n = len(self.index)
         if n == 0:
             return np.array([], dtype=int), np.array([], dtype=np.float32)
 
-        # Build (label, weight, pool_multiplier, get_scores_fn) tuples
+        # ── Priority 1: Direct FAISS Index Search ─────────────────
+        if self.index.use_faiss:
+            logger.debug(f"[FAISS SEARCH] Executing query directly on FAISS IndexFlatIP (n={n})")
+            all_candidates: List[np.ndarray] = []
+            per_stream_scores: Dict[str, Dict[int, float]] = {}
+
+            # Stream 1: EVA-02 via FAISS
+            pool_k_eva = min(n, max(top_k * self.pool_multiplier, top_k))
+            eva_idx, eva_scores = self.index.search_faiss(query_emb_eva, pool_k_eva, stream="eva02")
+            all_candidates.append(eva_idx)
+            per_stream_scores["eva02"] = dict(zip(eva_idx, [float(s) for s in eva_scores]))
+
+            # Stream 2: CLIP-32 via FAISS (if dual active)
+            if self.index.is_dual and query_emb_clip32 is not None:
+                pool_k_clip = min(n, max(top_k * self.pool_multiplier, top_k))
+                clip_idx, clip_scores = self.index.search_faiss(query_emb_clip32, pool_k_clip, stream="clip32")
+                all_candidates.append(clip_idx)
+                per_stream_scores["clip32"] = dict(zip(clip_idx, [float(s) for s in clip_scores]))
+
+            # Stream 3: BM25 (if enabled)
+            if query and self.bm25_index and self.bm25_index.bm25 is not None and self.weight_bm25 > 0:
+                bm25_all = self.bm25_index.get_scores(query)
+                pool_k_bm25 = min(n, max(top_k * self.pool_multiplier, top_k))
+                bm25_top_idx, _ = self.index.topk_indices(bm25_all, pool_k_bm25)
+                all_candidates.append(bm25_top_idx)
+                per_stream_scores["bm25"] = {int(i): float(bm25_all[i]) for i in bm25_top_idx}
+
+            cand_idx = np.unique(np.concatenate(all_candidates))
+
+            # If embeddings matrix is present, compute exact cosine similarity for candidate union
+            if len(self.index.embeddings) > 0:
+                eva_cand_sims = np.dot(query_emb_eva, self.index.embeddings[cand_idx].T)[0]
+                blend = self.weight_eva02 * eva_cand_sims.astype(np.float32)
+                if self.index.is_dual and query_emb_clip32 is not None and len(self.index.clip32_embeddings) > 0:
+                    clip_cand_sims = np.dot(query_emb_clip32, self.index.clip32_embeddings[cand_idx].T)[0]
+                    blend += self.weight_clip32 * clip_cand_sims.astype(np.float32)
+                if "bm25" in per_stream_scores:
+                    bm25_cand_sims = bm25_all[cand_idx].astype(np.float32)
+                    blend += self.weight_bm25 * bm25_cand_sims
+            else:
+                blend = np.zeros(len(cand_idx), dtype=np.float32)
+                for i, idx in enumerate(cand_idx):
+                    idx_int = int(idx)
+                    s = self.weight_eva02 * per_stream_scores["eva02"].get(idx_int, 0.0)
+                    if "clip32" in per_stream_scores:
+                        s += self.weight_clip32 * per_stream_scores["clip32"].get(idx_int, 0.0)
+                    if "bm25" in per_stream_scores:
+                        s += self.weight_bm25 * per_stream_scores["bm25"].get(idx_int, 0.0)
+                    blend[i] = s
+
+            k = min(top_k, len(blend))
+            if k <= 0:
+                return np.array([], dtype=int), np.array([], dtype=np.float32)
+            part = np.argpartition(blend, -k)[-k:]
+            order = np.argsort(blend[part])[::-1]
+            return cand_idx[part[order]], blend[part[order]]
+
+        # ── Priority 2 (Fallback): In-Memory .npy Matrix Search ───
+        logger.info(
+            "ℹ️ [SEARCH MODE: NUMPY FALLBACK] Performing cosine similarity on in-memory .npy matrix. "
+            "(FAISS index file is missing). Run 'aic26 pipeline build-index' to enable high-speed FAISS search."
+        )
+
         streams = [
             (
                 "eva02",
@@ -456,8 +658,8 @@ class SearchEngine:
             )
 
         # Per-stream: compute sim, then top pool
-        all_candidates: List[np.ndarray] = []
-        per_stream_sims: Dict[str, np.ndarray] = {}
+        all_candidates = []
+        per_stream_sims = {}
         for label, _w, mult, score_fn in streams:
             sims = score_fn()
             per_stream_sims[label] = sims

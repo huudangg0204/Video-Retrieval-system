@@ -502,6 +502,66 @@ def import_ocr_cmd(
     click.echo(f"\n✅ OCR import complete! Output: {result_path}")
 
 
+# ── Segment Index subcommand (two-stage hierarchical search) ────────────────
+
+
+@pipeline_group.command(name="build-segment-index")
+@click.option(
+    "--input",
+    "-i",
+    type=click.Path(exists=True),
+    default=None,
+    help="Directory containing vid-description JSON files (default: settings.vid_description_dir)",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    default=None,
+    help="Output path for segment_index.pkl (default: settings.segment_index_path)",
+)
+@click.option(
+    "--batch-size",
+    "-b",
+    type=int,
+    default=64,
+    show_default=True,
+    help="Number of segments per BGE-M3 forward pass",
+)
+@click.option(
+    "--device",
+    type=str,
+    default=None,
+    help="Inference device (cpu / cuda / cuda:0 — auto-detects if omitted)",
+)
+def build_segment_index(
+    input: str | None,
+    output: str | None,
+    batch_size: int,
+    device: str | None,
+) -> None:
+    """
+    Build BAAI/bge-m3 FAISS index for video segments (Stage-1 of hierarchical search).
+
+    Reads all JSON files from the vid-description directory, formats structured
+    text (description + category + keywords + entities), embeds them with
+    BGE-M3, and stores the resulting FAISS index at the output path.
+    """
+    from aic26.pipeline.segment_indexer import SegmentIndexBuilder
+
+    builder = SegmentIndexBuilder(device=device)
+    stats = builder.build(
+        input_dir=input or str(settings.vid_description_dir),
+        output_path=output or str(settings.segment_index_path),
+        batch_size=batch_size,
+    )
+    click.echo("\n✅ Segment index built!")
+    click.echo(f"   Videos:    {stats['total_videos']}")
+    click.echo(f"   Segments:  {stats['total_segments']}")
+    click.echo(f"   Shape:     {stats['embedding_shape']}")
+    click.echo(f"   Output:    {stats['output_path']} ({stats['file_size_mb']:.1f} MB)")
+
+
 # ── Metadata extraction subcommands (per docs/specs/metadata-extraction.md AD-4) ─
 
 
@@ -855,22 +915,46 @@ def search_group():
 @click.option("--top-k", "-k", type=int, default=None, help="Number of results")
 @click.option("--objects", "-o", default="", help="Filter by objects")
 @click.option("--threshold", "-t", type=float, default=None, help="Confidence threshold")
+@click.option(
+    "--videos",
+    default="",
+    help="Comma-separated video IDs to restrict search to (Stage-2 filtered search)",
+)
 def search_text(
     query: str,
     top_k: int | None,
     objects: str,
     threshold: float | None,
+    videos: str,
 ) -> None:
-    """Search keyframes by text description."""
+    """Search keyframes by text description.
+
+    When --videos is provided, performs Stage-2 filtered EVA-02 search
+    restricted to the specified video IDs (fast slice + dot product).
+    """
     from aic26.core.retrieval import EVA02ImageRetrieval
 
     retriever = EVA02ImageRetrieval()
-    results = retriever.search_text(
-        query=query,
-        top_k=top_k or settings.default_top_k,
-        objects=objects,
-        threshold=threshold or settings.default_obj_threshold,
-    )
+
+    video_ids = [v.strip() for v in videos.split(",") if v.strip()] if videos else []
+
+    if video_ids:
+        click.echo(
+            f"[Stage-2] Filtered search across {len(video_ids)} video(s): "
+            + ", ".join(video_ids[:5])
+        )
+        results = retriever.search_text_filtered(
+            query=query,
+            video_ids=video_ids,
+            top_k=top_k or settings.default_top_k,
+        )
+    else:
+        results = retriever.search_text(
+            query=query,
+            top_k=top_k or settings.default_top_k,
+            objects=objects,
+            threshold=threshold or settings.default_obj_threshold,
+        )
 
     if not results:
         click.echo("No results found.")
@@ -885,6 +969,40 @@ def search_text(
             f"Time {time_str:>6s} | "
             f"Score: {r['similarity']:.4f}"
         )
+
+
+@search_group.command(name="segments")
+@click.option("--query", "-q", required=True, help="Text query (Vi/En) for segment search")
+@click.option("--top-k", "-k", type=int, default=20, show_default=True, help="Max segments to return")
+def search_segments_cmd(query: str, top_k: int) -> None:
+    """Stage-1: Search video segments by text query using BGE-M3.
+
+    Returns top-K matching video segments with timestamps and a list of
+    candidate video IDs for Stage-2 filtered keyframe search.
+    """
+    from aic26.core.retrieval import EVA02ImageRetrieval
+
+    retriever = EVA02ImageRetrieval()
+    result = retriever.search_segments(query=query, top_k=top_k)
+
+    segments = result.get("segments", [])
+    candidate_ids = result.get("candidate_video_ids", [])
+
+    if not segments:
+        click.echo("No segments found. Ensure segment index is built.")
+        return
+
+    click.echo(f"\nFound {len(segments)} segments:\n")
+    for i, seg in enumerate(segments, 1):
+        click.echo(
+            f"{i:3d}. [{seg['video_id']}] "
+            f"{seg['start_time']} → {seg['end_time']} "
+            f"| Score: {seg['score']:.4f}"
+        )
+        click.echo(f"     {seg['description'][:100]}")
+
+    click.echo(f"\nCandidate video IDs ({len(candidate_ids)}):")
+    click.echo("  " + ", ".join(candidate_ids))
 
 
 @search_group.command(name="temporal")
