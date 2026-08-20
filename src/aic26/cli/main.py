@@ -172,7 +172,14 @@ def detect_objects(input: str, output: str | None, workers: int | None) -> None:
     default=40,
     help="Batch size for GPU processing",
 )
-def extract_embeddings(input: str, output: str | None, batch_size: int) -> None:
+@click.option(
+    "--workers",
+    "-w",
+    type=int,
+    default=4,
+    help="Number of worker threads for parallel folder processing",
+)
+def extract_embeddings(input: str, output: str | None, batch_size: int, workers: int) -> None:
     """Extract EVA-02 embeddings from keyframes."""
     from aic26.pipeline.embedding import EmbeddingExtractor
 
@@ -181,6 +188,7 @@ def extract_embeddings(input: str, output: str | None, batch_size: int) -> None:
         input_dir=input,
         output_dir=output,
         batch_size=batch_size,
+        num_workers=workers,
     )
 
     click.echo("\n✅ Embedding extraction complete!")
@@ -388,11 +396,19 @@ def run_all_pipeline(
     default=8,
     help="Batch size for dual GPU processing",
 )
+@click.option(
+    "--workers",
+    "-w",
+    type=int,
+    default=4,
+    help="Number of worker threads for parallel folder processing",
+)
 def extract_dual_embeddings(
     input: str,
     eva02_out: str | None,
     clip32_out: str | None,
     batch_size: int,
+    workers: int,
 ) -> None:
     """Run EVA-02 + CLIP ViT-B-32 dual embedding extraction over keyframes."""
     from aic26.pipeline.embedding import EmbeddingExtractor
@@ -403,6 +419,7 @@ def extract_dual_embeddings(
         eva02_output_dir=eva02_out,
         clip32_output_dir=clip32_out,
         batch_size=batch_size,
+        num_workers=workers,
     )
     click.echo("\n✅ Dual embedding extraction complete!")
     click.echo(f"   Folders processed: {stats['folders_processed']}/{stats['folders_total']}")
