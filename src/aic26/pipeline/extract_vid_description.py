@@ -56,7 +56,7 @@ DEFAULT_MODEL = "gemini-3.5-flash-lite"
 DEFAULT_DELAY = 4.0
 RETRY_ATTEMPTS = 3
 
-PROMPT = """Xem video YouTube này và mô tả toàn bộ những gì xảy ra từ đầu đến cuối.
+PROMPT = """Xem video YouTube về dạy học này và mô tả toàn bộ những gì xảy ra từ đầu đến cuối.
 KHÔNG bỏ qua bất kỳ khoảnh khắc nào dù không liên quan đến chủ đề chính.
 
 Trả về JSON duy nhất với cấu trúc sau:
@@ -66,16 +66,15 @@ Trả về JSON duy nhất với cấu trúc sau:
     {
       "start_time": "HH:MM:SS",
       "end_time": "HH:MM:SS",
-      "description": "Cố gắng mô tả cụ thể những gì đang xảy ra, không bỏ sót khoảnh khắc nào",
-      "category": "thể loại/danh mục của phân đoạn",
-      "entities": ["danh sách các đối tượng, tên người, tổ chức, địa danh xuất hiện trong đoạn"],
+      "description": "cố gắng tả những gì giáo viên đang giảng trong bài học",
+      "category": "môn học đang được giảng dạy trong video",
+      "entities": ["chủ đề của bài học"],
       "keywords": ["3-5 từ khoá đại diện cho khoảnh khắc này"]
     }
   ]
 }
 
 Yêu cầu bắt buộc:
-- mỗi segment có độ dài không quá 4 phút, nếu không có hành động, sự kiện cụ thể thì có thể hơn.
 - Segments liên tục, không có khoảng trống thời gian giữa các đoạn
 - Bắt đầu từ 00:00:00, kết thúc tại thời điểm cuối video
 - Định dạng thời gian start_time và end_time bắt buộc dạng HH:MM:SS (ví dụ 00:01:15)

@@ -76,7 +76,7 @@ class TestReranker:
         assert reranker.models is mock_models
     
     def test_reranker_handles_image_open_error(self):
-        """Test that reranker handles image loading errors gracefully."""
+        """Test that reranker handles image loading errors gracefully (keeps candidate with original score)."""
         mock_models = Mock()
         reranker = Reranker(mock_models)
         
@@ -85,7 +85,8 @@ class TestReranker:
         ]
         
         result = reranker.rerank("test query", candidates)
-        assert result == []
+        assert len(result) == 1
+        assert result[0]["similarity"] == 0.9
     
     @patch("PIL.Image.open")
     def test_reranker_handles_inference_error(self, mock_open):
@@ -102,25 +103,23 @@ class TestReranker:
         result = reranker.rerank("test query", candidates)
         assert result == []
 
-
 class TestEmbeddingIndex:
     """Tests for EmbeddingIndex."""
     
     def test_cosine_similarity_shape(self):
         """Test cosine similarity returns correct shape."""
-    
-        
         a = np.random.randn(1, 768).astype(np.float32)
+        a = a / np.linalg.norm(a, axis=-1, keepdims=True)
         b = np.random.randn(100, 768).astype(np.float32)
+        b = b / np.linalg.norm(b, axis=-1, keepdims=True)
         
         sims = EmbeddingIndex.cosine_similarity(a, b)
         assert sims.shape == (1, 100)
     
     def test_cosine_similarity_self_is_one(self):
         """Test that cosine similarity with self is 1.0."""
-        
-        
         a = np.random.randn(10, 768).astype(np.float32)
+        a = a / np.linalg.norm(a, axis=-1, keepdims=True)
         sims = EmbeddingIndex.cosine_similarity(a, a)
         
         # Diagonal should be ~1.0

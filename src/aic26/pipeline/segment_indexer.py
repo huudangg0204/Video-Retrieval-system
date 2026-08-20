@@ -11,6 +11,11 @@ JSON format supported (both variants):
     Variant A (spec):   {"video_id": "L29_V001", "segments": [...]}
     Variant B (actual): {"L30_V001": {"segments": [...]}, ...}
 
+Device policy:
+    Offline indexing ALWAYS prefers GPU (cuda) for maximum throughput.
+    This is independent of the ``TEXT_RETRIEVAL`` setting, which only
+    controls the online retrieval server.
+
 References:
     - Spec: docs/specs/two-stage-hierarchical-search.md §2, §4.2
 """
@@ -81,8 +86,26 @@ class SegmentIndexBuilder:
         model_name: str = settings.bge_m3_model_name,
         device: Optional[str] = None,
     ) -> None:
+        """
+        Args:
+            model_name: HuggingFace model id for BGE-M3.
+            device: Override device string ('cpu', 'cuda', 'cuda:0').
+                    Defaults to 'cuda' if CUDA is available, otherwise 'cpu'.
+                    Offline indexing should always run on GPU for speed;
+                    this default enforces that without depending on
+                    the TEXT_RETRIEVAL env var (which is for online server).
+        """
         self.model_name = model_name
-        self.device = device
+        if device is not None:
+            self.device = device
+        else:
+            import torch  # lazy import: avoid loading libtorch_cuda at CLI startup
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info(
+            f"[SegmentIndexBuilder] Will embed with BGE-M3 on device='{self.device}' "
+            f"(offline indexing always prefers GPU)."
+        )
+
 
     # ── Public ────────────────────────────────────────────────────────
 

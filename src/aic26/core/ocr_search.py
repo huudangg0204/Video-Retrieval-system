@@ -57,6 +57,7 @@ class OCRSearchEngine:
         self._csv_path = Path(ocr_csv_path or str(settings.ocr_output_path))
         self._df: Optional[pd.DataFrame] = None
         self._mtime: float = 0.0
+        self._path_to_idx: Dict[str, int] = {}
 
     # ── Public API ────────────────────────────────────────────────────
 
@@ -104,12 +105,14 @@ class OCRSearchEngine:
             df = df[pd.to_numeric(df["conf_mean"], errors="coerce").fillna(0.0) >= min_conf]
 
         # ── Chuẩn bị cột text để so sánh ───────────────────────────
-        text_col = df["text_full"].fillna("").astype(str)
-
-        if normalize_accents:
-            compare_col = text_col.map(_normalize_text)
+        if normalize_accents and "_text_norm" in df.columns:
+            compare_col = df["_text_norm"]
+            compare_query = _normalize_text(query)
+        elif normalize_accents:
+            compare_col = df["text_full"].fillna("").astype(str).map(_normalize_text)
             compare_query = _normalize_text(query)
         else:
+            text_col = df["text_full"].fillna("").astype(str)
             compare_col = text_col if case_sensitive else text_col.str.lower()
             compare_query = query if case_sensitive else query.lower()
 
@@ -182,12 +185,17 @@ class OCRSearchEngine:
 
         # Chuẩn hóa path separator
         norm_path = image_path.replace("\\", "/")
-        match = df[df["path"].str.replace("\\", "/", regex=False) == norm_path]
+        
+        # O(1) dictionary lookup
+        if norm_path in self._path_to_idx:
+            idx = self._path_to_idx[norm_path]
+            row = df.iloc[idx]
+        else:
+            match = df[df["path"].astype(str).str.replace("\\", "/", regex=False) == norm_path]
+            if match.empty:
+                return None
+            row = match.iloc[0]
 
-        if match.empty:
-            return None
-
-        row = match.iloc[0]
         return {
             "image_path": norm_path,
             "video_name": str(row.get("video", "")),
@@ -195,9 +203,9 @@ class OCRSearchEngine:
             "text_full": str(row.get("text_full", "")),
             "num_boxes": int(row.get("num_boxes", 0)),
             "conf_mean": float(row.get("conf_mean", 0.0)) if row.get("conf_mean") else None,
-            "boxes": self._parse_json_col(row.get("boxes")),
-            "texts": self._parse_json_col(row.get("texts")),
-            "confs": self._parse_json_col(row.get("confs")),
+            "boxes": self._parse_json_col(row.get("boxes")) if "boxes" in row else [],
+            "texts": self._parse_json_col(row.get("texts")) if "texts" in row else [],
+            "confs": self._parse_json_col(row.get("confs")) if "confs" in row else [],
         }
 
     def get_stats(self) -> Dict[str, Any]:
@@ -231,34 +239,53 @@ class OCRSearchEngine:
             return self._df
 
         try:
-            # CSV có thể không có header nếu bị ghi append không cẩn thận
+            # Đọc CSV với header
             df = pd.read_csv(
                 self._csv_path,
-                header=None,
-                names=["video", "file", "path", "text_full", "num_boxes", "conf_mean", "boxes", "texts", "confs"],
                 encoding="utf-8",
                 on_bad_lines="skip",
+                low_memory=False,
             )
 
-            # Bỏ dòng đầu nếu là header chữ (khi file có header) — chỉ
-            # kiểm tra khi df thực sự có ít nhất 1 dòng, tránh IndexError
-            # trên file 0 byte (có thể sót lại từ trước khi ocr.py được
-            # sửa để luôn ghi header hợp lệ).
             if len(df) == 0:
                 logger.warning(f"[OCR-SEARCH] {self._csv_path.name}: empty file, no OCR data yet")
                 self._df = df
                 self._mtime = mtime
+                self._path_to_idx = {}
                 return self._df
 
-            if df.iloc[0]["video"] == "video":
-                df = df.iloc[1:].reset_index(drop=True)
+            # Nếu CSV không có header đúng, gán tên cột
+            if "video" not in df.columns:
+                df = pd.read_csv(
+                    self._csv_path,
+                    header=None,
+                    names=["video", "file", "path", "text_full", "num_boxes", "conf_mean"],
+                    encoding="utf-8",
+                    on_bad_lines="skip",
+                    low_memory=False,
+                )
+                if df.iloc[0]["video"] == "video":
+                    df = df.iloc[1:].reset_index(drop=True)
+
+            # Pre-compute normalized text 1 lần duy nhất để search siêu nhanh
+            if "text_full" in df.columns:
+                df["_text_norm"] = df["text_full"].fillna("").astype(str).map(_normalize_text)
+
+            # Pre-build path -> row index lookup map O(1)
+            if "path" in df.columns:
+                self._path_to_idx = {
+                    str(p).replace("\\", "/"): i for i, p in enumerate(df["path"])
+                }
+            else:
+                self._path_to_idx = {}
 
             self._df = df
             self._mtime = mtime
-            logger.debug(f"OCR CSV loaded: {len(df)} rows from {self._csv_path}")
+            logger.info(f"OCR CSV loaded & indexed: {len(df):,} rows from {self._csv_path}")
         except Exception as e:
             logger.error(f"[OCR-SEARCH] Failed to load {self._csv_path.name}: {e}")
             self._df = None
+            self._path_to_idx = {}
 
         return self._df
 

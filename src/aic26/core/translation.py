@@ -186,19 +186,26 @@ class TranslationEngine:
     """
     Vi->En translation with switchable backends and automatic fallback.
 
+    Mode "off":  Disabled / frozen. No translation models loaded (saves VRAM/RAM),
+                 no API calls. Text is passed through unchanged.
     Mode "real": Gemini API, retries settings.gemini_max_retries times with
                  exponential backoff, then falls back to the local model.
     Mode "test": Local model only (no network calls, no API cost).
 
     Usage:
         engine = TranslationEngine()
-        engine.set_mode("real")
-        text_en = engine.translate("một truy vấn tiếng việt")
+        engine.set_mode("off")
+        text = engine.translate("một truy vấn tiếng việt")  # returns unchanged immediately
     """
 
     def __init__(self, config=None) -> None:
         self.config = config or settings
-        self._mode = self.config.translation_default_mode
+        self._mode = (self.config.translation_default_mode or "off").lower().strip()
+        if self._mode not in ("off", "test", "real"):
+            logger.warning(
+                f"Unknown translation mode {self._mode!r}, defaulting to 'off'"
+            )
+            self._mode = "off"
         self._cache = _TranslationCache(Path(self.config.translation_cache_path))
 
         self._gemini: Optional[GeminiTranslator] = None
@@ -210,16 +217,21 @@ class TranslationEngine:
     # ── Mode control ────────────────────────────────────────────────
 
     def set_mode(self, mode: str) -> None:
-        """Switch between 'test' (local model) and 'real' (Gemini API)."""
+        """Switch between 'off' (disabled), 'test' (local model), and 'real' (Gemini API)."""
         mode = (mode or "").lower().strip()
-        if mode not in ("test", "real"):
-            raise ValueError(f"Invalid translation mode: {mode!r} (expected 'test' or 'real')")
+        if mode not in ("off", "test", "real"):
+            raise ValueError(f"Invalid translation mode: {mode!r} (expected 'off', 'test', or 'real')")
         previous = self._mode
         self._mode = mode
         logger.info(f"Translation mode switched: '{previous}' → '{mode}'")
 
     def get_mode(self) -> str:
         return self._mode
+
+    @property
+    def is_enabled(self) -> bool:
+        """Return True if translation is active ('test' or 'real')."""
+        return self._mode != "off"
 
     # ── Public API ──────────────────────────────────────────────────
 
@@ -232,10 +244,14 @@ class TranslationEngine:
             force: If True, translate even if text doesn't look Vietnamese
 
         Returns:
-            English text (or the original text if it's not Vietnamese
-            and force=False)
+            English text (or the original text if mode is 'off', text is
+            already English, or force=False)
         """
         if not text or not text.strip():
+            return text
+
+        if self._mode == "off":
+            logger.debug(f"Translation disabled (mode='off') — skipping: '{text[:50]}...'")
             return text
 
         if not force and not looks_vietnamese(text):
