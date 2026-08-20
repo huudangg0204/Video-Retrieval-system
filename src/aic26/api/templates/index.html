@@ -876,6 +876,15 @@ function handleBackendResponse(data, title, blockName) {
   document.getElementById('emptyState').style.display = 'none';
 }
 
+function encodeModalData(r) {
+  try {
+    return encodeURIComponent(JSON.stringify(r)).replace(/'/g, '%27');
+  } catch (e) {
+    console.error('Error encoding modal data:', e);
+    return '';
+  }
+}
+
 function renderResults(results, block, opts={}) {
   block = block || workspace.activeBlock;
   const grid = document.getElementById(`resultsGrid-${block}`);
@@ -890,7 +899,7 @@ function renderResults(results, block, opts={}) {
     const fvid = r.frame_idx_video || r.frame_idx || '?';
     const ts = r.time_str || '';
     const isCenter = opts.centerId !== undefined && (r.frame_idx == opts.centerId || r.frame_idx_video == opts.centerId);
-    const encoded = encodeURIComponent(JSON.stringify(r));
+    const encoded = encodeModalData(r);
     return `<div class="frame-card ${isCenter ? 'center-frame' : ''}" onclick="openModal('${encoded}')">
       <div class="relative">
         <img src="${getImgUrl(r.image_path)}" loading="lazy" class="w-full object-cover" style="max-height:200px;">
@@ -1216,7 +1225,7 @@ function renderTwoStageResults() {
       const sim = typeof r.similarity === 'number' ? r.similarity.toFixed(3) : '—';
       const fvid = r.frame_idx_video || r.frame_idx || '?';
       const ts = r.time_str || '';
-      const encoded = encodeURIComponent(JSON.stringify(r));
+      const encoded = encodeModalData(r);
       return `<div class="frame-card" onclick="openModal('${encoded}')">
         <div class="relative">
           <img src="${getImgUrl(r.image_path)}" loading="lazy" class="w-full object-cover" style="max-height:200px;">
@@ -1331,7 +1340,7 @@ async function runTrake() {
       for (const d of (cand.details || [])) {
         const r = { video_name:cand.video_name, frame_idx:d.frame, image_path:d.path, similarity:d.sim, watch_url:cand.watch_url, event:d.event };
         flat.push(r);
-        const encoded = encodeURIComponent(JSON.stringify(r));
+        const encoded = encodeModalData(r);
         html += `<div class="frame-card" onclick="openModal('${encoded}')">
           <div class="relative">
             <img src="${getImgUrl(d.path)}" loading="lazy" class="w-full" style="max-height:200px;object-fit:cover;">
@@ -1416,22 +1425,36 @@ async function loadContext() {
 // ─────────────────────────────────────────────
 function openModal(encodedData) {
   try {
-    const r = JSON.parse(decodeURIComponent(encodedData));
+    if (!encodedData) return;
+    let r = encodedData;
+    if (typeof encodedData === 'string') {
+      r = JSON.parse(decodeURIComponent(encodedData));
+    }
+    if (!r) return;
+
     document.getElementById('modalImg').src = getImgUrl(r.image_path);
     document.getElementById('modalVideoName').innerText = r.video_name || '';
+    
+    const sim = typeof r.similarity === 'number' ? r.similarity.toFixed(3) : (r.similarity || '—');
+    const fvid = (r.frame_idx_video !== undefined && r.frame_idx_video !== null)
+      ? r.frame_idx_video
+      : (r.frame_idx !== undefined && r.frame_idx !== null ? r.frame_idx : '?');
+    const timeStr = r.time_str || '?';
     document.getElementById('modalFrameInfo').innerText =
-      `Frame: ${r.frame_idx_video || r.frame_idx || '?'} | Time: ${r.time_str || '?'} | Sim: ${r.similarity?.toFixed(3) || '?'}`;
+      `Frame: ${fvid} | Time: ${timeStr} | Sim: ${sim}`;
 
     document.getElementById('modalCaption').innerText = r.caption || 'No caption.';
 
     // OCR
     let ocrText = 'No text detected.';
     if (r.ocr_text) {
-      if (typeof r.ocr_text === 'string') ocrText = r.ocr_text;
-      else if (Array.isArray(r.ocr_text) && r.ocr_text.length)
-        ocrText = r.ocr_text.map(o => typeof o === 'string' ? o : (o.text||'')).filter(Boolean).join('\n');
+      if (typeof r.ocr_text === 'string') {
+        ocrText = r.ocr_text;
+      } else if (Array.isArray(r.ocr_text) && r.ocr_text.length) {
+        ocrText = r.ocr_text.map(o => typeof o === 'string' ? o : (o.text || '')).filter(Boolean).join('\n');
+      }
     }
-    document.getElementById('modalOCR').innerText = ocrText;
+    document.getElementById('modalOCR').innerText = ocrText || 'No text detected.';
 
     // Scene
     let sceneText = 'Unknown.';
@@ -1440,8 +1463,10 @@ function openModal(encodedData) {
         ? `${r.scene.category || ''}${r.scene.confidence ? ` (${(r.scene.confidence*100).toFixed(1)}%)` : ''}`
         : r.scene;
     }
-    if (r.scene_group) sceneText += ` — ${r.scene_group}`;
-    document.getElementById('modalScene').innerText = sceneText;
+    if (r.scene_group) {
+      sceneText = (sceneText === 'Unknown.' ? '' : sceneText + ' — ') + r.scene_group;
+    }
+    document.getElementById('modalScene').innerText = sceneText || 'Unknown.';
 
     // Detections
     const detContainer = document.getElementById('modalDetections');
@@ -1468,11 +1493,13 @@ function openModal(encodedData) {
       switchBlock('browse');
       switchBrowseTab('context');
       document.getElementById('ctxFolder').value = r.video_name || '';
-      document.getElementById('ctxFrameId').value = r.frame_idx || '';
+      document.getElementById('ctxFrameId').value = (r.frame_idx !== undefined && r.frame_idx !== null) ? r.frame_idx : '';
     };
 
     document.getElementById('inspectorModal').classList.add('open');
-  } catch(e) { console.error(e); }
+  } catch(e) {
+    console.error('Failed to open modal:', e);
+  }
 }
 
 function closeModal(e) {
@@ -1528,7 +1555,7 @@ async function groupByVideoUI() {
         </div>
         <div class="flex overflow-x-auto gap-3 p-3">
           ${items.map(r => {
-            const encoded = encodeURIComponent(JSON.stringify(r));
+            const encoded = encodeModalData(r);
             return `<div style="flex-shrink:0;width:160px;background:#161926;border:1px solid #252840;border-radius:10px;overflow:hidden;cursor:pointer;" onclick="openModal('${encoded}')">
               <img src="${getImgUrl(r.image_path)}" class="w-full" style="height:100px;object-fit:cover;">
               <div style="padding:6px 8px;font-size:11px;color:#6272a4;">
