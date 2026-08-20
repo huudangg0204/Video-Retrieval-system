@@ -50,10 +50,15 @@ class SegmentSearchEngine:
         Args:
             segment_index_path: Path to segment_index.pkl. Defaults to settings.
             model_name: BGE-M3 model id (passed to BGEM3TextEmbedder).
-            device: Inference device. Auto-detected if None.
+            device: Inference device for BGE-M3 during online queries.
+                    - None (default): resolved from ``settings.text_retrieval``:
+                        'GPU' → CUDA with FP16 (~1.15 GB VRAM, ~15-30ms/query)
+                        'CPU' → CPU (0 VRAM, ~300-600ms/query)
+                    - Explicit 'cuda' / 'cpu' / 'cuda:0': override the setting.
         """
         self._index_path = segment_index_path or str(settings.segment_index_path)
         self._model_name = model_name
+        # Pass device=None → BGEM3TextEmbedder._resolve_device reads settings.text_retrieval
         self._device = device
 
         # Index data (loaded lazily in _load_index)
@@ -66,6 +71,7 @@ class SegmentSearchEngine:
         self._embedder = None
 
         self._load_index()
+
 
     # ── Public API ────────────────────────────────────────────────────
 

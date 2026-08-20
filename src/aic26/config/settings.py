@@ -145,6 +145,16 @@ class Settings(BaseSettings):
         description="HuggingFace model id for BAAI/bge-m3 (Stage-1 segment retrieval)",
     )
 
+    text_retrieval: str = Field(
+        default="GPU",
+        description=(
+            "Device mode for BGE-M3 during ONLINE segment retrieval (SegmentSearchEngine). "
+            "'GPU' = load on CUDA with FP16 half-precision (~1.15 GB VRAM, ~15-30ms/query). "
+            "'CPU' = load on CPU (0 VRAM cost, ~300-600ms/query). "
+            "Does NOT affect offline build-segment-index (always uses GPU when available)."
+        ),
+    )
+
     segment_index_path: Path = Field(
         default_factory=lambda: Path("data/faiss/segment_index.pkl"),
         description=(
@@ -160,8 +170,8 @@ class Settings(BaseSettings):
     )
 
     use_dual_embedding: bool = Field(
-        default=True,
-        description="If true, encode with EVA-02 + BLIP-2 and weighted-blend cosine similarity at search time",
+        default=False,
+        description="If true, encode with EVA-02 + CLIP-32 and weighted-blend cosine similarity at search time",
     )
 
     eva02_search_weight: float = Field(
@@ -293,12 +303,11 @@ class Settings(BaseSettings):
 
     # ── Vi->En query translation (core/translation.py) ──────────────────
     translation_default_mode: str = Field(
-        default="test",
+        default="off",
         description=(
-            "'test' = local envit5 model only, no network/API cost (safe "
-            "default for dev). 'real' = Gemini API with local fallback on "
-            "failure — set this to 'real' for the actual competition run "
-            "so translation quality is as high as possible."
+            "'off' = disable translation completely (freeze pipeline, save VRAM/no model loaded). "
+            "'test' = local envit5 model only, no network/API cost (dev). "
+            "'real' = Gemini API with local fallback on failure (competition)."
         ),
     )
 
