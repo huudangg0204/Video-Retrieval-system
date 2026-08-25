@@ -9,7 +9,7 @@ Migrated from: eva02_retrieval_trake.py
 from __future__ import annotations
 
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 
@@ -334,7 +334,7 @@ class EVA02ImageRetrieval:
         self,
         results: List[Dict[str, Any]],
         output_name: str,
-        const_value: Optional[int] = None,
+        const_value: Optional[Union[str, int]] = None,
     ) -> str:
         """Export search results to CSV submission file."""
         return self._exporter.export_results(results, output_name, const_value)
@@ -352,7 +352,7 @@ class EVA02ImageRetrieval:
         video_name: str,
         frame_id: int,
         gap: int,
-        const_value: Optional[int] = None,
+        const_value: Optional[Union[str, int]] = None,
         name: Optional[str] = None,
     ) -> str:
         """Export single-frame submission CSV."""

@@ -44,9 +44,6 @@ class TestExporter:
     
     def test_export_submission_creates_20_rows(self, test_settings, temp_dir):
         """Test submission CSV has exactly 20 rows."""
-    
-        
-        # Override output dir for test
         settings.output_dir = temp_dir / "submissions"
         settings.output_dir.mkdir(exist_ok=True)
         
@@ -64,6 +61,28 @@ class TestExporter:
             rows = f.readlines()
         
         assert len(rows) == 20
+
+    def test_export_submission_with_const_value_quoted(self, test_settings, temp_dir):
+        """Test submission CSV with const_value encloses const_value in double quotes."""
+        settings.output_dir = temp_dir / "submissions"
+        settings.output_dir.mkdir(exist_ok=True)
+        
+        exporter = Exporter()
+        path = exporter.export_submission(
+            video_name="L1_V222",
+            frame_id=2345,
+            gap=15,
+            const_value="Truong định",
+            name="test_sub_const",
+        )
+        
+        assert Path(path).exists()
+        
+        with open(path, "r", encoding="utf-8") as f:
+            rows = f.readlines()
+        
+        assert len(rows) == 20
+        assert 'L1_V222, 2345, "Truong định"\n' in rows[0]
 
 
 class TestReranker:

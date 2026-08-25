@@ -24,12 +24,24 @@ def _get_retriever():
 
 
 def _attach_metadata_to_frames(frames: list[dict]) -> list[dict]:
-    """Enrich frame dicts with metadata from the shared _META_CACHE."""
+    """Enrich frame dicts with metadata from the shared _META_CACHE and media info."""
     try:
         from aic26.api.routes.search import _get_meta_cache
         cache = _get_meta_cache()
     except Exception:
-        return frames
+        cache = None
+
+    from aic26.utils.media_utils import (
+        load_media_info,
+        load_fps_from_map,
+        load_frame_idx_from_map,
+        frame_to_timestr,
+    )
+    from aic26.utils.frame_utils import parse_frame_number_from_filename
+
+    _media_cache: dict[str, dict] = {}
+    _fps_cache_local: dict[str, float | None] = {}
+
     for f in frames:
         video = f.get('video_name', '')
         frame = f.get('frame_idx', '')
@@ -40,6 +52,29 @@ def _attach_metadata_to_frames(frames: list[dict]) -> list[dict]:
         f['scene_group'] = meta.get('scene_group', '') if meta else ''
         f['caption'] = meta.get('caption', '') if meta else ''
         f['detections'] = meta.get('detections', []) if meta else []
+
+        if video:
+            if video not in _media_cache:
+                _media_cache[video] = load_media_info(video) or {}
+            media_info = _media_cache[video]
+            f['watch_url'] = media_info.get('watch_url', '')
+
+            if video not in _fps_cache_local:
+                _fps_cache_local[video] = load_fps_from_map(video)
+            fps = _fps_cache_local[video]
+
+            if fps:
+                f['fps'] = fps
+                try:
+                    n = int(frame)
+                except (TypeError, ValueError):
+                    n = parse_frame_number_from_filename(str(frame))
+                if n is not None:
+                    frame_idx_video = load_frame_idx_from_map(video, n)
+                    if frame_idx_video is not None:
+                        f['frame_idx_video'] = frame_idx_video
+                        f['time_str'] = frame_to_timestr(frame_idx_video, fps)
+
     return frames
 
 
@@ -47,7 +82,9 @@ def _attach_metadata_to_frames(frames: list[dict]) -> list[dict]:
 def get_frames(video_name: str):
     r = _get_retriever()
     if r is None: return jsonify({'error': 'not initialized'}), 503
-    return jsonify({'video_name': video_name, 'count': len(r.get_frames_of_video(video_name)), 'frames': r.get_frames_of_video(video_name)})
+    frames = r.get_frames_of_video(video_name)
+    frames = _attach_metadata_to_frames(frames)
+    return jsonify({'video_name': video_name, 'count': len(frames), 'frames': frames})
 
 @bp.route('/get_frames_range/<path:video_name>/<int:frame_id>/<int:range_val>', methods=['GET'])
 def get_frames_range(video_name: str, frame_id: int, range_val: int):
@@ -83,6 +120,19 @@ def browse_folder(video_name: str):
         'video_name': video_name,
         'count': len(frames),
         'frames': frames,
+    })
+
+@bp.route('/media_info/<path:video_name>', methods=['GET'])
+def get_media_info(video_name: str):
+    """Return media info and watch_url for a video."""
+    from aic26.utils.media_utils import load_media_info, load_fps_from_map
+    info = load_media_info(video_name) or {}
+    fps = load_fps_from_map(video_name)
+    return jsonify({
+        'video_name': video_name,
+        'watch_url': info.get('watch_url', ''),
+        'fps': fps,
+        'media_info': info
     })
 
 @bp.route('/image', methods=['GET'])

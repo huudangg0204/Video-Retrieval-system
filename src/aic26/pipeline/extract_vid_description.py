@@ -56,7 +56,7 @@ DEFAULT_MODEL = "gemini-3.5-flash-lite"
 DEFAULT_DELAY = 4.0
 RETRY_ATTEMPTS = 3
 
-PROMPT = """Xem video YouTube về dạy học này và mô tả toàn bộ những gì xảy ra từ đầu đến cuối.
+PROMPT = """Xem video YouTube về cuộc đua xe đạp và mô tả toàn bộ những gì xảy ra từ đầu đến cuối. lưu ý bắt nhựng4 khoảng khắc các tay đua vượt qua nhau hoặc các khonag3 khắc nổi bật.
 KHÔNG bỏ qua bất kỳ khoảnh khắc nào dù không liên quan đến chủ đề chính.
 
 Trả về JSON duy nhất với cấu trúc sau:
@@ -66,9 +66,8 @@ Trả về JSON duy nhất với cấu trúc sau:
     {
       "start_time": "HH:MM:SS",
       "end_time": "HH:MM:SS",
-      "description": "cố gắng tả những gì giáo viên đang giảng trong bài học",
-      "category": "môn học đang được giảng dạy trong video",
-      "entities": ["chủ đề của bài học"],
+      "description": "Mô tả chi tiết: Có bao nhiêu tay đua trong khung hình? Góc quay (toàn cảnh, cận cảnh, từ flycam)? Các tay đua mặc áo màu gì hoặc thuộc đội nào? Ai đang dẫn đầu? Địa hình đang đua (đèo, đường bằng)? Các tình huống, chiến thuật đáng chú ý khác."
+      "entities": ["danh sách các tay đua hoặc màu áo của các tay đua"],
       "keywords": ["3-5 từ khoá đại diện cho khoảnh khắc này"]
     }
   ]

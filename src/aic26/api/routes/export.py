@@ -60,13 +60,11 @@ def export_results():
     results = payload.get('results', [])
     name = payload.get('name', f"exported_{int(time.time())}")
     const_value = payload.get('const_value', None)
-    
     if const_value in ('', None):
         const_value = None
     else:
-        try:
-            const_value = int(const_value)
-        except (TypeError, ValueError):
+        const_value = str(const_value).strip()
+        if not const_value:
             const_value = None
     
     try:
@@ -150,6 +148,13 @@ def export_submission():
     const_value = payload.get('const_value')
     name = payload.get('name', f"submission_{int(time.time())}")
     
+    if const_value in ('', None):
+        const_value = None
+    else:
+        const_value = str(const_value).strip()
+        if not const_value:
+            const_value = None
+    
     if video_name is None or frame_id is None or gap is None:
         return jsonify({
             'status': 'error',
@@ -160,6 +165,75 @@ def export_submission():
         csv_path = retriever.export_submission(
             video_name, frame_id, gap, const_value, name,
         )
-        return jsonify({'status': 'ok', 'csv_path': csv_path})
+        filename = os.path.basename(csv_path)
+        return jsonify({
+            'status': 'ok',
+            'csv_path': csv_path,
+            'download_url': f"/download/{filename}",
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'msg': str(e)}), 500
+
+
+@bp.route('/export_trake_submission', methods=['POST'])
+def export_trake_submission():
+    """
+    Generate a TRAKE sequence submission CSV from video name and frame list.
+    
+    Request JSON:
+        {
+            "video_name": "L26_V001",
+            "frames": [12, 34, 56],  # or "12, 34, 56" / "12 34 56"
+            "name": "my_trake_sub"
+        }
+    
+    Returns:
+        JSON with CSV path and download URL
+    """
+    import re
+    
+    retriever = _get_retriever()
+    if retriever is None:
+        return jsonify({'error': 'retrieval engine not initialized'}), 503
+    
+    payload = request.get_json(force=True, silent=True) or {}
+    video_name = (payload.get('video_name') or '').strip()
+    raw_frames = payload.get('frames', [])
+    name = payload.get('name', f"trake_sub_{int(time.time())}")
+    if not name or not str(name).strip():
+        name = f"trake_sub_{int(time.time())}"
+    
+    if isinstance(raw_frames, str):
+        frames = [int(f) for f in re.findall(r'\d+', raw_frames)]
+    elif isinstance(raw_frames, list):
+        frames = []
+        for f in raw_frames:
+            try:
+                frames.append(int(f))
+            except (ValueError, TypeError):
+                continue
+    else:
+        frames = []
+    
+    if not video_name or not frames:
+        return jsonify({
+            'status': 'error',
+            'msg': 'video_name and at least one frame are required',
+        }), 400
+    
+    trake_payload = [
+        {"video_name": video_name, "frame_idx": f, "event": len(frames)}
+        for f in frames
+    ]
+    
+    try:
+        os.makedirs(str(settings.output_dir), exist_ok=True)
+        csv_path = retriever.export_trake(trake_payload, name)
+        filename = f"{name}.csv"
+        return jsonify({
+            'status': 'ok',
+            'csv_path': csv_path,
+            'download_url': f"/download/{filename}",
+        })
     except Exception as e:
         return jsonify({'status': 'error', 'msg': str(e)}), 500

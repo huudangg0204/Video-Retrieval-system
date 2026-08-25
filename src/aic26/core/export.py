@@ -10,7 +10,7 @@ from __future__ import annotations
 import csv
 import os
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -42,7 +42,7 @@ class Exporter:
         self,
         results: List[Dict],
         output_name: str,
-        const_value: Optional[int] = None,
+        const_value: Optional[Union[str, int]] = None,
     ) -> str:
         """
         Export search results to standard submission CSV.
@@ -86,9 +86,12 @@ class Exporter:
                     continue
                 
                 if const_value is None:
-                    f.write(f"{vid},{frame_index}\n")
+                    f.write(f"{vid}, {frame_index}\n")
                 else:
-                    f.write(f"{vid},{frame_index},{const_value}\n")
+                    clean_val = str(const_value).strip()
+                    if clean_val.startswith('"') and clean_val.endswith('"'):
+                        clean_val = clean_val[1:-1]
+                    f.write(f'{vid}, {frame_index}, "{clean_val}"\n')
                 rows_written += 1
         
         logger.info(
@@ -104,7 +107,7 @@ class Exporter:
         """
         Export TRAKE results to submission CSV.
         
-        Format: video_name,frame_id_1,frame_id_2,...,frame_id_N
+        Format: video_name, frame_id_1, frame_id_2, ..., frame_id_N
         Rows are grouped by event size.
         
         Args:
@@ -151,8 +154,8 @@ class Exporter:
                 
                 if len(buffer) == events_per_answer:
                     vid0 = buffer[0][0]
-                    frames = ",".join(str(fid) for _, fid in buffer)
-                    f.write(f"{vid0},{frames}\n")
+                    frames = ", ".join(str(fid) for _, fid in buffer)
+                    f.write(f"{vid0}, {frames}\n")
                     buffer.clear()
                     rows_written += 1
         
@@ -164,7 +167,7 @@ class Exporter:
         video_name: str,
         frame_id: int,
         gap: int,
-        const_value: Optional[int] = None,
+        const_value: Optional[Union[str, int]] = None,
         name: Optional[str] = None,
     ) -> str:
         """
@@ -203,9 +206,16 @@ class Exporter:
         rows: List[List] = []
         offset = 0
         
+        formatted_const: Optional[str] = None
+        if const_value is not None:
+            clean_val = str(const_value).strip()
+            if clean_val.startswith('"') and clean_val.endswith('"'):
+                clean_val = clean_val[1:-1]
+            formatted_const = f'"{clean_val}"'
+        
         while len(rows) < 20:
-            if const_value is not None:
-                center_row = [video_name, frame_id + offset, const_value]
+            if formatted_const is not None:
+                center_row = [video_name, frame_id + offset, formatted_const]
             else:
                 center_row = [video_name, frame_id + offset]
             rows.append(center_row)
@@ -213,8 +223,8 @@ class Exporter:
             if offset > 0:
                 minus_id = frame_id - offset
                 if minus_id >= 0:
-                    if const_value is not None:
-                        rows.append([video_name, minus_id, const_value])
+                    if formatted_const is not None:
+                        rows.append([video_name, minus_id, formatted_const])
                     else:
                         rows.append([video_name, minus_id])
             
@@ -223,8 +233,8 @@ class Exporter:
         rows = rows[:20]
         
         with open(csv_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerows(rows)
+            for row in rows:
+                f.write(", ".join(str(x) for x in row) + "\n")
         
         logger.info(f"Exported submission ({len(rows)} rows) → {csv_path}")
         return csv_path
@@ -246,8 +256,8 @@ class Exporter:
         map_csv = os.path.join(str(settings.map_keyframe_dir), f"{vid}.csv")
         
         if not os.path.exists(map_csv):
-            logger.warning(f"Mapping CSV not found: {map_csv}")
-            return None
+            logger.warning(f"Mapping CSV not found: {map_csv}, using frame number {n}")
+            return int(n)
         
         try:
             df = pd.read_csv(map_csv)
@@ -255,11 +265,11 @@ class Exporter:
             sub = df.loc[df[n_col] == n, idx_col]
             
             if sub.empty:
-                logger.warning(f"Frame {n} not in mapping for {vid}")
-                return None
+                logger.warning(f"Frame {n} not in mapping for {vid}, using raw frame number {n}")
+                return int(n)
             
             return int(sub.iloc[0])
             
         except Exception as e:
-            logger.warning(f"Mapping read error for {vid}: {e}")
-            return None
+            logger.warning(f"Mapping read error for {vid}: {e}, using raw frame number {n}")
+            return int(n)

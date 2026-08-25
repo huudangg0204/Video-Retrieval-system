@@ -1,9 +1,11 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <title>AIC-26 Explorer</title>
-  <meta name="description" content="AIC-26 Multi-modal Video Retrieval System — search keyframes by text, image, OCR or temporal sequence.">
+  <meta name="description"
+    content="AIC-26 Multi-modal Video Retrieval System — search keyframes by text, image, OCR or temporal sequence.">
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
@@ -35,10 +37,10 @@
       --tag-bg: #1e3a5f;
       --tag-border: #2563eb;
       --tag-color: #93c5fd;
-      --badge-bg: rgba(0,0,0,.75);
-      --modal-overlay: rgba(0,0,0,.85);
-      --shadow-card: rgba(99,102,241,.2);
-      --shadow-modal: rgba(0,0,0,.6);
+      --badge-bg: rgba(0, 0, 0, .75);
+      --modal-overlay: rgba(0, 0, 0, .85);
+      --shadow-card: rgba(99, 102, 241, .2);
+      --shadow-modal: rgba(0, 0, 0, .6);
     }
 
     /* ── Light Theme Overrides ────────────────────────────────── */
@@ -65,114 +67,504 @@
       --tag-bg: #dbeafe;
       --tag-border: #60a5fa;
       --tag-color: #1d4ed8;
-      --badge-bg: rgba(255,255,255,.85);
-      --modal-overlay: rgba(0,0,0,.45);
-      --shadow-card: rgba(99,102,241,.12);
-      --shadow-modal: rgba(0,0,0,.18);
+      --badge-bg: rgba(255, 255, 255, .85);
+      --modal-overlay: rgba(0, 0, 0, .45);
+      --shadow-card: rgba(99, 102, 241, .12);
+      --shadow-modal: rgba(0, 0, 0, .18);
     }
-    [data-theme="light"] .block-tab:hover { background:var(--bg-hover); color:var(--text-secondary); }
-    [data-theme="light"] .btn-secondary { background:var(--bg-input); color:var(--text-secondary); border-color:var(--border-input); }
-    [data-theme="light"] .btn-secondary:hover { background:var(--bg-elevated); border-color:var(--border-accent); }
-    [data-theme="light"] .frame-card .sim-badge { color:#b45309; font-weight:700; }
-    [data-theme="light"] .mode-toggle { border-color:var(--border-input); }
-    [data-theme="light"] .mode-toggle label { color:var(--text-dim); }
-    [data-theme="light"] .browse-subtab { color:var(--text-dim); }
-    [data-theme="light"] .browse-subtab.active { background:var(--tag-bg); color:var(--tag-color); border-color:var(--tag-border); }
-    [data-theme="light"] #objAutocomplete .ac-item:hover { background:var(--bg-hover); }
+
+    [data-theme="light"] .block-tab:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    [data-theme="light"] .btn-secondary {
+      background: var(--bg-input);
+      color: var(--text-secondary);
+      border-color: var(--border-input);
+    }
+
+    [data-theme="light"] .btn-secondary:hover {
+      background: var(--bg-elevated);
+      border-color: var(--border-accent);
+    }
+
+    [data-theme="light"] .frame-card .sim-badge {
+      color: #b45309;
+      font-weight: 700;
+    }
+
+    [data-theme="light"] .mode-toggle {
+      border-color: var(--border-input);
+    }
+
+    [data-theme="light"] .mode-toggle label {
+      color: var(--text-dim);
+    }
+
+    [data-theme="light"] .browse-subtab {
+      color: var(--text-dim);
+    }
+
+    [data-theme="light"] .browse-subtab.active {
+      background: var(--tag-bg);
+      color: var(--tag-color);
+      border-color: var(--tag-border);
+    }
+
+    [data-theme="light"] #objAutocomplete .ac-item:hover {
+      background: var(--bg-hover);
+    }
 
     /* ── Theme toggle button ──────────────────────────────────── */
-    .theme-toggle { background:none; border:1px solid var(--border-input); border-radius:8px; padding:7px 10px; cursor:pointer;
-                    color:var(--text-muted); font-size:14px; transition:all .18s; display:flex; align-items:center; justify-content:center; }
-    .theme-toggle:hover { background:var(--bg-hover); color:var(--text-primary); border-color:var(--border-accent); }
+    .theme-toggle {
+      background: none;
+      border: 1px solid var(--border-input);
+      border-radius: 8px;
+      padding: 7px 10px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 14px;
+      transition: all .18s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .theme-toggle:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--border-accent);
+    }
 
     /* ── Scrollbar ────────────────────────────────────────────── */
-    ::-webkit-scrollbar { width: 7px; height: 7px; }
-    ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
-    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
 
-    body { background: var(--bg-body); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; transition: background .25s, color .25s; }
+    ::-webkit-scrollbar-track {
+      background: var(--scrollbar-track);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-thumb);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--scrollbar-hover);
+    }
+
+    body {
+      background: var(--bg-body);
+      color: var(--text-primary);
+      font-family: 'Inter', system-ui, sans-serif;
+      transition: background .25s, color .25s;
+    }
 
     /* Block selector bar */
-    .block-tab { display:flex; align-items:center; gap:6px; padding:8px 18px; border-radius:9999px; cursor:pointer;
-                 font-size:13px; font-weight:600; transition:all .18s; color:var(--text-muted); white-space:nowrap; border:2px solid transparent; }
-    .block-tab:hover { background:var(--bg-hover); color:var(--text-secondary); }
-    .block-tab.active { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; box-shadow:0 4px 15px rgba(99,102,241,.35); }
+    .block-tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 18px;
+      border-radius: 9999px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all .18s;
+      color: var(--text-muted);
+      white-space: nowrap;
+      border: 2px solid transparent;
+    }
+
+    .block-tab:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .block-tab.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, .35);
+    }
 
     /* Block panels */
-    .block-panel { display:none; }
-    .block-panel.active { display:flex; flex-direction:column; height:100%; }
+    .block-panel {
+      display: none;
+    }
+
+    .block-panel.active {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
 
     /* Input styles */
-    .aic-input { background:var(--bg-input); border:1px solid var(--border-input); border-radius:8px; color:var(--text-primary); padding:8px 12px; font-size:13px; width:100%; outline:none; transition:border .15s, background .25s; }
-    .aic-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(99,102,241,.15); }
-    .aic-textarea { background:var(--bg-input); border:1px solid var(--border-input); border-radius:8px; color:var(--text-primary); padding:8px 12px; font-size:13px; width:100%; outline:none; resize:vertical; transition:border .15s, background .25s; }
-    .aic-textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(99,102,241,.15); }
-    .aic-select { background:var(--bg-input); border:1px solid var(--border-input); border-radius:8px; color:var(--text-primary); padding:8px 12px; font-size:13px; width:100%; outline:none; cursor:pointer; transition:background .25s; }
-    .aic-select:focus { border-color:var(--accent); }
+    .aic-input {
+      background: var(--bg-input);
+      border: 1px solid var(--border-input);
+      border-radius: 8px;
+      color: var(--text-primary);
+      padding: 8px 12px;
+      font-size: 13px;
+      width: 100%;
+      outline: none;
+      transition: border .15s, background .25s;
+    }
+
+    .aic-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, .15);
+    }
+
+    .aic-textarea {
+      background: var(--bg-input);
+      border: 1px solid var(--border-input);
+      border-radius: 8px;
+      color: var(--text-primary);
+      padding: 8px 12px;
+      font-size: 13px;
+      width: 100%;
+      outline: none;
+      resize: vertical;
+      transition: border .15s, background .25s;
+    }
+
+    .aic-textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, .15);
+    }
+
+    .aic-select {
+      background: var(--bg-input);
+      border: 1px solid var(--border-input);
+      border-radius: 8px;
+      color: var(--text-primary);
+      padding: 8px 12px;
+      font-size: 13px;
+      width: 100%;
+      outline: none;
+      cursor: pointer;
+      transition: background .25s;
+    }
+
+    .aic-select:focus {
+      border-color: var(--accent);
+    }
 
     /* Buttons */
-    .btn-primary { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; border:none; border-radius:8px; padding:9px 18px; font-size:13px; font-weight:600; cursor:pointer; transition:all .15s; width:100%; }
-    .btn-primary:hover { filter:brightness(1.12); box-shadow:0 4px 12px rgba(99,102,241,.3); }
-    .btn-primary:active { transform:scale(.98); }
-    .btn-secondary { background:var(--bg-hover); color:var(--text-secondary); border:1px solid var(--border-input); border-radius:8px; padding:7px 14px; font-size:12px; font-weight:500; cursor:pointer; transition:all .15s; }
-    .btn-secondary:hover { background:var(--bg-elevated); border-color:var(--border-accent); }
-    .btn-ocr { background:linear-gradient(135deg,#f59e0b,#ef4444); }
-    .btn-browse { background:linear-gradient(135deg,#10b981,#06b6d4); }
-    .btn-trake { background:linear-gradient(135deg,var(--accent2),#ec4899); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+      width: 100%;
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.12);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, .3);
+    }
+
+    .btn-primary:active {
+      transform: scale(.98);
+    }
+
+    .btn-secondary {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-input);
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-elevated);
+      border-color: var(--border-accent);
+    }
+
+    .btn-ocr {
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+    }
+
+    .btn-browse {
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+    }
+
+    .btn-trake {
+      background: linear-gradient(135deg, var(--accent2), #ec4899);
+    }
 
     /* Tags */
-    .obj-tag { display:inline-flex; align-items:center; gap:5px; background:var(--tag-bg); border:1px solid var(--tag-border); color:var(--tag-color);
-               border-radius:20px; padding:3px 10px; font-size:12px; font-weight:500; margin:2px; }
-    .obj-tag .rm { cursor:pointer; color:#60a5fa; font-size:11px; }
-    .obj-tag .rm:hover { color:var(--text-primary); }
+    .obj-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--tag-bg);
+      border: 1px solid var(--tag-border);
+      color: var(--tag-color);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      margin: 2px;
+    }
+
+    .obj-tag .rm {
+      cursor: pointer;
+      color: #60a5fa;
+      font-size: 11px;
+    }
+
+    .obj-tag .rm:hover {
+      color: var(--text-primary);
+    }
 
     /* Autocomplete dropdown */
-    #objAutocomplete { position:absolute; background:var(--bg-input); border:1px solid var(--border-accent); border-radius:8px; max-height:200px; overflow-y:auto;
-                       z-index:100; width:100%; top:100%; left:0; margin-top:2px; }
-    #objAutocomplete .ac-item { padding:7px 12px; font-size:12px; cursor:pointer; color:var(--text-secondary); }
-    #objAutocomplete .ac-item:hover { background:var(--bg-elevated); color:var(--text-primary); }
+    #objAutocomplete {
+      position: absolute;
+      background: var(--bg-input);
+      border: 1px solid var(--border-accent);
+      border-radius: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      width: 100%;
+      top: 100%;
+      left: 0;
+      margin-top: 2px;
+    }
+
+    #objAutocomplete .ac-item {
+      padding: 7px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+
+    #objAutocomplete .ac-item:hover {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+    }
 
     /* Frame card */
-    .frame-card { background:var(--bg-card); border:1px solid var(--border-card); border-radius:12px; overflow:hidden; cursor:pointer;
-                  transition:all .18s; position:relative; }
-    .frame-card:hover { border-color:var(--accent); box-shadow:0 8px 24px var(--shadow-card); transform:translateY(-2px); }
-    .frame-card.center-frame { border-color:#f59e0b; box-shadow:0 0 0 3px rgba(245,158,11,.25); }
-    .frame-card img { width:100%; height:auto; display:block; object-fit:cover; }
-    .frame-card .sim-badge { position:absolute; top:8px; right:8px; background:var(--badge-bg); color:#fbbf24;
-                              font-size:11px; padding:2px 7px; border-radius:20px; backdrop-filter:blur(4px); }
-    .frame-card .card-footer { padding:8px 10px; background:var(--bg-card); }
-    .frame-card .card-footer .vid-name { font-weight:700; font-size:12px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .frame-card .card-footer .meta-row { display:flex; justify-content:space-between; font-size:11px; color:var(--text-faint); margin-top:3px; }
+    .frame-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all .18s;
+      position: relative;
+    }
+
+    .frame-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 8px 24px var(--shadow-card);
+      transform: translateY(-2px);
+    }
+
+    .frame-card.center-frame {
+      border-color: #f59e0b;
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, .25);
+    }
+
+    .frame-card img {
+      width: 100%;
+      height: auto;
+      display: block;
+      object-fit: cover;
+    }
+
+    .frame-card .sim-badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: var(--badge-bg);
+      color: #fbbf24;
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 20px;
+      backdrop-filter: blur(4px);
+    }
+
+    .frame-card .card-footer {
+      padding: 8px 10px;
+      background: var(--bg-card);
+    }
+
+    .frame-card .card-footer .vid-name {
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .frame-card .card-footer .meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-faint);
+      margin-top: 3px;
+    }
 
     /* Info bar */
-    #infoBar { background:var(--bg-info); border-bottom:1px solid var(--border-card); padding:8px 20px; font-size:12px; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; transition:background .25s; }
+    #infoBar {
+      background: var(--bg-info);
+      border-bottom: 1px solid var(--border-card);
+      padding: 8px 20px;
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background .25s;
+    }
 
     /* Section label */
-    .sec-label { font-size:11px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; margin-bottom:5px; }
+    .sec-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 5px;
+    }
 
     /* Modal */
-    #inspectorModal { position:fixed; inset:0; background:var(--modal-overlay); display:none; z-index:200; align-items:center; justify-content:center; padding:16px; }
-    #inspectorModal.open { display:flex; }
-    .modal-box { background:var(--bg-card); border:1px solid var(--border-card); border-radius:16px; overflow:hidden; max-width:960px; width:100%;
-                 display:flex; flex-direction:row; max-height:92vh; box-shadow:0 25px 60px var(--shadow-modal); }
-    .modal-img-panel { flex:1; background:var(--bg-panel); display:flex; align-items:center; justify-content:center; padding:16px; min-height:320px; }
-    .modal-meta-panel { width:340px; flex-shrink:0; display:flex; flex-direction:column; border-left:1px solid var(--border-card); }
-    .meta-section { margin-bottom:14px; }
-    .meta-label { font-size:10px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; margin-bottom:5px; }
-    .meta-value { font-size:13px; color:var(--text-secondary); background:var(--bg-input); padding:8px 10px; border-radius:8px; line-height:1.5; transition:background .25s; }
+    #inspectorModal {
+      position: fixed;
+      inset: 0;
+      background: var(--modal-overlay);
+      display: none;
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    #inspectorModal.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 16px;
+      overflow: hidden;
+      max-width: 960px;
+      width: 100%;
+      display: flex;
+      flex-direction: row;
+      max-height: 92vh;
+      box-shadow: 0 25px 60px var(--shadow-modal);
+    }
+
+    .modal-img-panel {
+      flex: 1;
+      background: var(--bg-panel);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      min-height: 320px;
+    }
+
+    .modal-meta-panel {
+      width: 340px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--border-card);
+    }
+
+    .meta-section {
+      margin-bottom: 14px;
+    }
+
+    .meta-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 5px;
+    }
+
+    .meta-value {
+      font-size: 13px;
+      color: var(--text-secondary);
+      background: var(--bg-input);
+      padding: 8px 10px;
+      border-radius: 8px;
+      line-height: 1.5;
+      transition: background .25s;
+    }
 
     /* Toggle */
-    .mode-toggle { display:inline-flex; border:1px solid var(--border-input); border-radius:20px; overflow:hidden; }
-    .mode-toggle label { padding:4px 12px; font-size:11px; font-weight:600; cursor:pointer; color:var(--text-dim); transition:all .15s; }
-    .mode-toggle input[type=radio] { display:none; }
-    .mode-toggle input[type=radio]:checked + label { background:var(--accent); color:#fff; }
+    .mode-toggle {
+      display: inline-flex;
+      border: 1px solid var(--border-input);
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    .mode-toggle label {
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-dim);
+      transition: all .15s;
+    }
+
+    .mode-toggle input[type=radio] {
+      display: none;
+    }
+
+    .mode-toggle input[type=radio]:checked+label {
+      background: var(--accent);
+      color: #fff;
+    }
 
     /* Browse tabs */
-    .browse-subtab { padding:5px 14px; font-size:12px; border-radius:20px; cursor:pointer; color:var(--text-dim); font-weight:600; transition:all .15s; border:1px solid transparent; }
-    .browse-subtab.active { background:var(--tag-bg); color:var(--tag-color); border-color:var(--tag-border); }
-    .browse-subpanel { display:none; }
-    .browse-subpanel.active { display:block; }
+    .browse-subtab {
+      padding: 5px 14px;
+      font-size: 12px;
+      border-radius: 20px;
+      cursor: pointer;
+      color: var(--text-dim);
+      font-weight: 600;
+      transition: all .15s;
+      border: 1px solid transparent;
+    }
+
+    .browse-subtab.active {
+      background: var(--tag-bg);
+      color: var(--tag-color);
+      border-color: var(--tag-border);
+    }
+
+    .browse-subpanel {
+      display: none;
+    }
+
+    .browse-subpanel.active {
+      display: block;
+    }
 
     /* ── 2-Stage Segment Cards ────────────────────────────────── */
     .segment-card {
@@ -185,11 +577,13 @@
       flex-direction: column;
       gap: 8px;
     }
+
     .segment-card:hover {
       border-color: var(--accent);
       box-shadow: 0 6px 20px var(--shadow-card);
       transform: translateY(-1px);
     }
+
     .segment-card .seg-header {
       display: flex;
       justify-content: space-between;
@@ -197,6 +591,7 @@
       flex-wrap: wrap;
       gap: 6px;
     }
+
     .segment-card .seg-vid {
       font-weight: 700;
       font-size: 13px;
@@ -205,6 +600,7 @@
       align-items: center;
       gap: 6px;
     }
+
     .segment-card .seg-time {
       background: var(--bg-input);
       border: 1px solid var(--border-input);
@@ -214,6 +610,7 @@
       color: var(--text-muted);
       font-family: monospace;
     }
+
     .segment-card .seg-score {
       background: var(--badge-bg);
       color: #fbbf24;
@@ -224,11 +621,13 @@
       border: 1px solid rgba(251, 191, 36, 0.3);
       backdrop-filter: blur(4px);
     }
+
     .segment-card .seg-desc {
       font-size: 12px;
       color: var(--text-primary);
       line-height: 1.5;
     }
+
     .segment-card .seg-meta {
       display: flex;
       flex-wrap: wrap;
@@ -238,669 +637,747 @@
 
     /* Responsive */
     @media (max-width:768px) {
-      .modal-box { flex-direction:column; }
-      .modal-meta-panel { width:100%; border-left:none; border-top:1px solid var(--border-card); }
+      .modal-box {
+        flex-direction: column;
+      }
+
+      .modal-meta-panel {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--border-card);
+      }
     }
   </style>
 </head>
+
 <body class="h-screen overflow-hidden flex flex-col">
-<script>
-  // Apply saved theme before first paint to prevent FOUC
-  (function(){
-    var t = localStorage.getItem('aic26-theme');
-    if (t === 'light') document.documentElement.setAttribute('data-theme','light');
-  })();
-</script>
+  <script>
+    // Apply saved theme before first paint to prevent FOUC
+    (function () {
+      var t = localStorage.getItem('aic26-theme');
+      if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    })();
+  </script>
 
-<!-- ═══════════════ HEADER ═══════════════ -->
-<header style="background:var(--bg-panel); border-bottom:1px solid var(--border);" class="flex items-center gap-3 px-5 py-3 shrink-0">
-  <!-- Logo -->
-  <div class="flex items-center gap-2 mr-2 shrink-0">
-    <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6); border-radius:8px; padding:6px 10px;" class="text-white font-bold text-sm">
-      <i class="fa fa-search-plus"></i> AIC
-    </div>
-    <span class="text-xs text-gray-500 font-medium hidden sm:block">Explorer '26</span>
-  </div>
-
-  <!-- Block Tabs -->
-  <div id="blockBar" class="flex gap-1 overflow-x-auto flex-1" style="scrollbar-width:none;">
-    <button id="tab-text"     class="block-tab active" onclick="switchBlock('text')">    <i class="fa fa-keyboard"></i>   Text   </button>
-    <button id="tab-twostage" class="block-tab"        onclick="switchBlock('twostage')"><i class="fa fa-layer-group"></i> 2-Stage </button>
-    <button id="tab-image"    class="block-tab"        onclick="switchBlock('image')">   <i class="fa fa-image"></i>     Image  </button>
-    <button id="tab-trake"    class="block-tab"        onclick="switchBlock('trake')">   <i class="fa fa-clock"></i>     TRAKE  </button>
-    <button id="tab-ocr"      class="block-tab"        onclick="switchBlock('ocr')">     <i class="fa fa-font"></i>      OCR    </button>
-    <button id="tab-browse"   class="block-tab"        onclick="switchBlock('browse')">  <i class="fa fa-folder-open"></i> Browse </button>
-  </div>
-
-  <!-- Global top-bar controls -->
-  <div class="flex items-center gap-2 shrink-0">
-    <div class="relative">
-      <i class="fa fa-filter absolute left-3 top-2 text-gray-500 text-xs"></i>
-      <input id="fuseSearchInput" oninput="applyFuseFilter()" class="aic-input pl-8 text-xs" style="width:220px;" placeholder="Fuzzy filter results…">
-    </div>
-    <input type="range" id="gridSize" min="150" max="420" value="220" oninput="updateGridSize()" class="w-20 accent-indigo-500" title="Grid size">
-    <button onclick="exportResults()" class="btn-secondary" title="Export CSV"><i class="fa fa-download"></i></button>
-    <button onclick="groupByVideoUI()" class="btn-secondary" title="Group by video"><i class="fa fa-layer-group"></i></button>
-    <button id="themeToggleBtn" onclick="toggleTheme()" class="btn-secondary" title="Toggle light/dark theme"><i class="fa fa-moon"></i></button>
-  </div>
-</header>
-
-<!-- ═══════════════ MAIN ═══════════════ -->
-<div class="flex flex-1 overflow-hidden">
-
-<!-- ────────── LEFT: Block Input Panel ────────── -->
-<aside id="blockInputPanel" style="width:300px; min-width:300px; background:var(--bg-panel); border-right:1px solid var(--border); overflow-y:auto;" class="flex flex-col">
-
-  <!-- BLOCK: TEXT -->
-  <div id="block-text" class="block-panel active p-4 gap-4 flex-col">
-    <div class="sec-label">Text Search</div>
-
-    <!-- Scene Group filter -->
-    <div>
-      <div class="sec-label">🌍 Scene Group</div>
-      <select id="textSceneGroup" class="aic-select">
-        <option value="">Any Scene</option>
-        <option value="indoor_residential">🏠 Indoor — Residential</option>
-        <option value="indoor_commercial">🛍️ Indoor — Commercial</option>
-        <option value="indoor_public">🏛️ Indoor — Public</option>
-        <option value="outdoor_urban">🏙️ Outdoor — Urban</option>
-        <option value="outdoor_nature">🌲 Outdoor — Nature</option>
-        <option value="outdoor_garden">🌸 Outdoor — Garden/Park</option>
-        <option value="transportation">🚗 Transportation</option>
-        <option value="sports_leisure">⚽ Sports &amp; Leisure</option>
-        <option value="entertainment_culture">🎭 Entertainment &amp; Culture</option>
-        <option value="workspace_industrial">🏭 Workspace &amp; Industrial</option>
-        <option value="accommodation">🏨 Accommodation</option>
-        <option value="historic_religious">⛪ Historic &amp; Religious</option>
-        <option value="other">❓ Other</option>
-      </select>
-    </div>
-
-    <!-- Object Presence filter -->
-    <div>
-      <div class="flex items-center justify-between mb-1">
-        <div class="sec-label mb-0">📦 Object Presence</div>
-        <div class="mode-toggle">
-          <input type="radio" name="objMode" id="modeAnd" value="and" checked><label for="modeAnd">ALL</label>
-          <input type="radio" name="objMode" id="modeOr"  value="or"><label for="modeOr">ANY</label>
-        </div>
+  <!-- ═══════════════ HEADER ═══════════════ -->
+  <header style="background:var(--bg-panel); border-bottom:1px solid var(--border);"
+    class="flex items-center gap-3 px-5 py-3 shrink-0">
+    <!-- Logo -->
+    <div class="flex items-center gap-2 mr-2 shrink-0">
+      <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6); border-radius:8px; padding:6px 10px;"
+        class="text-white font-bold text-sm">
+        <i class="fa fa-search-plus"></i> AIC
       </div>
-      <!-- Tag display -->
-      <div id="objTags" class="flex flex-wrap gap-1 mb-2 min-h-[28px]"></div>
-      <!-- Autocomplete input -->
+      <span class="text-xs text-gray-500 font-medium hidden sm:block">Explorer '26</span>
+    </div>
+
+    <!-- Block Tabs -->
+    <div id="blockBar" class="flex gap-1 overflow-x-auto flex-1" style="scrollbar-width:none;">
+      <button id="tab-text" class="block-tab active" onclick="switchBlock('text')"> <i class="fa fa-keyboard"></i> Text
+      </button>
+      <button id="tab-twostage" class="block-tab" onclick="switchBlock('twostage')"><i class="fa fa-layer-group"></i>
+        2-Stage </button>
+      <button id="tab-image" class="block-tab" onclick="switchBlock('image')"> <i class="fa fa-image"></i> Image
+      </button>
+      <button id="tab-trake" class="block-tab" onclick="switchBlock('trake')"> <i class="fa fa-clock"></i> TRAKE
+      </button>
+      <button id="tab-ocr" class="block-tab" onclick="switchBlock('ocr')"> <i class="fa fa-font"></i> OCR </button>
+      <button id="tab-browse" class="block-tab" onclick="switchBlock('browse')"> <i class="fa fa-folder-open"></i>
+        Browse </button>
+    </div>
+
+    <!-- Global top-bar controls -->
+    <div class="flex items-center gap-2 shrink-0">
       <div class="relative">
-        <input id="objInput" class="aic-input text-xs" placeholder="Type object (e.g. Person)…" autocomplete="off"
-               oninput="filterObjAC()" onkeydown="handleObjKey(event)">
-        <div id="objAutocomplete" class="hidden"></div>
+        <i class="fa fa-filter absolute left-3 top-2 text-gray-500 text-xs"></i>
+        <input id="fuseSearchInput" oninput="applyFuseFilter()" class="aic-input pl-8 text-xs" style="width:220px;"
+          placeholder="Fuzzy filter results…">
       </div>
+      <input type="range" id="gridSize" min="150" max="420" value="220" oninput="updateGridSize()"
+        class="w-20 accent-indigo-500" title="Grid size">
+      <button onclick="exportResults()" class="btn-secondary" title="Export CSV"><i class="fa fa-download"></i></button>
+      <button onclick="groupByVideoUI()" class="btn-secondary" title="Group by video"><i
+          class="fa fa-layer-group"></i></button>
+      <button id="themeToggleBtn" onclick="toggleTheme()" class="btn-secondary" title="Toggle light/dark theme"><i
+          class="fa fa-moon"></i></button>
     </div>
+  </header>
 
-    <hr style="border-color:#1e2230;">
+  <!-- ═══════════════ MAIN ═══════════════ -->
+  <div class="flex flex-1 overflow-hidden">
 
-    <!-- Text query -->
-    <div>
-      <div class="sec-label">💬 Query</div>
-      <textarea id="queryInput" class="aic-textarea" rows="3" placeholder="Free-text description…"></textarea>
-    </div>
-    <div class="flex gap-2">
-      <input id="topkInput"     class="aic-input" placeholder="Top-K (100)">
-      <input id="thresholdInput" class="aic-input" placeholder="Thresh (0.5)">
-    </div>
+    <!-- ────────── LEFT: Block Input Panel ────────── -->
+    <aside id="blockInputPanel"
+      style="width:300px; min-width:300px; background:var(--bg-panel); border-right:1px solid var(--border); overflow-y:auto;"
+      class="flex flex-col">
 
-    <!-- Optional image reranking -->
-    <div>
-      <div class="sec-label">🖼️ Image Reranking (optional)</div>
-      <input type="file" id="textSearchImage" class="aic-input text-xs" accept="image/*">
-    </div>
+      <!-- BLOCK: TEXT -->
+      <div id="block-text" class="block-panel active p-4 gap-4 flex-col">
+        <div class="sec-label">Text Search</div>
 
-    <button onclick="searchText()" class="btn-primary">
-      <i class="fa fa-search mr-1"></i> Search
-    </button>
-  </div>
+        <!-- Scene Group filter -->
+        <div>
+          <div class="sec-label">🌍 Scene Group</div>
+          <select id="textSceneGroup" class="aic-select">
+            <option value="">Any Scene</option>
+            <option value="indoor_residential">🏠 Indoor — Residential</option>
+            <option value="indoor_commercial">🛍️ Indoor — Commercial</option>
+            <option value="indoor_public">🏛️ Indoor — Public</option>
+            <option value="outdoor_urban">🏙️ Outdoor — Urban</option>
+            <option value="outdoor_nature">🌲 Outdoor — Nature</option>
+            <option value="outdoor_garden">🌸 Outdoor — Garden/Park</option>
+            <option value="transportation">🚗 Transportation</option>
+            <option value="sports_leisure">⚽ Sports &amp; Leisure</option>
+            <option value="entertainment_culture">🎭 Entertainment &amp; Culture</option>
+            <option value="workspace_industrial">🏭 Workspace &amp; Industrial</option>
+            <option value="accommodation">🏨 Accommodation</option>
+            <option value="historic_religious">⛪ Historic &amp; Religious</option>
+            <option value="other">❓ Other</option>
+          </select>
+        </div>
 
-  <!-- BLOCK: TWO-STAGE HIERARCHICAL SEARCH -->
-  <div id="block-twostage" class="block-panel p-4 gap-4 flex-col">
-    <div>
-      <div class="flex items-center justify-between mb-1">
-        <div class="sec-label mb-0" style="color:var(--text-primary);">🎯 2-Stage Hierarchical</div>
-        <span class="text-[10px] px-2 py-0.5 rounded font-mono font-semibold" style="background:var(--bg-elevated); color:var(--tag-color);">BGE-M3 + EVA-02</span>
-      </div>
-      <p class="text-xs" style="color:var(--text-muted); line-height:1.4;">
-        Stage 1: Quét phân đoạn video (BGE-M3).<br>
-        Stage 2: Lọc keyframe chính xác trong candidate videos (EVA-02).
-      </p>
-    </div>
-
-    <!-- Stage 1 Section -->
-    <div style="background:var(--bg-input); border:1px solid var(--border-input); border-radius:10px; padding:12px;" class="flex flex-col gap-2.5">
-      <div class="flex items-center justify-between">
-        <div class="sec-label mb-0" style="color:var(--tag-color);"><i class="fa fa-list-ol mr-1"></i> Stage 1: Segment Retrieval</div>
-        <span class="text-[10px] text-gray-400">BAAI/bge-m3</span>
-      </div>
-      <div>
-        <div class="sec-label">💬 Segment Query (Vi / En)</div>
-        <textarea id="twoStageQuery" class="aic-textarea" rows="3" placeholder="Mô tả sự kiện, câu chuyện hoặc bối cảnh phân đoạn..."></textarea>
-      </div>
-      <div class="flex items-center gap-2">
-        <input id="twoStageSegTopk" class="aic-input" placeholder="Top Segments" value="20" type="number" min="1" max="200" title="Số lượng segment tối đa trả về">
-        <button onclick="searchSegmentsUI()" class="btn-primary" style="background:linear-gradient(135deg,#06b6d4,#3b82f6); white-space:nowrap; padding:8px 12px;">
-          <i class="fa fa-filter mr-1"></i> Tìm Segments
-        </button>
-      </div>
-    </div>
-
-    <!-- Stage 2 Section -->
-    <div style="background:var(--bg-input); border:1px solid var(--border-input); border-radius:10px; padding:12px;" class="flex flex-col gap-2.5">
-      <div class="flex items-center justify-between">
-        <div class="sec-label mb-0" style="color:#fbbf24;"><i class="fa fa-crosshairs mr-1"></i> Stage 2: Filtered Keyframe Search</div>
-        <span class="text-[10px] text-gray-400">EVA-02 CLIP</span>
-      </div>
-
-      <!-- Candidate Videos List -->
-      <div>
-        <div class="flex justify-between items-center mb-1">
-          <div class="sec-label mb-0">🎬 Candidate Videos (<span id="twoStageCandCount">0</span>)</div>
-          <div class="flex gap-2">
-            <button onclick="selectAllStage1Candidates()" class="text-xs text-indigo-400 hover:underline">All</button>
-            <span class="text-xs text-gray-500">|</span>
-            <button onclick="clearTwoStageVids()" class="text-xs text-gray-400 hover:underline">Clear</button>
+        <!-- Object Presence filter -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <div class="sec-label mb-0">📦 Object Presence</div>
+            <div class="mode-toggle">
+              <input type="radio" name="objMode" id="modeAnd" value="and" checked><label for="modeAnd">ALL</label>
+              <input type="radio" name="objMode" id="modeOr" value="or"><label for="modeOr">ANY</label>
+            </div>
+          </div>
+          <!-- Tag display -->
+          <div id="objTags" class="flex flex-wrap gap-1 mb-2 min-h-[28px]"></div>
+          <!-- Autocomplete input -->
+          <div class="relative">
+            <input id="objInput" class="aic-input text-xs" placeholder="Type object (e.g. Person)…" autocomplete="off"
+              oninput="filterObjAC()" onkeydown="handleObjKey(event)">
+            <div id="objAutocomplete" class="hidden"></div>
           </div>
         </div>
-        <div id="twoStageVidTags" class="flex flex-wrap gap-1 mb-2 min-h-[28px] max-h-[90px] overflow-y-auto p-1 rounded" style="background:var(--bg-panel); border:1px solid var(--border-card);">
-          <span style="color:var(--text-faint); font-size:11px; font-style:italic; padding:2px 4px;">Chưa có video ứng viên nào...</span>
-        </div>
-        <!-- Manual video ID adder -->
-        <div class="relative">
-          <input id="twoStageVidInput" class="aic-input text-xs" placeholder="Thêm video ID (gõ tên rồi Enter, e.g. L30_V001)..." onkeydown="handleTwoStageVidKey(event)">
-        </div>
-      </div>
 
-      <!-- Keyframe query (optional override) -->
-      <div>
-        <div class="sec-label">🖼️ Keyframe Query (Tùy chọn)</div>
-        <input id="twoStageKeyframeQuery" class="aic-input text-xs" placeholder="Để trống để dùng Query của Stage 1...">
-      </div>
+        <hr style="border-color:#1e2230;">
 
-      <div class="flex items-center gap-2">
-        <input id="twoStageKeyframeTopk" class="aic-input" placeholder="Top Keyframes" value="50" type="number" min="1" max="500" title="Số lượng keyframe tối đa trả về">
-        <button onclick="searchFilteredKeyframesUI()" class="btn-primary" style="white-space:nowrap; padding:8px 12px;">
-          <i class="fa fa-search mr-1"></i> Lọc Keyframes
+        <!-- Text query -->
+        <div>
+          <div class="sec-label">💬 Query</div>
+          <textarea id="queryInput" class="aic-textarea" rows="3" placeholder="Free-text description…"></textarea>
+        </div>
+        <div class="flex gap-2">
+          <input id="topkInput" class="aic-input" placeholder="Top-K (100)">
+          <input id="thresholdInput" class="aic-input" placeholder="Thresh (0.5)">
+        </div>
+
+        <!-- Optional image reranking -->
+        <div>
+          <div class="sec-label">🖼️ Image Reranking (optional)</div>
+          <input type="file" id="textSearchImage" class="aic-input text-xs" accept="image/*">
+        </div>
+
+        <button onclick="searchText()" class="btn-primary">
+          <i class="fa fa-search mr-1"></i> Search
         </button>
       </div>
-    </div>
 
-    <!-- 1-Click End-to-End Search -->
-    <button onclick="runTwoStageEndToEnd()" class="btn-primary" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);">
-      <i class="fa fa-bolt mr-1"></i> Chạy 2 Tầng Tự Động (1-Click)
-    </button>
-  </div>
-
-  <!-- BLOCK: IMAGE -->
-  <div id="block-image" class="block-panel p-4 gap-4 flex-col">
-    <div class="sec-label">Image Search</div>
-    <div>
-      <div class="sec-label">Upload Image</div>
-      <input type="file" id="uploadFile" class="aic-input text-xs" accept="image/*">
-    </div>
-    <input id="imgTopk" class="aic-input" placeholder="Top-K (100)">
-    <button onclick="uploadAndSearch()" class="btn-primary">
-      <i class="fa fa-upload mr-1"></i> Upload &amp; Search
-    </button>
-  </div>
-
-  <!-- BLOCK: TRAKE -->
-  <div id="block-trake" class="block-panel p-4 gap-4 flex-col">
-    <div class="sec-label">TRAKE — Temporal Search</div>
-    <div>
-      <div class="sec-label">Events (one per line)</div>
-      <textarea id="eventsBox" rows="5" class="aic-textarea" placeholder="E1: person walking in park&#10;E2: driving a car&#10;E3: eating at restaurant"></textarea>
-    </div>
-    <div class="flex gap-2">
-      <input id="trakeTopk"       class="aic-input" placeholder="Top-K (200)">
-      <input id="trakeCandidates" class="aic-input" placeholder="Cand (200)">
-    </div>
-    <select id="trakeOption" class="aic-select">
-      <option value="Closest">Closest</option>
-      <option value="Highest">Highest</option>
-      <option value="All">All</option>
-    </select>
-    <button onclick="runTrake()" class="btn-primary btn-trake">
-      <i class="fa fa-clock mr-1"></i> Run TRAKE
-    </button>
-  </div>
-
-  <!-- BLOCK: OCR -->
-  <div id="block-ocr" class="block-panel p-4 gap-4 flex-col">
-    <div class="sec-label">OCR Text Search</div>
-    <div>
-      <div class="sec-label">Search Text in Images</div>
-      <textarea id="ocrQuery" rows="3" class="aic-textarea" placeholder="Text to find in frames…"></textarea>
-    </div>
-    <select id="ocrMode" class="aic-select">
-      <option value="substring">Contains (default)</option>
-      <option value="exact">Exact Match</option>
-      <option value="regex">Regex</option>
-    </select>
-    <div class="flex items-center gap-2 text-xs text-gray-400">
-      <input type="checkbox" id="ocrCaseInsensitive" checked class="accent-indigo-500">
-      <label for="ocrCaseInsensitive">Case-insensitive</label>
-    </div>
-    <input id="ocrTopk" class="aic-input" placeholder="Top-K (50)">
-    <button onclick="searchOCR()" class="btn-primary btn-ocr">
-      <i class="fa fa-font mr-1"></i> Search OCR
-    </button>
-  </div>
-
-  <!-- BLOCK: BROWSE -->
-  <div id="block-browse" class="block-panel p-4 gap-4 flex-col">
-
-    <!-- Section: Folder View -->
-    <div class="sec-label">📁 Folder View</div>
-    <div class="flex flex-col gap-2">
-      <input id="browseFolder" class="aic-input" placeholder="Video name (e.g. L26_V001)">
-      <button onclick="browseFolder()" class="btn-primary btn-browse">
-        <i class="fa fa-images mr-1"></i> Load All Frames
-      </button>
-    </div>
-
-    <hr style="border-color:#1e2230;">
-
-    <!-- Section: Context View -->
-    <div class="sec-label">🔍 Context View</div>
-    <div class="flex flex-col gap-2">
-      <input id="ctxFolder" class="aic-input" placeholder="Video name (e.g. L26_V001)">
-      <div class="flex gap-2">
-        <input id="ctxFrameId" class="aic-input" placeholder="Frame ID">
-        <input id="ctxRange" class="aic-input" placeholder="Range ± (5)">
-      </div>
-      <button onclick="loadContext()" class="btn-primary btn-browse">
-        <i class="fa fa-expand-arrows-alt mr-1"></i> Load Context
-      </button>
-    </div>
-
-    <hr style="border-color:#1e2230;">
-
-    <!-- Section: Submission -->
-    <div class="sec-label">📤 Export Submission</div>
-    <div class="flex flex-col gap-2">
-      <input id="subVideoName" class="aic-input" placeholder="Video name (e.g. L26_V001)">
-      <div class="flex gap-2">
-        <input id="subFrameId" class="aic-input" placeholder="Frame ID">
-        <input id="subGap"     class="aic-input" placeholder="GAP (15)">
-      </div>
-      <input id="subExportName" class="aic-input" placeholder="CSV name">
-      <button onclick="makeSubmission()" class="btn-primary btn-browse">
-        <i class="fa fa-file-export mr-1"></i> Export
-      </button>
-      <div id="subMsg" class="text-xs mt-1"></div>
-    </div>
-
-  </div>
-
-</aside>
-
-<!-- ────────── RIGHT: Results Area ────────── -->
-<main class="flex-1 flex flex-col overflow-hidden">
-  <!-- Info bar -->
-  <div id="infoBar" class="hidden shrink-0">
-    <span id="infoStatus">Ready</span>
-    <button onclick="clearActiveResults()" class="text-indigo-400 hover:text-indigo-200 font-medium text-xs">Clear</button>
-  </div>
-
-  <!-- Results container — each block has its own scroll context -->
-  <div class="flex-1 overflow-y-auto p-5" id="resultsArea">
-    <div id="resultsGrid-text"     class="results-grid grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
-    <div id="resultsGrid-twostage" class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
-    <div id="resultsGrid-image"    class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
-    <div id="resultsGrid-trake"    class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
-    <div id="resultsGrid-ocr"      class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
-    <div id="resultsGrid-browse"   class="results-grid grid gap-3 hidden" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
-    <!-- Initial empty state -->
-    <div id="emptyState" class="flex flex-col items-center justify-center py-24 text-center">
-      <i class="fa fa-search text-5xl mb-4" style="color:#2d3146;"></i>
-      <p style="color:#4a5568;" class="text-sm">Choose a block and run a search to see results.</p>
-      <p style="color:#2d3146;" class="text-xs mt-1">{{ stats }}</p>
-    </div>
-  </div>
-</main>
-</div>
-
-<!-- ═══════════════ MODAL INSPECTOR ═══════════════ -->
-<div id="inspectorModal" onclick="closeModal(event)">
-  <div class="modal-box" onclick="event.stopPropagation()">
-    <!-- Image -->
-    <div class="modal-img-panel">
-      <img id="modalImg" class="max-w-full max-h-full object-contain rounded-lg" src="" alt="">
-    </div>
-    <!-- Meta -->
-    <div class="modal-meta-panel">
-      <div class="p-4 border-b" style="border-color:#252840;">
-        <h3 id="modalVideoName" class="font-bold text-base" style="color:#c9d1e9;"></h3>
-        <p id="modalFrameInfo" class="text-xs mt-1" style="color:#6272a4;"></p>
-      </div>
-      <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-        <div class="meta-section">
-          <div class="meta-label"><i class="fa fa-align-left mr-1"></i> Caption</div>
-          <div id="modalCaption" class="meta-value italic"></div>
+      <!-- BLOCK: TWO-STAGE HIERARCHICAL SEARCH -->
+      <div id="block-twostage" class="block-panel p-4 gap-4 flex-col">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <div class="sec-label mb-0" style="color:var(--text-primary);">🎯 2-Stage Hierarchical</div>
+            <span class="text-[10px] px-2 py-0.5 rounded font-mono font-semibold"
+              style="background:var(--bg-elevated); color:var(--tag-color);">BGE-M3 + EVA-02</span>
+          </div>
+          <p class="text-xs" style="color:var(--text-muted); line-height:1.4;">
+            Stage 1: Quét phân đoạn video (BGE-M3).<br>
+            Stage 2: Lọc keyframe chính xác trong candidate videos (EVA-02).
+          </p>
         </div>
-        <div class="meta-section">
-          <div class="meta-label"><i class="fa fa-font mr-1"></i> OCR Text</div>
-          <div id="modalOCR" class="meta-value font-mono text-xs" style="white-space:pre-wrap;"></div>
+
+        <!-- Stage 1 Section -->
+        <div style="background:var(--bg-input); border:1px solid var(--border-input); border-radius:10px; padding:12px;"
+          class="flex flex-col gap-2.5">
+          <div class="flex items-center justify-between">
+            <div class="sec-label mb-0" style="color:var(--tag-color);"><i class="fa fa-list-ol mr-1"></i> Stage 1:
+              Segment Retrieval</div>
+            <span class="text-[10px] text-gray-400">BAAI/bge-m3</span>
+          </div>
+          <div>
+            <div class="sec-label">💬 Segment Query (Vi / En)</div>
+            <textarea id="twoStageQuery" class="aic-textarea" rows="3"
+              placeholder="Mô tả sự kiện, câu chuyện hoặc bối cảnh phân đoạn..."></textarea>
+          </div>
+          <div class="flex items-center gap-2">
+            <input id="twoStageSegTopk" class="aic-input" placeholder="Top Segments" value="20" type="number" min="1"
+              max="200" title="Số lượng segment tối đa trả về">
+            <button onclick="searchSegmentsUI()" class="btn-primary"
+              style="background:linear-gradient(135deg,#06b6d4,#3b82f6); white-space:nowrap; padding:8px 12px;">
+              <i class="fa fa-filter mr-1"></i> Tìm Segments
+            </button>
+          </div>
         </div>
-        <div class="meta-section">
-          <div class="meta-label"><i class="fa fa-map-marker-alt mr-1"></i> Scene</div>
-          <div id="modalScene" class="meta-value"></div>
+
+        <!-- Stage 2 Section -->
+        <div style="background:var(--bg-input); border:1px solid var(--border-input); border-radius:10px; padding:12px;"
+          class="flex flex-col gap-2.5">
+          <div class="flex items-center justify-between">
+            <div class="sec-label mb-0" style="color:#fbbf24;"><i class="fa fa-crosshairs mr-1"></i> Stage 2: Filtered
+              Keyframe Search</div>
+            <span class="text-[10px] text-gray-400">EVA-02 CLIP</span>
+          </div>
+
+          <!-- Candidate Videos List -->
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <div class="sec-label mb-0">🎬 Candidate Videos (<span id="twoStageCandCount">0</span>)</div>
+              <div class="flex gap-2">
+                <button onclick="selectAllStage1Candidates()"
+                  class="text-xs text-indigo-400 hover:underline">All</button>
+                <span class="text-xs text-gray-500">|</span>
+                <button onclick="clearTwoStageVids()" class="text-xs text-gray-400 hover:underline">Clear</button>
+              </div>
+            </div>
+            <div id="twoStageVidTags"
+              class="flex flex-wrap gap-1 mb-2 min-h-[28px] max-h-[90px] overflow-y-auto p-1 rounded"
+              style="background:var(--bg-panel); border:1px solid var(--border-card);">
+              <span style="color:var(--text-faint); font-size:11px; font-style:italic; padding:2px 4px;">Chưa có video
+                ứng viên nào...</span>
+            </div>
+            <!-- Manual video ID adder -->
+            <div class="relative">
+              <input id="twoStageVidInput" class="aic-input text-xs"
+                placeholder="Thêm video ID (gõ tên rồi Enter, e.g. L30_V001)..."
+                onkeydown="handleTwoStageVidKey(event)">
+            </div>
+          </div>
+
+          <!-- Keyframe query (optional override) -->
+          <div>
+            <div class="sec-label">🖼️ Keyframe Query (Tùy chọn)</div>
+            <input id="twoStageKeyframeQuery" class="aic-input text-xs"
+              placeholder="Để trống để dùng Query của Stage 1...">
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input id="twoStageKeyframeTopk" class="aic-input" placeholder="Top Keyframes" value="50" type="number"
+              min="1" max="500" title="Số lượng keyframe tối đa trả về">
+            <button onclick="searchFilteredKeyframesUI()" class="btn-primary"
+              style="white-space:nowrap; padding:8px 12px;">
+              <i class="fa fa-search mr-1"></i> Lọc Keyframes
+            </button>
+          </div>
         </div>
-        <div class="meta-section">
-          <div class="meta-label"><i class="fa fa-cubes mr-1"></i> Detections</div>
-          <div id="modalDetections" class="flex flex-wrap gap-1"></div>
-        </div>
-      </div>
-      <div class="p-4 border-t flex justify-between items-center" style="border-color:#252840;">
-        <a id="modalWatchUrl" href="#" target="_blank" class="text-xs font-medium" style="color:#6366f1;">
-          <i class="fa fa-external-link-alt mr-1"></i> Watch Video
-        </a>
-        <button id="modalContextBtn" class="btn-secondary text-xs">
-          <i class="fa fa-expand-arrows-alt mr-1"></i> Context
+
+        <!-- 1-Click End-to-End Search -->
+        <button onclick="runTwoStageEndToEnd()" class="btn-primary"
+          style="background:linear-gradient(135deg,#8b5cf6,#ec4899);">
+          <i class="fa fa-bolt mr-1"></i> Chạy 2 Tầng Tự Động (1-Click)
         </button>
       </div>
-    </div>
-    <!-- Close btn -->
-    <button onclick="closeModal()" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:14px;">
-      <i class="fa fa-times"></i>
-    </button>
+
+      <!-- BLOCK: IMAGE -->
+      <div id="block-image" class="block-panel p-4 gap-4 flex-col">
+        <div class="sec-label">Image Search</div>
+        <div>
+          <div class="sec-label">Upload Image</div>
+          <input type="file" id="uploadFile" class="aic-input text-xs" accept="image/*">
+        </div>
+        <input id="imgTopk" class="aic-input" placeholder="Top-K (100)">
+        <button onclick="uploadAndSearch()" class="btn-primary">
+          <i class="fa fa-upload mr-1"></i> Upload &amp; Search
+        </button>
+      </div>
+
+      <!-- BLOCK: TRAKE -->
+      <div id="block-trake" class="block-panel p-4 gap-4 flex-col">
+        <div class="sec-label">TRAKE — Temporal Search</div>
+        <div>
+          <div class="sec-label">Events (one per line)</div>
+          <textarea id="eventsBox" rows="5" class="aic-textarea"
+            placeholder="E1: person walking in park&#10;E2: driving a car&#10;E3: eating at restaurant"></textarea>
+        </div>
+        <div class="flex gap-2">
+          <input id="trakeTopk" class="aic-input" placeholder="Top-K (200)">
+          <input id="trakeCandidates" class="aic-input" placeholder="Cand (200)">
+        </div>
+        <select id="trakeOption" class="aic-select">
+          <option value="Closest">Closest</option>
+          <option value="Highest">Highest</option>
+          <option value="All">All</option>
+        </select>
+        <button onclick="runTrake()" class="btn-primary btn-trake">
+          <i class="fa fa-clock mr-1"></i> Run TRAKE
+        </button>
+      </div>
+
+      <!-- BLOCK: OCR -->
+      <div id="block-ocr" class="block-panel p-4 gap-4 flex-col">
+        <div class="sec-label">OCR Text Search</div>
+        <div>
+          <div class="sec-label">Search Text in Images</div>
+          <textarea id="ocrQuery" rows="3" class="aic-textarea" placeholder="Text to find in frames…"></textarea>
+        </div>
+        <select id="ocrMode" class="aic-select">
+          <option value="substring">Contains (default)</option>
+          <option value="exact">Exact Match</option>
+          <option value="regex">Regex</option>
+        </select>
+        <div class="flex items-center gap-2 text-xs text-gray-400">
+          <input type="checkbox" id="ocrCaseInsensitive" checked class="accent-indigo-500">
+          <label for="ocrCaseInsensitive">Case-insensitive</label>
+        </div>
+        <input id="ocrTopk" class="aic-input" placeholder="Top-K (50)">
+        <button onclick="searchOCR()" class="btn-primary btn-ocr">
+          <i class="fa fa-font mr-1"></i> Search OCR
+        </button>
+      </div>
+
+      <!-- BLOCK: BROWSE -->
+      <div id="block-browse" class="block-panel p-4 gap-4 flex-col">
+
+        <!-- Section: Folder View -->
+        <div class="sec-label">📁 Folder View</div>
+        <div class="flex flex-col gap-2">
+          <input id="browseFolder" class="aic-input" placeholder="Video name (e.g. L26_V001)">
+          <div class="flex gap-2">
+            <button onclick="browseFolder()" class="btn-primary btn-browse flex-1">
+              <i class="fa fa-images mr-1"></i> Load All Frames
+            </button>
+            <button onclick="watchFolderVideo()" class="btn-secondary flex items-center justify-center gap-1 text-xs" title="Watch on YouTube" style="background:#ef444415; color:#ef4444; border-color:#ef444444; white-space:nowrap;">
+              <i class="fab fa-youtube text-sm"></i> Watch
+            </button>
+          </div>
+        </div>
+
+        <hr style="border-color:#1e2230;">
+
+        <!-- Section: Context View -->
+        <div class="sec-label">🔍 Context View</div>
+        <div class="flex flex-col gap-2">
+          <input id="ctxFolder" class="aic-input" placeholder="Video name (e.g. L26_V001)">
+          <div class="flex gap-2">
+            <input id="ctxFrameId" class="aic-input" placeholder="Frame ID">
+            <input id="ctxRange" class="aic-input" placeholder="Range ± (5)">
+          </div>
+          <div class="flex gap-2">
+            <button onclick="loadContext()" class="btn-primary btn-browse flex-1">
+              <i class="fa fa-expand-arrows-alt mr-1"></i> Load Context
+            </button>
+            <button onclick="watchContextVideo()" class="btn-secondary flex items-center justify-center gap-1 text-xs" title="Watch on YouTube" style="background:#ef444415; color:#ef4444; border-color:#ef444444; white-space:nowrap;">
+              <i class="fab fa-youtube text-sm"></i> Watch
+            </button>
+          </div>
+        </div>
+
+        <hr style="border-color:#1e2230;">
+
+        <!-- Section: Submission -->
+        <div class="flex items-center justify-between">
+          <div class="sec-label" style="margin-bottom:0;">📤 Export Submission</div>
+          <div class="flex bg-slate-900 border border-slate-700 p-0.5 rounded text-xs gap-1">
+            <button id="btnSubModeKis" type="button" class="px-2 py-0.5 rounded font-semibold text-xs transition" style="background:#6366f1; color:#ffffff;" onclick="switchSubMode('kis')">KIS</button>
+            <button id="btnSubModeTrake" type="button" class="px-2 py-0.5 rounded font-semibold text-xs transition text-gray-400 hover:text-white" onclick="switchSubMode('trake')">TRAKE</button>
+          </div>
+        </div>
+
+        <!-- KIS Submission Form -->
+        <div id="subFormKis" class="flex flex-col gap-2">
+          <input id="subVideoName" class="aic-input" placeholder="Video name (e.g. L26_V001)">
+          <div class="grid grid-cols-3 gap-2">
+            <input id="subFrameId" class="aic-input" placeholder="Frame ID">
+            <input id="subGap" class="aic-input" placeholder="GAP (15)">
+            <input id="subConst" class="aic-input" placeholder="Const (opt)">
+          </div>
+          <input id="subExportName" class="aic-input" placeholder="CSV name (e.g. query-p1-1)">
+          <button onclick="makeSubmission()" class="btn-primary btn-browse">
+            <i class="fa fa-file-export mr-1"></i> Export KIS (20 rows)
+          </button>
+        </div>
+
+        <!-- TRAKE Submission Form -->
+        <div id="subFormTrake" class="flex flex-col gap-2 hidden">
+          <input id="trakeSubVideoName" class="aic-input" placeholder="Video name (e.g. L26_V001)">
+          <input id="trakeSubFrames" class="aic-input" placeholder="Keyframes: 10, 25, 40">
+          <input id="trakeSubExportName" class="aic-input" placeholder="CSV name (e.g. trake_p1_1)">
+          <button onclick="makeTrakeSubmission()" class="btn-primary btn-trake">
+            <i class="fa fa-clock mr-1"></i> Export TRAKE Submission
+          </button>
+        </div>
+
+        <div id="subMsg" class="text-xs mt-1"></div>
+
+      </div>
+
+    </aside>
+
+    <!-- ────────── RIGHT: Results Area ────────── -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+      <!-- Info bar -->
+      <div id="infoBar" class="hidden shrink-0">
+        <span id="infoStatus">Ready</span>
+        <button onclick="clearActiveResults()"
+          class="text-indigo-400 hover:text-indigo-200 font-medium text-xs">Clear</button>
+      </div>
+
+      <!-- Results container — each block has its own scroll context -->
+      <div class="flex-1 overflow-y-auto p-5" id="resultsArea">
+        <div id="resultsGrid-text" class="results-grid grid gap-3"
+          style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+        <div id="resultsGrid-twostage" class="results-grid grid gap-3 hidden"
+          style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+        <div id="resultsGrid-image" class="results-grid grid gap-3 hidden"
+          style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+        <div id="resultsGrid-trake" class="results-grid grid gap-3 hidden"
+          style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+        <div id="resultsGrid-ocr" class="results-grid grid gap-3 hidden"
+          style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+        <div id="resultsGrid-browse" class="results-grid grid gap-3 hidden"
+          style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+        <!-- Initial empty state -->
+        <div id="emptyState" class="flex flex-col items-center justify-center py-24 text-center">
+          <i class="fa fa-search text-5xl mb-4" style="color:#2d3146;"></i>
+          <p style="color:#4a5568;" class="text-sm">Choose a block and run a search to see results.</p>
+          <p style="color:#2d3146;" class="text-xs mt-1">{{ stats }}</p>
+        </div>
+      </div>
+    </main>
   </div>
-</div>
 
-<!-- ═══════════════ JAVASCRIPT ═══════════════ -->
-<script>
-// ─────────────────────────────────────────────
-// Theme Toggle (Light / Dark)
-// ─────────────────────────────────────────────
-function toggleTheme() {
-  const html = document.documentElement;
-  const btn = document.getElementById('themeToggleBtn');
-  const isLight = html.getAttribute('data-theme') === 'light';
-  if (isLight) {
-    html.removeAttribute('data-theme');
-    localStorage.setItem('aic26-theme', 'dark');
-    btn.innerHTML = '<i class="fa fa-moon"></i>';
-  } else {
-    html.setAttribute('data-theme', 'light');
-    localStorage.setItem('aic26-theme', 'light');
-    btn.innerHTML = '<i class="fa fa-sun"></i>';
-  }
-}
-// Set correct icon on load
-document.addEventListener('DOMContentLoaded', function() {
-  const t = localStorage.getItem('aic26-theme');
-  const btn = document.getElementById('themeToggleBtn');
-  if (btn) btn.innerHTML = t === 'light' ? '<i class="fa fa-sun"></i>' : '<i class="fa fa-moon"></i>';
-});
+  <!-- ═══════════════ MODAL INSPECTOR ═══════════════ -->
+  <div id="inspectorModal" onclick="closeModal(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <!-- Image -->
+      <div class="modal-img-panel">
+        <img id="modalImg" class="max-w-full max-h-full object-contain rounded-lg" src="" alt="">
+      </div>
+      <!-- Meta -->
+      <div class="modal-meta-panel">
+        <div class="p-4 border-b" style="border-color:#252840;">
+          <h3 id="modalVideoName" class="font-bold text-base" style="color:#c9d1e9;"></h3>
+          <p id="modalFrameInfo" class="text-xs mt-1" style="color:#6272a4;"></p>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+          <div class="meta-section">
+            <div class="meta-label"><i class="fa fa-align-left mr-1"></i> Caption</div>
+            <div id="modalCaption" class="meta-value italic"></div>
+          </div>
+          <div class="meta-section">
+            <div class="meta-label"><i class="fa fa-font mr-1"></i> OCR Text</div>
+            <div id="modalOCR" class="meta-value font-mono text-xs" style="white-space:pre-wrap;"></div>
+          </div>
+          <div class="meta-section">
+            <div class="meta-label"><i class="fa fa-map-marker-alt mr-1"></i> Scene</div>
+            <div id="modalScene" class="meta-value"></div>
+          </div>
+          <div class="meta-section">
+            <div class="meta-label"><i class="fa fa-cubes mr-1"></i> Detections</div>
+            <div id="modalDetections" class="flex flex-wrap gap-1"></div>
+          </div>
+        </div>
+        <div class="p-4 border-t flex justify-between items-center" style="border-color:#252840;">
+          <a id="modalWatchUrl" href="#" target="_blank" class="text-xs font-medium" style="color:#6366f1;">
+            <i class="fa fa-external-link-alt mr-1"></i> Watch Video
+          </a>
+          <button id="modalContextBtn" class="btn-secondary text-xs">
+            <i class="fa fa-expand-arrows-alt mr-1"></i> Context
+          </button>
+        </div>
+      </div>
+      <!-- Close btn -->
+      <button onclick="closeModal()"
+        style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:14px;">
+        <i class="fa fa-times"></i>
+      </button>
+    </div>
+  </div>
 
-// ─────────────────────────────────────────────
-// OIV7 Object Labels (601 classes, Open Images V7)
-// ─────────────────────────────────────────────
-const OIV7_LABELS = [
-  "Accordion","Adhesive tape","Aircraft","Airplane","Alarm clock","Alpaca","Ambulance","Animal","Ant","Antelope",
-  "Apple","Armadillo","Artichoke","Auto part","Axe","Backpack","Balloon","Banana","Barrel","Baseball bat",
-  "Baseball glove","Bat","Bathroom accessory","Bathroom cabinet","Bathtub","Beaker","Bear","Bed","Bee",
-  "Beer","Beetle","Bell pepper","Belt","Bench","Bicycle","Bicycle helmet","Bicycle wheel","Bidet","Billboard",
-  "Billiard table","Bird","Blender","Blue jay","Book","Bookcase","Boot","Bottle","Bottle cap","Bowl","Box",
-  "Boy","Brassiere","Bread","Briefcase","Broccoli","Bronze sculpture","Brown bear","Building","Bull","Burrito",
-  "Bus","Butterfly","Cabinetry","Cake","Cake stand","Calculator","Camel","Camera","Can opener","Candle",
-  "Candy","Canoe","Car","Carrot","Cart","Castle","Cat","Caterpillar","Cattle","Ceiling fan","Cell phone",
-  "Chair","Cheetah","Chest of drawers","Chicken","Chopsticks","Christmas ornament","Christmas tree","Clock",
-  "Coat","Cocktail","Cocktail shaker","Coffee","Coffee cup","Coffee maker","Coffeemaker","Coin","Computer keyboard",
-  "Computer monitor","Computer mouse","Convenience store","Cookie","Cooking spray","Cormorant","Couch","Countertop",
-  "Crab","Cricket ball","Crocodile","Croissant","Crown","Crutch","Cucumber","Cupboard","Curtain","Deer",
-  "Desk","Dinosaur","Dishwasher","Dog","Dolphin","Door","Door handle","Doughnut","Dragonfly","Drawer",
-  "Dress","Drum","Duck","Dumbbell","Eagle","Earrings","Egg","Elephant","Envelope","Eraser",
-  "Face","Falcon","Fedora","Filing cabinet","Fire hydrant","Fireplace","Fish","Flashlight","Flower","Flowerpot",
-  "Flying disc","Food","Food processor","Fork","Fountain","Fox","French fries","Frog","Frying pan","Furniture",
-  "Gas stove","Gift wrapping","Giraffe","Girl","Glasses","Glove","Goat","Gold","Goldfish","Goose",
-  "Grapes","Guitar","Gun","Hair dryer","Hair spray","Hamburger","Hammer","Hamster","Hat","Headphones",
-  "Helicopter","High heels","Hiking equipment","Horse","House","Houseplant","Human arm","Human beard","Human body",
-  "Human ear","Human eye","Human face","Human foot","Human hair","Human hand","Human head","Human leg","Human mouth",
-  "Human nose","Infant bed","Jacket","Jeans","Juice","Kangaroo","Kettle","Kitchen appliance","Knife",
-  "Ladder","Lamp","Lantern","Laptop","Lavender","Lemon","Leopard","Lifejacket","Light bulb","Lighthouse",
-  "Limousine","Lion","Lizard","Lobster","Mango","Man","Medical equipment","Microphone","Microwave oven","Mirror",
-  "Mixing bowl","Mobile phone","Money","Monkey","Motorcycle","Mouse","Mug","Mushroom","Musical keyboard",
-  "Musical instrument","Nail","Necklace","Nightstand","Oboe","Office building","Orange","Ostrich","Oven","Owl",
-  "Oyster","Paddle","Palm tree","Parachute","Parrot","Pasta","Peach","Pear","Pen","Person",
-  "Piano","Pillow","Pizza","Plastic bag","Plate","Polar bear","Popcorn","Poster","Potato","Power plugs and sockets",
-  "Pressure cooker","Pretzel","Printer","Pumpkin","Rabbit","Raccoon","Refrigerator","Remote control","Rifle","Roller skates",
-  "Salad","Sandwich","Saucer","Scissors","Scoreboard","Sea turtle","Seahorse","Sheep","Shelf","Shirt",
-  "Shorts","Sink","Skateboard","Ski","Skull","Skyscraper","Slow cooker","Snail","Snake","Sock",
-  "Sofa bed","Spatula","Spider","Spoon","Sports equipment","Squirrel","Stairs","Strawberry","Street light","Submarine",
-  "Suit","Sunglasses","Surfboard","Sushi","Swan","Swimming pool","Sword","Table","Table tennis racket","Tablet computer",
-  "Tea","Teddy bear","Telephone","Television","Tennis ball","Tennis racket","Tent","Tie","Tiger","Toilet",
-  "Toilet paper","Tomato","Toothbrush","Towel","Toy","Traffic light","Train","Tripod","Truck","Umbrella",
-  "Van","Vase","Violin","Volleyball","Waffle","Watch","Watermelon","Weapon","Whale","Wheelchair",
-  "Window","Wine","Wine glass","Woman","Worm","Zebra","Zucchini"
-];
+  <!-- ═══════════════ JAVASCRIPT ═══════════════ -->
+  <script>
+    // ─────────────────────────────────────────────
+    // Theme Toggle (Light / Dark)
+    // ─────────────────────────────────────────────
+    function toggleTheme() {
+      const html = document.documentElement;
+      const btn = document.getElementById('themeToggleBtn');
+      const isLight = html.getAttribute('data-theme') === 'light';
+      if (isLight) {
+        html.removeAttribute('data-theme');
+        localStorage.setItem('aic26-theme', 'dark');
+        btn.innerHTML = '<i class="fa fa-moon"></i>';
+      } else {
+        html.setAttribute('data-theme', 'light');
+        localStorage.setItem('aic26-theme', 'light');
+        btn.innerHTML = '<i class="fa fa-sun"></i>';
+      }
+    }
+    // Set correct icon on load
+    document.addEventListener('DOMContentLoaded', function () {
+      const t = localStorage.getItem('aic26-theme');
+      const btn = document.getElementById('themeToggleBtn');
+      if (btn) btn.innerHTML = t === 'light' ? '<i class="fa fa-sun"></i>' : '<i class="fa fa-moon"></i>';
+    });
 
-// ─────────────────────────────────────────────
-// State Management
-// ─────────────────────────────────────────────
-const workspace = {
-  activeBlock: 'text',
-  text:     { results:[], filtered:[], fuse:null, scroll:0 },
-  twostage: { results:[], filtered:[], segments:[], candidate_video_ids:[], viewMode:'segments', fuse:null, scroll:0 },
-  image:    { results:[], filtered:[], fuse:null, scroll:0 },
-  trake:    { results:[], filtered:[], fuse:null, scroll:0 },
-  ocr:      { results:[], filtered:[], fuse:null, scroll:0 },
-  browse:   { results:[], filtered:[], fuse:null, scroll:0 },
-};
-let objTags = []; // selected object tags for text block
-let twoStageSelectedVids = []; // selected candidate video IDs for 2-stage search
+    // ─────────────────────────────────────────────
+    // OIV7 Object Labels (601 classes, Open Images V7)
+    // ─────────────────────────────────────────────
+    const OIV7_LABELS = [
+      "Accordion", "Adhesive tape", "Aircraft", "Airplane", "Alarm clock", "Alpaca", "Ambulance", "Animal", "Ant", "Antelope",
+      "Apple", "Armadillo", "Artichoke", "Auto part", "Axe", "Backpack", "Balloon", "Banana", "Barrel", "Baseball bat",
+      "Baseball glove", "Bat", "Bathroom accessory", "Bathroom cabinet", "Bathtub", "Beaker", "Bear", "Bed", "Bee",
+      "Beer", "Beetle", "Bell pepper", "Belt", "Bench", "Bicycle", "Bicycle helmet", "Bicycle wheel", "Bidet", "Billboard",
+      "Billiard table", "Bird", "Blender", "Blue jay", "Book", "Bookcase", "Boot", "Bottle", "Bottle cap", "Bowl", "Box",
+      "Boy", "Brassiere", "Bread", "Briefcase", "Broccoli", "Bronze sculpture", "Brown bear", "Building", "Bull", "Burrito",
+      "Bus", "Butterfly", "Cabinetry", "Cake", "Cake stand", "Calculator", "Camel", "Camera", "Can opener", "Candle",
+      "Candy", "Canoe", "Car", "Carrot", "Cart", "Castle", "Cat", "Caterpillar", "Cattle", "Ceiling fan", "Cell phone",
+      "Chair", "Cheetah", "Chest of drawers", "Chicken", "Chopsticks", "Christmas ornament", "Christmas tree", "Clock",
+      "Coat", "Cocktail", "Cocktail shaker", "Coffee", "Coffee cup", "Coffee maker", "Coffeemaker", "Coin", "Computer keyboard",
+      "Computer monitor", "Computer mouse", "Convenience store", "Cookie", "Cooking spray", "Cormorant", "Couch", "Countertop",
+      "Crab", "Cricket ball", "Crocodile", "Croissant", "Crown", "Crutch", "Cucumber", "Cupboard", "Curtain", "Deer",
+      "Desk", "Dinosaur", "Dishwasher", "Dog", "Dolphin", "Door", "Door handle", "Doughnut", "Dragonfly", "Drawer",
+      "Dress", "Drum", "Duck", "Dumbbell", "Eagle", "Earrings", "Egg", "Elephant", "Envelope", "Eraser",
+      "Face", "Falcon", "Fedora", "Filing cabinet", "Fire hydrant", "Fireplace", "Fish", "Flashlight", "Flower", "Flowerpot",
+      "Flying disc", "Food", "Food processor", "Fork", "Fountain", "Fox", "French fries", "Frog", "Frying pan", "Furniture",
+      "Gas stove", "Gift wrapping", "Giraffe", "Girl", "Glasses", "Glove", "Goat", "Gold", "Goldfish", "Goose",
+      "Grapes", "Guitar", "Gun", "Hair dryer", "Hair spray", "Hamburger", "Hammer", "Hamster", "Hat", "Headphones",
+      "Helicopter", "High heels", "Hiking equipment", "Horse", "House", "Houseplant", "Human arm", "Human beard", "Human body",
+      "Human ear", "Human eye", "Human face", "Human foot", "Human hair", "Human hand", "Human head", "Human leg", "Human mouth",
+      "Human nose", "Infant bed", "Jacket", "Jeans", "Juice", "Kangaroo", "Kettle", "Kitchen appliance", "Knife",
+      "Ladder", "Lamp", "Lantern", "Laptop", "Lavender", "Lemon", "Leopard", "Lifejacket", "Light bulb", "Lighthouse",
+      "Limousine", "Lion", "Lizard", "Lobster", "Mango", "Man", "Medical equipment", "Microphone", "Microwave oven", "Mirror",
+      "Mixing bowl", "Mobile phone", "Money", "Monkey", "Motorcycle", "Mouse", "Mug", "Mushroom", "Musical keyboard",
+      "Musical instrument", "Nail", "Necklace", "Nightstand", "Oboe", "Office building", "Orange", "Ostrich", "Oven", "Owl",
+      "Oyster", "Paddle", "Palm tree", "Parachute", "Parrot", "Pasta", "Peach", "Pear", "Pen", "Person",
+      "Piano", "Pillow", "Pizza", "Plastic bag", "Plate", "Polar bear", "Popcorn", "Poster", "Potato", "Power plugs and sockets",
+      "Pressure cooker", "Pretzel", "Printer", "Pumpkin", "Rabbit", "Raccoon", "Refrigerator", "Remote control", "Rifle", "Roller skates",
+      "Salad", "Sandwich", "Saucer", "Scissors", "Scoreboard", "Sea turtle", "Seahorse", "Sheep", "Shelf", "Shirt",
+      "Shorts", "Sink", "Skateboard", "Ski", "Skull", "Skyscraper", "Slow cooker", "Snail", "Snake", "Sock",
+      "Sofa bed", "Spatula", "Spider", "Spoon", "Sports equipment", "Squirrel", "Stairs", "Strawberry", "Street light", "Submarine",
+      "Suit", "Sunglasses", "Surfboard", "Sushi", "Swan", "Swimming pool", "Sword", "Table", "Table tennis racket", "Tablet computer",
+      "Tea", "Teddy bear", "Telephone", "Television", "Tennis ball", "Tennis racket", "Tent", "Tie", "Tiger", "Toilet",
+      "Toilet paper", "Tomato", "Toothbrush", "Towel", "Toy", "Traffic light", "Train", "Tripod", "Truck", "Umbrella",
+      "Van", "Vase", "Violin", "Volleyball", "Waffle", "Watch", "Watermelon", "Weapon", "Whale", "Wheelchair",
+      "Window", "Wine", "Wine glass", "Woman", "Worm", "Zebra", "Zucchini"
+    ];
 
-// ─────────────────────────────────────────────
-// Block Switching
-// ─────────────────────────────────────────────
-function switchBlock(name) {
-  // Save scroll of current block
-  const area = document.getElementById('resultsArea');
-  workspace[workspace.activeBlock].scroll = area.scrollTop;
+    // ─────────────────────────────────────────────
+    // State Management
+    // ─────────────────────────────────────────────
+    const workspace = {
+      activeBlock: 'text',
+      text: { results: [], filtered: [], fuse: null, scroll: 0 },
+      twostage: { results: [], filtered: [], segments: [], candidate_video_ids: [], viewMode: 'segments', fuse: null, scroll: 0 },
+      image: { results: [], filtered: [], fuse: null, scroll: 0 },
+      trake: { results: [], filtered: [], fuse: null, scroll: 0 },
+      ocr: { results: [], filtered: [], fuse: null, scroll: 0 },
+      browse: { results: [], filtered: [], fuse: null, scroll: 0 },
+    };
+    let objTags = []; // selected object tags for text block
+    let twoStageSelectedVids = []; // selected candidate video IDs for 2-stage search
 
-  // Deactivate current
-  document.getElementById(`block-${workspace.activeBlock}`).classList.remove('active');
-  document.getElementById(`tab-${workspace.activeBlock}`).classList.remove('active');
-  document.getElementById(`resultsGrid-${workspace.activeBlock}`).classList.add('hidden');
+    // ─────────────────────────────────────────────
+    // Block Switching
+    // ─────────────────────────────────────────────
+    function switchBlock(name) {
+      // Save scroll of current block
+      const area = document.getElementById('resultsArea');
+      workspace[workspace.activeBlock].scroll = area.scrollTop;
 
-  // Activate new
-  workspace.activeBlock = name;
-  document.getElementById(`block-${name}`).classList.add('active');
-  document.getElementById(`tab-${name}`).classList.add('active');
-  document.getElementById(`resultsGrid-${name}`).classList.remove('hidden');
+      // Deactivate current
+      document.getElementById(`block-${workspace.activeBlock}`).classList.remove('active');
+      document.getElementById(`tab-${workspace.activeBlock}`).classList.remove('active');
+      document.getElementById(`resultsGrid-${workspace.activeBlock}`).classList.add('hidden');
 
-  // Restore scroll
-  area.scrollTop = workspace[name].scroll;
+      // Activate new
+      workspace.activeBlock = name;
+      document.getElementById(`block-${name}`).classList.add('active');
+      document.getElementById(`tab-${name}`).classList.add('active');
+      document.getElementById(`resultsGrid-${name}`).classList.remove('hidden');
 
-  // Sync info bar
-  const st = workspace[name];
-  if (st.results.length > 0) {
-    showInfo(`${name.toUpperCase()} — ${st.filtered.length} / ${st.results.length} results`);
-  } else {
-    document.getElementById('infoBar').classList.add('hidden');
-  }
+      // Restore scroll
+      area.scrollTop = workspace[name].scroll;
 
-  // Hide empty state if results
-  document.getElementById('emptyState').style.display = st.results.length > 0 ? 'none' : 'flex';
-}
+      // Sync info bar
+      const st = workspace[name];
+      if (st.results.length > 0) {
+        showInfo(`${name.toUpperCase()} — ${st.filtered.length} / ${st.results.length} results`);
+      } else {
+        document.getElementById('infoBar').classList.add('hidden');
+      }
 
-// ─────────────────────────────────────────────
-// Browse Sub-tabs
-// ─────────────────────────────────────────────
-function switchBrowseTab(tab) {
-  ['folder','context','submit'].forEach(t => {
-    document.getElementById(`btab-${t}`).classList.toggle('active', t === tab);
-    document.getElementById(`bpanel-${t}`).classList.toggle('active', t === tab);
-  });
-}
+      // Hide empty state if results
+      document.getElementById('emptyState').style.display = st.results.length > 0 ? 'none' : 'flex';
+    }
 
-// ─────────────────────────────────────────────
-// Object Autocomplete
-// ─────────────────────────────────────────────
-function filterObjAC() {
-  const val = document.getElementById('objInput').value.trim().toLowerCase();
-  const ac = document.getElementById('objAutocomplete');
-  if (!val) { ac.classList.add('hidden'); return; }
-  const matches = OIV7_LABELS.filter(l => l.toLowerCase().startsWith(val) && !objTags.includes(l)).slice(0, 10);
-  if (!matches.length) { ac.classList.add('hidden'); return; }
-  ac.innerHTML = matches.map(m => `<div class="ac-item" onclick="addObjTag('${m}')">${m}</div>`).join('');
-  ac.classList.remove('hidden');
-}
+    // ─────────────────────────────────────────────
+    // Browse Sub-tabs
+    // ─────────────────────────────────────────────
+    function switchBrowseTab(tab) {
+      ['folder', 'context', 'submit'].forEach(t => {
+        document.getElementById(`btab-${t}`).classList.toggle('active', t === tab);
+        document.getElementById(`bpanel-${t}`).classList.toggle('active', t === tab);
+      });
+    }
 
-function handleObjKey(e) {
-  if (e.key === 'Enter' || e.key === ',') {
-    e.preventDefault();
-    const val = document.getElementById('objInput').value.trim();
-    const match = OIV7_LABELS.find(l => l.toLowerCase() === val.toLowerCase());
-    if (match) addObjTag(match);
-    else if (val) addObjTag(val); // allow free-text
-    document.getElementById('objAutocomplete').classList.add('hidden');
-  }
-}
+    // ─────────────────────────────────────────────
+    // Object Autocomplete
+    // ─────────────────────────────────────────────
+    function filterObjAC() {
+      const val = document.getElementById('objInput').value.trim().toLowerCase();
+      const ac = document.getElementById('objAutocomplete');
+      if (!val) { ac.classList.add('hidden'); return; }
+      const matches = OIV7_LABELS.filter(l => l.toLowerCase().startsWith(val) && !objTags.includes(l)).slice(0, 10);
+      if (!matches.length) { ac.classList.add('hidden'); return; }
+      ac.innerHTML = matches.map(m => `<div class="ac-item" onclick="addObjTag('${m}')">${m}</div>`).join('');
+      ac.classList.remove('hidden');
+    }
 
-function addObjTag(label) {
-  if (objTags.includes(label)) return;
-  objTags.push(label);
-  document.getElementById('objInput').value = '';
-  document.getElementById('objAutocomplete').classList.add('hidden');
-  renderObjTags();
-}
+    function handleObjKey(e) {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const val = document.getElementById('objInput').value.trim();
+        const match = OIV7_LABELS.find(l => l.toLowerCase() === val.toLowerCase());
+        if (match) addObjTag(match);
+        else if (val) addObjTag(val); // allow free-text
+        document.getElementById('objAutocomplete').classList.add('hidden');
+      }
+    }
 
-function removeObjTag(label) {
-  objTags = objTags.filter(t => t !== label);
-  renderObjTags();
-}
+    function addObjTag(label) {
+      if (objTags.includes(label)) return;
+      objTags.push(label);
+      document.getElementById('objInput').value = '';
+      document.getElementById('objAutocomplete').classList.add('hidden');
+      renderObjTags();
+    }
 
-function renderObjTags() {
-  document.getElementById('objTags').innerHTML = objTags.map(t =>
-    `<span class="obj-tag">${t}<span class="rm" onclick="removeObjTag('${t}')">✕</span></span>`
-  ).join('');
-}
+    function removeObjTag(label) {
+      objTags = objTags.filter(t => t !== label);
+      renderObjTags();
+    }
 
-// Close autocomplete on outside click
-document.addEventListener('click', e => {
-  if (!e.target.closest('#objInput') && !e.target.closest('#objAutocomplete')) {
-    document.getElementById('objAutocomplete').classList.add('hidden');
-  }
-});
+    function renderObjTags() {
+      document.getElementById('objTags').innerHTML = objTags.map(t =>
+        `<span class="obj-tag">${t}<span class="rm" onclick="removeObjTag('${t}')">✕</span></span>`
+      ).join('');
+    }
 
-// ─────────────────────────────────────────────
-// Utility
-// ─────────────────────────────────────────────
-function getImgUrl(path) {
-  if (!path) return '';
-  return '/api/image?path=' + encodeURIComponent(path.replace(/\\/g, '/'));
-}
+    // Close autocomplete on outside click
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#objInput') && !e.target.closest('#objAutocomplete')) {
+        document.getElementById('objAutocomplete').classList.add('hidden');
+      }
+    });
 
-function updateGridSize() {
-  const sz = document.getElementById('gridSize').value;
-  document.querySelectorAll('.results-grid').forEach(g => {
-    g.style.gridTemplateColumns = `repeat(auto-fill,minmax(${sz}px,1fr))`;
-  });
-}
+    // ─────────────────────────────────────────────
+    // Utility
+    // ─────────────────────────────────────────────
+    function getImgUrl(path) {
+      if (!path) return '';
+      return '/api/image?path=' + encodeURIComponent(path.replace(/\\/g, '/'));
+    }
 
-function showLoading(block) {
-  const grid = document.getElementById(`resultsGrid-${block || workspace.activeBlock}`);
-  grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-20">
+    function updateGridSize() {
+      const sz = document.getElementById('gridSize').value;
+      document.querySelectorAll('.results-grid').forEach(g => {
+        g.style.gridTemplateColumns = `repeat(auto-fill,minmax(${sz}px,1fr))`;
+      });
+    }
+
+    function showLoading(block) {
+      const grid = document.getElementById(`resultsGrid-${block || workspace.activeBlock}`);
+      grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-20">
     <i class="fa fa-spinner fa-spin text-4xl mb-4" style="color:#6366f1;"></i>
     <p style="color:#6272a4;" class="text-sm animate-pulse">Searching…</p></div>`;
-  document.getElementById('emptyState').style.display = 'none';
-}
+      document.getElementById('emptyState').style.display = 'none';
+    }
 
-function showInfo(text) {
-  document.getElementById('infoBar').classList.remove('hidden');
-  document.getElementById('infoStatus').innerText = text;
-}
+    function showInfo(text) {
+      document.getElementById('infoBar').classList.remove('hidden');
+      document.getElementById('infoStatus').innerText = text;
+    }
 
-function clearActiveResults() {
-  const name = workspace.activeBlock;
-  workspace[name] = { results:[], filtered:[], fuse:null, scroll:0 };
-  if (name === 'twostage') {
-    workspace['twostage'].segments = [];
-    workspace['twostage'].candidate_video_ids = [];
-    workspace['twostage'].viewMode = 'segments';
-    clearTwoStageVids();
-  }
-  document.getElementById(`resultsGrid-${name}`).innerHTML = '';
-  document.getElementById('infoBar').classList.add('hidden');
-  document.getElementById('emptyState').style.display = 'flex';
-}
+    function clearActiveResults() {
+      const name = workspace.activeBlock;
+      workspace[name] = { results: [], filtered: [], fuse: null, scroll: 0 };
+      if (name === 'twostage') {
+        workspace['twostage'].segments = [];
+        workspace['twostage'].candidate_video_ids = [];
+        workspace['twostage'].viewMode = 'segments';
+        clearTwoStageVids();
+      }
+      document.getElementById(`resultsGrid-${name}`).innerHTML = '';
+      document.getElementById('infoBar').classList.add('hidden');
+      document.getElementById('emptyState').style.display = 'flex';
+    }
 
-// ─────────────────────────────────────────────
-// Result Rendering
-// ─────────────────────────────────────────────
-function handleBackendResponse(data, title, blockName) {
-  const block = blockName || workspace.activeBlock;
-  const results = data.results || [];
-  workspace[block].results = results;
+    // ─────────────────────────────────────────────
+    // Result Rendering
+    // ─────────────────────────────────────────────
+    function handleBackendResponse(data, title, blockName) {
+      const block = blockName || workspace.activeBlock;
+      const results = data.results || [];
+      workspace[block].results = results;
 
-  // Flatten for Fuse.js
-  results.forEach(r => {
-    r._ocr_flat = Array.isArray(r.ocr_text)
-      ? r.ocr_text.map(o => (typeof o === 'string' ? o : (o.text || ''))).join(' ')
-      : (r.ocr_text || '');
-    r._scene_flat = (typeof r.scene === 'object' && r.scene)
-      ? ((r.scene.category || '') + ' ' + (r.scene_group || ''))
-      : ((r.scene || '') + ' ' + (r.scene_group || ''));
-  });
+      // Flatten for Fuse.js
+      results.forEach(r => {
+        r._ocr_flat = Array.isArray(r.ocr_text)
+          ? r.ocr_text.map(o => (typeof o === 'string' ? o : (o.text || ''))).join(' ')
+          : (r.ocr_text || '');
+        r._scene_flat = (typeof r.scene === 'object' && r.scene)
+          ? ((r.scene.category || '') + ' ' + (r.scene_group || ''))
+          : ((r.scene || '') + ' ' + (r.scene_group || ''));
+      });
 
-  workspace[block].fuse = new Fuse(results, {
-    keys: [
-      { name:'caption', weight:0.3 },
-      { name:'_ocr_flat', weight:0.4 },
-      { name:'_scene_flat', weight:0.2 },
-      { name:'video_name', weight:0.1 }
-    ],
-    threshold: 0.4, ignoreLocation: true
-  });
+      workspace[block].fuse = new Fuse(results, {
+        keys: [
+          { name: 'caption', weight: 0.3 },
+          { name: '_ocr_flat', weight: 0.4 },
+          { name: '_scene_flat', weight: 0.2 },
+          { name: 'video_name', weight: 0.1 }
+        ],
+        threshold: 0.4, ignoreLocation: true
+      });
 
-  // Apply any existing fuse filter
-  const fuseQ = document.getElementById('fuseSearchInput').value.trim();
-  if (fuseQ && workspace[block].fuse) {
-    workspace[block].filtered = workspace[block].fuse.search(fuseQ).map(r => r.item);
-  } else {
-    workspace[block].filtered = [...results];
-  }
+      // Apply any existing fuse filter
+      const fuseQ = document.getElementById('fuseSearchInput').value.trim();
+      if (fuseQ && workspace[block].fuse) {
+        workspace[block].filtered = workspace[block].fuse.search(fuseQ).map(r => r.item);
+      } else {
+        workspace[block].filtered = [...results];
+      }
 
-  if (block === 'twostage') {
-    renderTwoStageResults();
-  } else {
-    renderResults(workspace[block].filtered, block);
-  }
-  showInfo(`${title} — ${data.elapsed ? data.elapsed.toFixed(2)+'s | ' : ''}${results.length} results`);
-  document.getElementById('emptyState').style.display = 'none';
-}
+      if (block === 'twostage') {
+        renderTwoStageResults();
+      } else {
+        renderResults(workspace[block].filtered, block);
+      }
+      showInfo(`${title} — ${data.elapsed ? data.elapsed.toFixed(2) + 's | ' : ''}${results.length} results`);
+      document.getElementById('emptyState').style.display = 'none';
+    }
 
-function encodeModalData(r) {
-  try {
-    return encodeURIComponent(JSON.stringify(r)).replace(/'/g, '%27');
-  } catch (e) {
-    console.error('Error encoding modal data:', e);
-    return '';
-  }
-}
+    function encodeModalData(r) {
+      try {
+        return encodeURIComponent(JSON.stringify(r)).replace(/'/g, '%27');
+      } catch (e) {
+        console.error('Error encoding modal data:', e);
+        return '';
+      }
+    }
 
-function renderResults(results, block, opts={}) {
-  block = block || workspace.activeBlock;
-  const grid = document.getElementById(`resultsGrid-${block}`);
-  if (!results.length) {
-    grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-16 text-center">
+    function renderResults(results, block, opts = {}) {
+      block = block || workspace.activeBlock;
+      const grid = document.getElementById(`resultsGrid-${block}`);
+      if (!results.length) {
+        grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-16 text-center">
       <i class="fa fa-folder-open text-4xl mb-3" style="color:#2d3146;"></i>
       <p style="color:#4a5568;" class="text-sm">No results found.</p></div>`;
-    return;
-  }
-  grid.innerHTML = results.map((r, i) => {
-    const sim = typeof r.similarity === 'number' ? r.similarity.toFixed(3) : '—';
-    const fvid = r.frame_idx_video || r.frame_idx || '?';
-    const ts = r.time_str || '';
-    const isCenter = opts.centerId !== undefined && (r.frame_idx == opts.centerId || r.frame_idx_video == opts.centerId);
-    const encoded = encodeModalData(r);
-    return `<div class="frame-card ${isCenter ? 'center-frame' : ''}" onclick="openModal('${encoded}')">
+        return;
+      }
+      grid.innerHTML = results.map((r, i) => {
+        const sim = typeof r.similarity === 'number' ? r.similarity.toFixed(3) : '—';
+        const fvid = r.frame_idx_video || r.frame_idx || '?';
+        const ts = r.time_str || '';
+        const isCenter = opts.centerId !== undefined && (r.frame_idx == opts.centerId || r.frame_idx_video == opts.centerId);
+        const encoded = encodeModalData(r);
+        return `<div class="frame-card ${isCenter ? 'center-frame' : ''}" onclick="openModal('${encoded}')">
       <div class="relative">
         <img src="${getImgUrl(r.image_path)}" loading="lazy" class="w-full object-cover" style="max-height:200px;">
         <div class="sim-badge"><i class="fa fa-star" style="color:#fbbf24;"></i> ${sim}</div>
@@ -911,260 +1388,260 @@ function renderResults(results, block, opts={}) {
         <div class="meta-row"><span><i class="fa fa-film" style="color:#4f4f7a;"></i> ${fvid}</span><span>${ts}</span></div>
       </div>
     </div>`;
-  }).join('');
-}
+      }).join('');
+    }
 
-// ─────────────────────────────────────────────
-// Fuse.js client-side filter (global)
-// ─────────────────────────────────────────────
-function applyFuseFilter() {
-  const q = document.getElementById('fuseSearchInput').value.trim();
-  const name = workspace.activeBlock;
-  const st = workspace[name];
-  if (!q) {
-    st.filtered = [...st.results];
-  } else if (st.fuse) {
-    st.filtered = st.fuse.search(q).map(r => r.item);
-  }
-  if (name === 'twostage') {
-    renderTwoStageResults();
-  } else {
-    renderResults(st.filtered, name);
-  }
-  document.getElementById('infoStatus').innerText = `Showing ${st.filtered.length} / ${st.results.length}`;
-}
+    // ─────────────────────────────────────────────
+    // Fuse.js client-side filter (global)
+    // ─────────────────────────────────────────────
+    function applyFuseFilter() {
+      const q = document.getElementById('fuseSearchInput').value.trim();
+      const name = workspace.activeBlock;
+      const st = workspace[name];
+      if (!q) {
+        st.filtered = [...st.results];
+      } else if (st.fuse) {
+        st.filtered = st.fuse.search(q).map(r => r.item);
+      }
+      if (name === 'twostage') {
+        renderTwoStageResults();
+      } else {
+        renderResults(st.filtered, name);
+      }
+      document.getElementById('infoStatus').innerText = `Showing ${st.filtered.length} / ${st.results.length}`;
+    }
 
-// ─────────────────────────────────────────────
-// 2-STAGE HIERARCHICAL SEARCH (BGE-M3 + EVA-02)
-// ─────────────────────────────────────────────
-function addTwoStageVidTag(vid) {
-  vid = vid.trim();
-  if (!vid || twoStageSelectedVids.includes(vid)) return;
-  twoStageSelectedVids.push(vid);
-  renderTwoStageVidTags();
-}
+    // ─────────────────────────────────────────────
+    // 2-STAGE HIERARCHICAL SEARCH (BGE-M3 + EVA-02)
+    // ─────────────────────────────────────────────
+    function addTwoStageVidTag(vid) {
+      vid = vid.trim();
+      if (!vid || twoStageSelectedVids.includes(vid)) return;
+      twoStageSelectedVids.push(vid);
+      renderTwoStageVidTags();
+    }
 
-function removeTwoStageVidTag(vid) {
-  twoStageSelectedVids = twoStageSelectedVids.filter(v => v !== vid);
-  renderTwoStageVidTags();
-}
+    function removeTwoStageVidTag(vid) {
+      twoStageSelectedVids = twoStageSelectedVids.filter(v => v !== vid);
+      renderTwoStageVidTags();
+    }
 
-function clearTwoStageVids() {
-  twoStageSelectedVids = [];
-  renderTwoStageVidTags();
-}
+    function clearTwoStageVids() {
+      twoStageSelectedVids = [];
+      renderTwoStageVidTags();
+    }
 
-function selectAllStage1Candidates() {
-  const cands = workspace['twostage'].candidate_video_ids || [];
-  if (cands.length) {
-    twoStageSelectedVids = [...cands];
-    renderTwoStageVidTags();
-  }
-}
+    function selectAllStage1Candidates() {
+      const cands = workspace['twostage'].candidate_video_ids || [];
+      if (cands.length) {
+        twoStageSelectedVids = [...cands];
+        renderTwoStageVidTags();
+      }
+    }
 
-function renderTwoStageVidTags() {
-  const container = document.getElementById('twoStageVidTags');
-  const countEl = document.getElementById('twoStageCandCount');
-  if (countEl) countEl.innerText = twoStageSelectedVids.length;
-  if (!container) return;
-  if (!twoStageSelectedVids.length) {
-    container.innerHTML = `<span style="color:var(--text-faint); font-size:11px; font-style:italic; padding:2px 4px;">Chưa có video ứng viên nào...</span>`;
-    return;
-  }
-  container.innerHTML = twoStageSelectedVids.map(v =>
-    `<span class="obj-tag" style="background:#1e293b; border-color:#38bdf8; color:#7dd3fc;">
+    function renderTwoStageVidTags() {
+      const container = document.getElementById('twoStageVidTags');
+      const countEl = document.getElementById('twoStageCandCount');
+      if (countEl) countEl.innerText = twoStageSelectedVids.length;
+      if (!container) return;
+      if (!twoStageSelectedVids.length) {
+        container.innerHTML = `<span style="color:var(--text-faint); font-size:11px; font-style:italic; padding:2px 4px;">Chưa có video ứng viên nào...</span>`;
+        return;
+      }
+      container.innerHTML = twoStageSelectedVids.map(v =>
+        `<span class="obj-tag" style="background:#1e293b; border-color:#38bdf8; color:#7dd3fc;">
        ${v}
        <span class="rm" onclick="removeTwoStageVidTag('${v}')">✕</span>
      </span>`
-  ).join('');
-}
-
-function handleTwoStageVidKey(e) {
-  if (e.key === 'Enter' || e.key === ',') {
-    e.preventDefault();
-    const val = document.getElementById('twoStageVidInput').value.trim();
-    if (val) {
-      val.split(/[\s,]+/).filter(Boolean).forEach(v => addTwoStageVidTag(v));
-      document.getElementById('twoStageVidInput').value = '';
+      ).join('');
     }
-  }
-}
 
-async function searchSegmentsUI() {
-  const q = document.getElementById('twoStageQuery').value.trim();
-  if (!q) { alert('Vui lòng nhập truy vấn mô tả phân đoạn'); return; }
-  const topk = parseInt(document.getElementById('twoStageSegTopk').value) || 20;
-
-  showLoading('twostage');
-
-  try {
-    const res = await fetch('/api/search/segments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: q, top_k: topk })
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      alert('Lỗi: ' + (err.error || 'Segment search failed'));
-      return;
+    function handleTwoStageVidKey(e) {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const val = document.getElementById('twoStageVidInput').value.trim();
+        if (val) {
+          val.split(/[\s,]+/).filter(Boolean).forEach(v => addTwoStageVidTag(v));
+          document.getElementById('twoStageVidInput').value = '';
+        }
+      }
     }
-    const data = await res.json();
-    const segments = data.results || [];
-    const candidate_video_ids = data.candidate_video_ids || [];
 
-    workspace['twostage'].segments = segments;
-    workspace['twostage'].candidate_video_ids = candidate_video_ids;
-    workspace['twostage'].viewMode = 'segments';
+    async function searchSegmentsUI() {
+      const q = document.getElementById('twoStageQuery').value.trim();
+      if (!q) { alert('Vui lòng nhập truy vấn mô tả phân đoạn'); return; }
+      const topk = parseInt(document.getElementById('twoStageSegTopk').value) || 20;
 
-    // Auto-populate candidate video tags
-    twoStageSelectedVids = [...candidate_video_ids];
-    renderTwoStageVidTags();
+      showLoading('twostage');
 
-    renderTwoStageResults();
-    showInfo(`Stage 1: ${segments.length} segments (${candidate_video_ids.length} videos) | ${data.elapsed ? data.elapsed.toFixed(2)+'s' : ''}`);
-    document.getElementById('emptyState').style.display = 'none';
-  } catch (e) {
-    alert('Lỗi kết nối: ' + e.message);
-  }
-}
+      try {
+        const res = await fetch('/api/search/segments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: q, top_k: topk })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Lỗi: ' + (err.error || 'Segment search failed'));
+          return;
+        }
+        const data = await res.json();
+        const segments = data.results || [];
+        const candidate_video_ids = data.candidate_video_ids || [];
 
-async function searchFilteredKeyframesUI() {
-  const baseQuery = document.getElementById('twoStageQuery').value.trim();
-  const overrideQuery = document.getElementById('twoStageKeyframeQuery').value.trim();
-  const q = overrideQuery || baseQuery;
+        workspace['twostage'].segments = segments;
+        workspace['twostage'].candidate_video_ids = candidate_video_ids;
+        workspace['twostage'].viewMode = 'segments';
 
-  if (!q) { alert('Vui lòng nhập truy vấn tìm kiếm keyframes'); return; }
-  if (!twoStageSelectedVids.length) {
-    alert('Chưa chọn candidate videos. Hãy chạy Stage 1 hoặc thêm video ID thủ công.');
-    return;
-  }
+        // Auto-populate candidate video tags
+        twoStageSelectedVids = [...candidate_video_ids];
+        renderTwoStageVidTags();
 
-  const topk = parseInt(document.getElementById('twoStageKeyframeTopk').value) || 50;
-
-  showLoading('twostage');
-
-  try {
-    const res = await fetch('/api/search_text', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: q,
-        video_ids: twoStageSelectedVids,
-        top_k: topk
-      })
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      alert('Lỗi: ' + (err.error || 'Filtered search failed'));
-      return;
+        renderTwoStageResults();
+        showInfo(`Stage 1: ${segments.length} segments (${candidate_video_ids.length} videos) | ${data.elapsed ? data.elapsed.toFixed(2) + 's' : ''}`);
+        document.getElementById('emptyState').style.display = 'none';
+      } catch (e) {
+        alert('Lỗi kết nối: ' + e.message);
+      }
     }
-    const data = await res.json();
-    workspace['twostage'].results = data.results || [];
-    workspace['twostage'].filtered = [...(data.results || [])];
-    workspace['twostage'].viewMode = 'keyframes';
 
-    handleBackendResponse(data, `Stage 2: "${q}" (${twoStageSelectedVids.length} vids)`, 'twostage');
-  } catch (e) {
-    alert('Lỗi kết nối: ' + e.message);
-  }
-}
+    async function searchFilteredKeyframesUI() {
+      const baseQuery = document.getElementById('twoStageQuery').value.trim();
+      const overrideQuery = document.getElementById('twoStageKeyframeQuery').value.trim();
+      const q = overrideQuery || baseQuery;
 
-async function runTwoStageEndToEnd() {
-  const q = document.getElementById('twoStageQuery').value.trim();
-  if (!q) { alert('Vui lòng nhập truy vấn mô tả phân đoạn'); return; }
-  const segTopk = parseInt(document.getElementById('twoStageSegTopk').value) || 20;
-  const kfTopk = parseInt(document.getElementById('twoStageKeyframeTopk').value) || 50;
-  const overrideQuery = document.getElementById('twoStageKeyframeQuery').value.trim();
-  const kfQuery = overrideQuery || q;
+      if (!q) { alert('Vui lòng nhập truy vấn tìm kiếm keyframes'); return; }
+      if (!twoStageSelectedVids.length) {
+        alert('Chưa chọn candidate videos. Hãy chạy Stage 1 hoặc thêm video ID thủ công.');
+        return;
+      }
 
-  showLoading('twostage');
+      const topk = parseInt(document.getElementById('twoStageKeyframeTopk').value) || 50;
 
-  try {
-    // 1. Run Stage 1: Segment search
-    const res1 = await fetch('/api/search/segments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: q, top_k: segTopk })
-    });
-    if (!res1.ok) {
-      const err = await res1.json();
-      alert('Lỗi Stage 1: ' + (err.error || 'Segment search failed'));
-      return;
+      showLoading('twostage');
+
+      try {
+        const res = await fetch('/api/search_text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: q,
+            video_ids: twoStageSelectedVids,
+            top_k: topk
+          })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Lỗi: ' + (err.error || 'Filtered search failed'));
+          return;
+        }
+        const data = await res.json();
+        workspace['twostage'].results = data.results || [];
+        workspace['twostage'].filtered = [...(data.results || [])];
+        workspace['twostage'].viewMode = 'keyframes';
+
+        handleBackendResponse(data, `Stage 2: "${q}" (${twoStageSelectedVids.length} vids)`, 'twostage');
+      } catch (e) {
+        alert('Lỗi kết nối: ' + e.message);
+      }
     }
-    const data1 = await res1.json();
-    const segments = data1.results || [];
-    const candidate_video_ids = data1.candidate_video_ids || [];
 
-    workspace['twostage'].segments = segments;
-    workspace['twostage'].candidate_video_ids = candidate_video_ids;
-    twoStageSelectedVids = [...candidate_video_ids];
-    renderTwoStageVidTags();
+    async function runTwoStageEndToEnd() {
+      const q = document.getElementById('twoStageQuery').value.trim();
+      if (!q) { alert('Vui lòng nhập truy vấn mô tả phân đoạn'); return; }
+      const segTopk = parseInt(document.getElementById('twoStageSegTopk').value) || 20;
+      const kfTopk = parseInt(document.getElementById('twoStageKeyframeTopk').value) || 50;
+      const overrideQuery = document.getElementById('twoStageKeyframeQuery').value.trim();
+      const kfQuery = overrideQuery || q;
 
-    if (!candidate_video_ids.length) {
-      workspace['twostage'].viewMode = 'segments';
+      showLoading('twostage');
+
+      try {
+        // 1. Run Stage 1: Segment search
+        const res1 = await fetch('/api/search/segments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: q, top_k: segTopk })
+        });
+        if (!res1.ok) {
+          const err = await res1.json();
+          alert('Lỗi Stage 1: ' + (err.error || 'Segment search failed'));
+          return;
+        }
+        const data1 = await res1.json();
+        const segments = data1.results || [];
+        const candidate_video_ids = data1.candidate_video_ids || [];
+
+        workspace['twostage'].segments = segments;
+        workspace['twostage'].candidate_video_ids = candidate_video_ids;
+        twoStageSelectedVids = [...candidate_video_ids];
+        renderTwoStageVidTags();
+
+        if (!candidate_video_ids.length) {
+          workspace['twostage'].viewMode = 'segments';
+          renderTwoStageResults();
+          showInfo(`Stage 1: Không tìm thấy phân đoạn nào.`);
+          return;
+        }
+
+        // 2. Run Stage 2: Filtered keyframe search
+        const res2 = await fetch('/api/search_text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: kfQuery,
+            video_ids: candidate_video_ids,
+            top_k: kfTopk
+          })
+        });
+        if (!res2.ok) {
+          const err = await res2.json();
+          alert('Lỗi Stage 2: ' + (err.error || 'Keyframe search failed'));
+          return;
+        }
+        const data2 = await res2.json();
+        workspace['twostage'].results = data2.results || [];
+        workspace['twostage'].filtered = [...(data2.results || [])];
+        workspace['twostage'].viewMode = 'keyframes';
+
+        handleBackendResponse(data2, `2-Stage: "${q}" (${segments.length} segs → ${data2.results?.length || 0} frames)`, 'twostage');
+      } catch (e) {
+        alert('Lỗi kết nối: ' + e.message);
+      }
+    }
+
+    function searchVideoInTwoStage(videoId) {
+      twoStageSelectedVids = [videoId];
+      renderTwoStageVidTags();
+      searchFilteredKeyframesUI();
+    }
+
+    function openBrowseFolderFromTwoStage(vid) {
+      switchBlock('browse');
+      document.getElementById('browseFolder').value = vid;
+      browseFolder();
+    }
+
+    function setTwoStageViewMode(mode) {
+      workspace['twostage'].viewMode = mode;
       renderTwoStageResults();
-      showInfo(`Stage 1: Không tìm thấy phân đoạn nào.`);
-      return;
     }
 
-    // 2. Run Stage 2: Filtered keyframe search
-    const res2 = await fetch('/api/search_text', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: kfQuery,
-        video_ids: candidate_video_ids,
-        top_k: kfTopk
-      })
-    });
-    if (!res2.ok) {
-      const err = await res2.json();
-      alert('Lỗi Stage 2: ' + (err.error || 'Keyframe search failed'));
-      return;
-    }
-    const data2 = await res2.json();
-    workspace['twostage'].results = data2.results || [];
-    workspace['twostage'].filtered = [...(data2.results || [])];
-    workspace['twostage'].viewMode = 'keyframes';
+    function renderTwoStageResults() {
+      const st = workspace['twostage'];
+      const grid = document.getElementById('resultsGrid-twostage');
+      const segCount = (st.segments || []).length;
+      const kfCount = (st.filtered || st.results || []).length;
 
-    handleBackendResponse(data2, `2-Stage: "${q}" (${segments.length} segs → ${data2.results?.length || 0} frames)`, 'twostage');
-  } catch (e) {
-    alert('Lỗi kết nối: ' + e.message);
-  }
-}
-
-function searchVideoInTwoStage(videoId) {
-  twoStageSelectedVids = [videoId];
-  renderTwoStageVidTags();
-  searchFilteredKeyframesUI();
-}
-
-function openBrowseFolderFromTwoStage(vid) {
-  switchBlock('browse');
-  document.getElementById('browseFolder').value = vid;
-  browseFolder();
-}
-
-function setTwoStageViewMode(mode) {
-  workspace['twostage'].viewMode = mode;
-  renderTwoStageResults();
-}
-
-function renderTwoStageResults() {
-  const st = workspace['twostage'];
-  const grid = document.getElementById('resultsGrid-twostage');
-  const segCount = (st.segments || []).length;
-  const kfCount = (st.filtered || st.results || []).length;
-
-  if (segCount === 0 && kfCount === 0) {
-    grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-16 text-center">
+      if (segCount === 0 && kfCount === 0) {
+        grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-16 text-center">
       <i class="fa fa-layer-group text-4xl mb-3" style="color:#2d3146;"></i>
       <p style="color:#4a5568;" class="text-sm">Chưa có kết quả 2-Stage Search. Nhập truy vấn và chạy Stage 1.</p></div>`;
-    return;
-  }
+        return;
+      }
 
-  // Switcher bar
-  const switchBar = `
+      // Switcher bar
+      const switchBar = `
     <div class="col-span-full flex items-center justify-between p-2.5 rounded-xl mb-1" style="background:var(--bg-card); border:1px solid var(--border-card);">
       <div class="flex items-center gap-2">
         <button onclick="setTwoStageViewMode('segments')" class="btn-secondary text-xs" style="${st.viewMode === 'segments' ? 'background:linear-gradient(135deg,#06b6d4,#3b82f6); color:#fff; border-color:transparent;' : ''}">
@@ -1175,20 +1652,20 @@ function renderTwoStageResults() {
         </button>
       </div>
       <div class="text-xs text-gray-400 flex items-center gap-2">
-        <span>Candidates: <strong class="text-indigo-400">${(st.candidate_video_ids||[]).length} videos</strong></span>
+        <span>Candidates: <strong class="text-indigo-400">${(st.candidate_video_ids || []).length} videos</strong></span>
       </div>
     </div>
   `;
 
-  if (st.viewMode === 'segments') {
-    if (!segCount) {
-      grid.innerHTML = switchBar + `<div class="col-span-full text-center py-10" style="color:#6272a4;">Chưa có phân đoạn nào từ Stage 1.</div>`;
-      return;
-    }
-    const segCards = (st.segments || []).map((seg) => {
-      const kwHtml = (seg.keywords || []).map(k => `<span class="obj-tag" style="font-size:10px; padding:1px 6px;">${k}</span>`).join(' ');
-      const entHtml = (seg.entities || []).map(e => `<span style="background:var(--bg-elevated); color:var(--text-secondary); border-radius:12px; padding:1px 6px; font-size:10px;">${e}</span>`).join(' ');
-      return `
+      if (st.viewMode === 'segments') {
+        if (!segCount) {
+          grid.innerHTML = switchBar + `<div class="col-span-full text-center py-10" style="color:#6272a4;">Chưa có phân đoạn nào từ Stage 1.</div>`;
+          return;
+        }
+        const segCards = (st.segments || []).map((seg) => {
+          const kwHtml = (seg.keywords || []).map(k => `<span class="obj-tag" style="font-size:10px; padding:1px 6px;">${k}</span>`).join(' ');
+          const entHtml = (seg.entities || []).map(e => `<span style="background:var(--bg-elevated); color:var(--text-secondary); border-radius:12px; padding:1px 6px; font-size:10px;">${e}</span>`).join(' ');
+          return `
         <div class="segment-card">
           <div class="seg-header">
             <div class="seg-vid">
@@ -1211,22 +1688,22 @@ function renderTwoStageResults() {
           </div>
         </div>
       `;
-    }).join('');
-    grid.innerHTML = switchBar + `<div class="col-span-full grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr));">${segCards}</div>`;
-  } else {
-    // Keyframes mode
-    const keyframeList = st.filtered || st.results || [];
-    if (!keyframeList.length) {
-      grid.innerHTML = switchBar + `<div class="col-span-full text-center py-10" style="color:#6272a4;">Chưa có keyframe nào từ Stage 2. Nhấn "Lọc Keyframes" để quét.</div>`;
-      return;
-    }
-    const sz = document.getElementById('gridSize')?.value || 220;
-    const cardsHtml = keyframeList.map((r) => {
-      const sim = typeof r.similarity === 'number' ? r.similarity.toFixed(3) : '—';
-      const fvid = r.frame_idx_video || r.frame_idx || '?';
-      const ts = r.time_str || '';
-      const encoded = encodeModalData(r);
-      return `<div class="frame-card" onclick="openModal('${encoded}')">
+        }).join('');
+        grid.innerHTML = switchBar + `<div class="col-span-full grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr));">${segCards}</div>`;
+      } else {
+        // Keyframes mode
+        const keyframeList = st.filtered || st.results || [];
+        if (!keyframeList.length) {
+          grid.innerHTML = switchBar + `<div class="col-span-full text-center py-10" style="color:#6272a4;">Chưa có keyframe nào từ Stage 2. Nhấn "Lọc Keyframes" để quét.</div>`;
+          return;
+        }
+        const sz = document.getElementById('gridSize')?.value || 220;
+        const cardsHtml = keyframeList.map((r) => {
+          const sim = typeof r.similarity === 'number' ? r.similarity.toFixed(3) : '—';
+          const fvid = r.frame_idx_video || r.frame_idx || '?';
+          const ts = r.time_str || '';
+          const encoded = encodeModalData(r);
+          return `<div class="frame-card" onclick="openModal('${encoded}')">
         <div class="relative">
           <img src="${getImgUrl(r.image_path)}" loading="lazy" class="w-full object-cover" style="max-height:200px;">
           <div class="sim-badge"><i class="fa fa-star" style="color:#fbbf24;"></i> ${sim}</div>
@@ -1236,112 +1713,112 @@ function renderTwoStageResults() {
           <div class="meta-row"><span><i class="fa fa-film" style="color:#4f4f7a;"></i> ${fvid}</span><span>${ts}</span></div>
         </div>
       </div>`;
-    }).join('');
-    grid.innerHTML = switchBar + `<div class="col-span-full grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(${sz}px,1fr));">${cardsHtml}</div>`;
-  }
-}
+        }).join('');
+        grid.innerHTML = switchBar + `<div class="col-span-full grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(${sz}px,1fr));">${cardsHtml}</div>`;
+      }
+    }
 
-// ─────────────────────────────────────────────
-// TEXT SEARCH
-// ─────────────────────────────────────────────
-async function searchText() {
-  const q = document.getElementById('queryInput').value.trim();
-  if (!q) { alert('Please enter a text query'); return; }
+    // ─────────────────────────────────────────────
+    // TEXT SEARCH
+    // ─────────────────────────────────────────────
+    async function searchText() {
+      const q = document.getElementById('queryInput').value.trim();
+      if (!q) { alert('Please enter a text query'); return; }
 
-  const topk      = parseInt(document.getElementById('topkInput').value) || 100;
-  const threshold = parseFloat(document.getElementById('thresholdInput').value) || 0.5;
-  const sceneGroup = document.getElementById('textSceneGroup').value;
-  const objectMode = document.querySelector('input[name="objMode"]:checked')?.value || 'and';
-  const imageInput = document.getElementById('textSearchImage');
+      const topk = parseInt(document.getElementById('topkInput').value) || 100;
+      const threshold = parseFloat(document.getElementById('thresholdInput').value) || 0.5;
+      const sceneGroup = document.getElementById('textSceneGroup').value;
+      const objectMode = document.querySelector('input[name="objMode"]:checked')?.value || 'and';
+      const imageInput = document.getElementById('textSearchImage');
 
-  showLoading('text');
+      showLoading('text');
 
-  try {
-    let res;
-    if (imageInput.files && imageInput.files[0]) {
+      try {
+        let res;
+        if (imageInput.files && imageInput.files[0]) {
+          const fd = new FormData();
+          fd.append('file', imageInput.files[0]);
+          fd.append('query', q);
+          fd.append('top_k', topk);
+          fd.append('threshold', threshold);
+          res = await fetch('/api/search_text_with_image', { method: 'POST', body: fd });
+        } else {
+          res = await fetch('/api/search_text', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              query: q,
+              top_k: topk,
+              threshold: threshold,
+              required_objects: objTags,
+              object_mode: objectMode,
+              scene_group: sceneGroup,
+            })
+          });
+        }
+        const data = await res.json();
+        handleBackendResponse(data, `Text: "${q}"`, 'text');
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    // ─────────────────────────────────────────────
+    // IMAGE SEARCH
+    // ─────────────────────────────────────────────
+    async function uploadAndSearch() {
+      const input = document.getElementById('uploadFile');
+      if (!input.files.length) { alert('Choose an image'); return; }
       const fd = new FormData();
-      fd.append('file', imageInput.files[0]);
-      fd.append('query', q);
-      fd.append('top_k', topk);
-      fd.append('threshold', threshold);
-      res = await fetch('/api/search_text_with_image', { method:'POST', body:fd });
-    } else {
-      res = await fetch('/api/search_text', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify({
-          query: q,
-          top_k: topk,
-          threshold: threshold,
-          required_objects: objTags,
-          object_mode: objectMode,
-          scene_group: sceneGroup,
-        })
-      });
-    }
-    const data = await res.json();
-    handleBackendResponse(data, `Text: "${q}"`, 'text');
-  } catch(e) {
-    alert('Error: ' + e.message);
-  }
-}
-
-// ─────────────────────────────────────────────
-// IMAGE SEARCH
-// ─────────────────────────────────────────────
-async function uploadAndSearch() {
-  const input = document.getElementById('uploadFile');
-  if (!input.files.length) { alert('Choose an image'); return; }
-  const fd = new FormData();
-  fd.append('file', input.files[0]);
-  fd.append('top_k', parseInt(document.getElementById('imgTopk').value) || 100);
-  showLoading('image');
-  try {
-    const res = await fetch('/api/upload_image', { method:'POST', body:fd });
-    handleBackendResponse(await res.json(), 'Image Search', 'image');
-  } catch(e) { alert('Error: ' + e.message); }
-}
-
-// ─────────────────────────────────────────────
-// TRAKE
-// ─────────────────────────────────────────────
-async function runTrake() {
-  const events = document.getElementById('eventsBox').value.trim().split('\n').filter(x => x);
-  if (!events.length) { alert('Enter at least one event'); return; }
-  const topk       = parseInt(document.getElementById('trakeTopk').value) || 200;
-  const candidates = parseInt(document.getElementById('trakeCandidates').value) || 200;
-  const option     = document.getElementById('trakeOption').value;
-
-  showLoading('trake');
-
-  try {
-    const res = await fetch('/api/trake', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ events, top_k:topk, candidates, option })
-    });
-    const data = await res.json();
-
-    if (!data.result || !data.result.length) {
-      document.getElementById('resultsGrid-trake').innerHTML =
-        `<div class="col-span-full text-center py-10" style="color:#6272a4;">No sequence found.</div>`;
-      showInfo(`TRAKE — No results (${data.elapsed?.toFixed(2)}s)`);
-      return;
+      fd.append('file', input.files[0]);
+      fd.append('top_k', parseInt(document.getElementById('imgTopk').value) || 100);
+      showLoading('image');
+      try {
+        const res = await fetch('/api/upload_image', { method: 'POST', body: fd });
+        handleBackendResponse(await res.json(), 'Image Search', 'image');
+      } catch (e) { alert('Error: ' + e.message); }
     }
 
-    // Flatten trake results for rendering
-    const flat = [];
-    let html = '';
-    for (const cand of data.result) {
-      html += `<div class="col-span-full" style="background:#1a1d27;border:1px solid #252840;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+    // ─────────────────────────────────────────────
+    // TRAKE
+    // ─────────────────────────────────────────────
+    async function runTrake() {
+      const events = document.getElementById('eventsBox').value.trim().split('\n').filter(x => x);
+      if (!events.length) { alert('Enter at least one event'); return; }
+      const topk = parseInt(document.getElementById('trakeTopk').value) || 200;
+      const candidates = parseInt(document.getElementById('trakeCandidates').value) || 200;
+      const option = document.getElementById('trakeOption').value;
+
+      showLoading('trake');
+
+      try {
+        const res = await fetch('/api/trake', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ events, top_k: topk, candidates, option })
+        });
+        const data = await res.json();
+
+        if (!data.result || !data.result.length) {
+          document.getElementById('resultsGrid-trake').innerHTML =
+            `<div class="col-span-full text-center py-10" style="color:#6272a4;">No sequence found.</div>`;
+          showInfo(`TRAKE — No results (${data.elapsed?.toFixed(2)}s)`);
+          return;
+        }
+
+        // Flatten trake results for rendering
+        const flat = [];
+        let html = '';
+        for (const cand of data.result) {
+          html += `<div class="col-span-full" style="background:#1a1d27;border:1px solid #252840;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
         <span style="font-weight:700;color:#c9d1e9;"><i class="fa fa-film" style="color:#6366f1;"></i> ${cand.video_name}</span>
         ${cand.watch_url ? `<a href="${cand.watch_url}" target="_blank" style="color:#6366f1;font-size:12px;"><i class="fa fa-play-circle"></i> Watch</a>` : ''}
       </div>`;
-      for (const d of (cand.details || [])) {
-        const r = { video_name:cand.video_name, frame_idx:d.frame, image_path:d.path, similarity:d.sim, watch_url:cand.watch_url, event:d.event };
-        flat.push(r);
-        const encoded = encodeModalData(r);
-        html += `<div class="frame-card" onclick="openModal('${encoded}')">
+          for (const d of (cand.details || [])) {
+            const r = { video_name: cand.video_name, frame_idx: d.frame, image_path: d.path, similarity: d.sim, watch_url: cand.watch_url, event: d.event };
+            flat.push(r);
+            const encoded = encodeModalData(r);
+            html += `<div class="frame-card" onclick="openModal('${encoded}')">
           <div class="relative">
             <img src="${getImgUrl(d.path)}" loading="lazy" class="w-full" style="max-height:200px;object-fit:cover;">
             <div class="sim-badge">${d.sim?.toFixed(3)}</div>
@@ -1351,201 +1828,272 @@ async function runTrake() {
             <div class="meta-row"><span>Fr: ${d.frame}</span></div>
           </div>
         </div>`;
+          }
+        }
+        document.getElementById('resultsGrid-trake').innerHTML = html;
+        workspace['trake'].results = flat;
+        workspace['trake'].filtered = flat;
+        showInfo(`TRAKE — ${data.elapsed?.toFixed(2)}s | ${flat.length} frames`);
+        document.getElementById('emptyState').style.display = 'none';
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    // ─────────────────────────────────────────────
+    // OCR SEARCH
+    // ─────────────────────────────────────────────
+    async function searchOCR() {
+      const q = document.getElementById('ocrQuery').value.trim();
+      if (!q) { alert('Enter OCR query text'); return; }
+      const topk = parseInt(document.getElementById('ocrTopk').value) || 50;
+      const mode = document.getElementById('ocrMode').value;
+      const ci = document.getElementById('ocrCaseInsensitive').checked;
+
+      showLoading('ocr');
+      try {
+        const res = await fetch('/api/search_ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: q, top_k: topk, mode, case_insensitive: ci })
+        });
+        handleBackendResponse(await res.json(), `OCR: "${q}"`, 'ocr');
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    // ─────────────────────────────────────────────
+    // BROWSE — Folder
+    // ─────────────────────────────────────────────
+    async function browseFolder() {
+      const vid = document.getElementById('browseFolder').value.trim();
+      if (!vid) { alert('Enter a video name (e.g. L26_V001)'); return; }
+      showLoading('browse');
+      try {
+        const res = await fetch(`/api/browse/folder/${encodeURIComponent(vid)}`);
+        if (!res.ok) { const d = await res.json(); alert(d.error || 'Error'); return; }
+        const data = await res.json();
+        // API returns {frames: [...]} not {results: [...]}, normalize before passing
+        const normalized = { results: data.frames || [], elapsed: null };
+        handleBackendResponse(normalized, `Browse: ${vid} (${(data.frames || []).length} frames)`, 'browse');
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    // ─────────────────────────────────────────────
+    // BROWSE — Context
+    // ─────────────────────────────────────────────
+    async function loadContext() {
+      const vid = document.getElementById('ctxFolder').value.trim();
+      const fid = document.getElementById('ctxFrameId').value.trim();
+      const range = parseInt(document.getElementById('ctxRange').value) || 5;
+      if (!vid || !fid) { alert('Enter video name and frame ID'); return; }
+      showLoading('browse');
+      try {
+        const res = await fetch(`/api/get_frames_range/${encodeURIComponent(vid)}/${fid}/${range}`);
+        const data = await res.json();
+        const centerId = data.center_frame_id;
+        workspace['browse'].results = data.frames || [];
+        workspace['browse'].filtered = [...workspace['browse'].results];
+        renderResults(workspace['browse'].results, 'browse', { centerId });
+        showInfo(`Context: ${vid} frame ${fid} ±${range}`);
+        document.getElementById('emptyState').style.display = 'none';
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    async function watchContextVideo() {
+      const vid = document.getElementById('ctxFolder').value.trim();
+      const fid = document.getElementById('ctxFrameId').value.trim();
+      if (!vid) { alert('Vui lòng nhập Video name (ví dụ: L26_V001)'); return; }
+      try {
+        const res = await fetch(`/api/browse/folder/${encodeURIComponent(vid)}`);
+        if (!res.ok) { alert('Không tìm thấy video: ' + vid); return; }
+        const data = await res.json();
+        const frames = data.frames || [];
+        let url = '';
+        if (fid && frames.length) {
+          const match = frames.find(f => String(f.frame_idx) === String(fid) || String(f.frame_idx_video) === String(fid));
+          if (match && match.watch_url) url = match.watch_url;
+        }
+        if (!url && frames.length && frames[0].watch_url) {
+          url = frames[0].watch_url;
+        }
+        if (url) {
+          window.open(url, '_blank');
+        } else {
+          alert('Không tìm thấy link YouTube cho video: ' + vid);
+        }
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    async function watchFolderVideo() {
+      const vid = document.getElementById('browseFolder').value.trim();
+      if (!vid) { alert('Vui lòng nhập Video name (ví dụ: L26_V001)'); return; }
+      try {
+        const res = await fetch(`/api/browse/folder/${encodeURIComponent(vid)}`);
+        if (!res.ok) { alert('Không tìm thấy video: ' + vid); return; }
+        const data = await res.json();
+        const frames = data.frames || [];
+        const url = (frames.length && frames[0].watch_url) ? frames[0].watch_url : '';
+        if (url) {
+          window.open(url, '_blank');
+        } else {
+          alert('Không tìm thấy link YouTube cho video: ' + vid);
+        }
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    // ─────────────────────────────────────────────
+    // MODAL INSPECTOR
+    // ─────────────────────────────────────────────
+    async function openModal(encodedData) {
+      try {
+        if (!encodedData) return;
+        let r = encodedData;
+        if (typeof encodedData === 'string') {
+          r = JSON.parse(decodeURIComponent(encodedData));
+        }
+        if (!r) return;
+
+        document.getElementById('modalImg').src = getImgUrl(r.image_path);
+        document.getElementById('modalVideoName').innerText = r.video_name || '';
+
+        const sim = typeof r.similarity === 'number' ? r.similarity.toFixed(3) : (r.similarity || '—');
+        const fvid = (r.frame_idx_video !== undefined && r.frame_idx_video !== null)
+          ? r.frame_idx_video
+          : (r.frame_idx !== undefined && r.frame_idx !== null ? r.frame_idx : '?');
+        const timeStr = r.time_str || '?';
+        document.getElementById('modalFrameInfo').innerText =
+          `Frame: ${fvid} | Time: ${timeStr} | Sim: ${sim}`;
+
+        document.getElementById('modalCaption').innerText = r.caption || 'No caption.';
+
+        // OCR
+        let ocrText = 'No text detected.';
+        if (r.ocr_text) {
+          if (typeof r.ocr_text === 'string') {
+            ocrText = r.ocr_text;
+          } else if (Array.isArray(r.ocr_text) && r.ocr_text.length) {
+            ocrText = r.ocr_text.map(o => typeof o === 'string' ? o : (o.text || '')).filter(Boolean).join('\n');
+          }
+        }
+        document.getElementById('modalOCR').innerText = ocrText || 'No text detected.';
+
+        // Scene
+        let sceneText = 'Unknown.';
+        if (r.scene) {
+          sceneText = typeof r.scene === 'object'
+            ? `${r.scene.category || ''}${r.scene.confidence ? ` (${(r.scene.confidence * 100).toFixed(1)}%)` : ''}`
+            : r.scene;
+        }
+        if (r.scene_group) {
+          sceneText = (sceneText === 'Unknown.' ? '' : sceneText + ' — ') + r.scene_group;
+        }
+        document.getElementById('modalScene').innerText = sceneText || 'Unknown.';
+
+        // Detections
+        const detContainer = document.getElementById('modalDetections');
+        if (r.detections && r.detections.length) {
+          const labels = r.detections.map(d => typeof d === 'string' ? d : (d.label || '?'));
+          const counts = {};
+          labels.forEach(l => { counts[l] = (counts[l] || 0) + 1; });
+          detContainer.innerHTML = Object.entries(counts).slice(0, 12).map(([l, c]) =>
+            `<span style="background:#1a2a3a;border:1px solid #2563eb;color:#93c5fd;border-radius:20px;padding:2px 10px;font-size:11px;">${l}${c > 1 ? ` ×${c}` : ''}</span>`
+          ).join(' ');
+        } else {
+          detContainer.innerHTML = `<span style="color:#4a5568;font-size:12px;font-style:italic;">No objects detected.</span>`;
+        }
+
+        // If watch_url is missing, fallback fetch
+        if (!r.watch_url && r.video_name) {
+          try {
+            const res = await fetch(`/api/media_info/${encodeURIComponent(r.video_name)}`);
+            if (res.ok) {
+              const info = await res.json();
+              if (info.watch_url) r.watch_url = info.watch_url;
+            }
+          } catch (_) {}
+        }
+
+        // Watch URL
+        const watchBtn = document.getElementById('modalWatchUrl');
+        if (r.watch_url) {
+          let url = r.watch_url;
+          if (r.time_str && r.time_str !== '?' && r.time_str !== '–') {
+            const parts = r.time_str.split(':').map(Number);
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+              const sec = parts[0] * 60 + parts[1];
+              if (sec > 0) {
+                url += (url.includes('?') ? '&t=' : '?t=') + sec + 's';
+              }
+            }
+          }
+          watchBtn.href = url;
+          watchBtn.style.display = 'inline-flex';
+        } else {
+          watchBtn.style.display = 'none';
+        }
+
+        // Context button
+        document.getElementById('modalContextBtn').onclick = (e) => {
+          e.stopPropagation();
+          closeModal();
+          switchBlock('browse');
+          switchBrowseTab('context');
+          document.getElementById('ctxFolder').value = r.video_name || '';
+          document.getElementById('ctxFrameId').value = (r.frame_idx !== undefined && r.frame_idx !== null) ? r.frame_idx : '';
+          document.getElementById('subVideoName').value = r.video_name || '';
+          document.getElementById('subFrameId').value = (r.frame_idx !== undefined && r.frame_idx !== null) ? r.frame_idx : '';
+          const trakeVidEl = document.getElementById('trakeSubVideoName');
+          if (trakeVidEl) trakeVidEl.value = r.video_name || '';
+        };
+
+        document.getElementById('inspectorModal').classList.add('open');
+      } catch (e) {
+        console.error('Failed to open modal:', e);
       }
     }
-    document.getElementById('resultsGrid-trake').innerHTML = html;
-    workspace['trake'].results = flat;
-    workspace['trake'].filtered = flat;
-    showInfo(`TRAKE — ${data.elapsed?.toFixed(2)}s | ${flat.length} frames`);
-    document.getElementById('emptyState').style.display = 'none';
-  } catch(e) { alert('Error: ' + e.message); }
-}
 
-// ─────────────────────────────────────────────
-// OCR SEARCH
-// ─────────────────────────────────────────────
-async function searchOCR() {
-  const q = document.getElementById('ocrQuery').value.trim();
-  if (!q) { alert('Enter OCR query text'); return; }
-  const topk = parseInt(document.getElementById('ocrTopk').value) || 50;
-  const mode = document.getElementById('ocrMode').value;
-  const ci   = document.getElementById('ocrCaseInsensitive').checked;
-
-  showLoading('ocr');
-  try {
-    const res = await fetch('/api/search_ocr', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ query:q, top_k:topk, mode, case_insensitive:ci })
-    });
-    handleBackendResponse(await res.json(), `OCR: "${q}"`, 'ocr');
-  } catch(e) { alert('Error: ' + e.message); }
-}
-
-// ─────────────────────────────────────────────
-// BROWSE — Folder
-// ─────────────────────────────────────────────
-async function browseFolder() {
-  const vid = document.getElementById('browseFolder').value.trim();
-  if (!vid) { alert('Enter a video name (e.g. L26_V001)'); return; }
-  showLoading('browse');
-  try {
-    const res = await fetch(`/api/browse/folder/${encodeURIComponent(vid)}`);
-    if (!res.ok) { const d=await res.json(); alert(d.error||'Error'); return; }
-    const data = await res.json();
-    // API returns {frames: [...]} not {results: [...]}, normalize before passing
-    const normalized = { results: data.frames || [], elapsed: null };
-    handleBackendResponse(normalized, `Browse: ${vid} (${(data.frames||[]).length} frames)`, 'browse');
-  } catch(e) { alert('Error: ' + e.message); }
-}
-
-// ─────────────────────────────────────────────
-// BROWSE — Context
-// ─────────────────────────────────────────────
-async function loadContext() {
-  const vid   = document.getElementById('ctxFolder').value.trim();
-  const fid   = document.getElementById('ctxFrameId').value.trim();
-  const range = parseInt(document.getElementById('ctxRange').value) || 5;
-  if (!vid || !fid) { alert('Enter video name and frame ID'); return; }
-  showLoading('browse');
-  try {
-    const res = await fetch(`/api/get_frames_range/${encodeURIComponent(vid)}/${fid}/${range}`);
-    const data = await res.json();
-    const centerId = data.center_frame_id;
-    workspace['browse'].results = data.frames || [];
-    workspace['browse'].filtered = [...workspace['browse'].results];
-    renderResults(workspace['browse'].results, 'browse', { centerId });
-    showInfo(`Context: ${vid} frame ${fid} ±${range}`);
-    document.getElementById('emptyState').style.display = 'none';
-  } catch(e) { alert('Error: ' + e.message); }
-}
-
-// ─────────────────────────────────────────────
-// MODAL INSPECTOR
-// ─────────────────────────────────────────────
-function openModal(encodedData) {
-  try {
-    if (!encodedData) return;
-    let r = encodedData;
-    if (typeof encodedData === 'string') {
-      r = JSON.parse(decodeURIComponent(encodedData));
+    function closeModal(e) {
+      if (e && e.target !== document.getElementById('inspectorModal')) return;
+      document.getElementById('inspectorModal').classList.remove('open');
+      document.getElementById('modalImg').src = '';
     }
-    if (!r) return;
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('inspectorModal').classList.remove('open'); });
 
-    document.getElementById('modalImg').src = getImgUrl(r.image_path);
-    document.getElementById('modalVideoName').innerText = r.video_name || '';
-    
-    const sim = typeof r.similarity === 'number' ? r.similarity.toFixed(3) : (r.similarity || '—');
-    const fvid = (r.frame_idx_video !== undefined && r.frame_idx_video !== null)
-      ? r.frame_idx_video
-      : (r.frame_idx !== undefined && r.frame_idx !== null ? r.frame_idx : '?');
-    const timeStr = r.time_str || '?';
-    document.getElementById('modalFrameInfo').innerText =
-      `Frame: ${fvid} | Time: ${timeStr} | Sim: ${sim}`;
-
-    document.getElementById('modalCaption').innerText = r.caption || 'No caption.';
-
-    // OCR
-    let ocrText = 'No text detected.';
-    if (r.ocr_text) {
-      if (typeof r.ocr_text === 'string') {
-        ocrText = r.ocr_text;
-      } else if (Array.isArray(r.ocr_text) && r.ocr_text.length) {
-        ocrText = r.ocr_text.map(o => typeof o === 'string' ? o : (o.text || '')).filter(Boolean).join('\n');
-      }
-    }
-    document.getElementById('modalOCR').innerText = ocrText || 'No text detected.';
-
-    // Scene
-    let sceneText = 'Unknown.';
-    if (r.scene) {
-      sceneText = typeof r.scene === 'object'
-        ? `${r.scene.category || ''}${r.scene.confidence ? ` (${(r.scene.confidence*100).toFixed(1)}%)` : ''}`
-        : r.scene;
-    }
-    if (r.scene_group) {
-      sceneText = (sceneText === 'Unknown.' ? '' : sceneText + ' — ') + r.scene_group;
-    }
-    document.getElementById('modalScene').innerText = sceneText || 'Unknown.';
-
-    // Detections
-    const detContainer = document.getElementById('modalDetections');
-    if (r.detections && r.detections.length) {
-      const labels = r.detections.map(d => typeof d === 'string' ? d : (d.label || '?'));
-      const counts = {};
-      labels.forEach(l => { counts[l] = (counts[l]||0)+1; });
-      detContainer.innerHTML = Object.entries(counts).slice(0,12).map(([l,c]) =>
-        `<span style="background:#1a2a3a;border:1px solid #2563eb;color:#93c5fd;border-radius:20px;padding:2px 10px;font-size:11px;">${l}${c>1?` ×${c}`:''}</span>`
-      ).join(' ');
-    } else {
-      detContainer.innerHTML = `<span style="color:#4a5568;font-size:12px;font-style:italic;">No objects detected.</span>`;
+    // ─────────────────────────────────────────────
+    // EXPORT / GROUP
+    // ─────────────────────────────────────────────
+    async function exportResults() {
+      const st = workspace[workspace.activeBlock];
+      const results = st.filtered.length ? st.filtered : st.results;
+      if (!results.length) { alert('No results'); return; }
+      const name = prompt('CSV name:', `export_${Date.now()}`);
+      if (!name) return;
+      const constVal = prompt('Const value (int) or blank:');
+      try {
+        const res = await fetch('/api/export_results', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ results, name, const_value: constVal })
+        });
+        const d = await res.json();
+        alert(d.status === 'ok' ? `Exported: ${d.csv_path}` : 'Export error');
+      } catch (e) { alert('Error: ' + e.message); }
     }
 
-    // Watch URL
-    const watchBtn = document.getElementById('modalWatchUrl');
-    if (r.watch_url) { watchBtn.href = r.watch_url; watchBtn.style.display='inline'; }
-    else watchBtn.style.display='none';
-
-    // Context button
-    document.getElementById('modalContextBtn').onclick = (e) => {
-      e.stopPropagation();
-      closeModal();
-      switchBlock('browse');
-      switchBrowseTab('context');
-      document.getElementById('ctxFolder').value = r.video_name || '';
-      document.getElementById('ctxFrameId').value = (r.frame_idx !== undefined && r.frame_idx !== null) ? r.frame_idx : '';
-    };
-
-    document.getElementById('inspectorModal').classList.add('open');
-  } catch(e) {
-    console.error('Failed to open modal:', e);
-  }
-}
-
-function closeModal(e) {
-  if (e && e.target !== document.getElementById('inspectorModal')) return;
-  document.getElementById('inspectorModal').classList.remove('open');
-  document.getElementById('modalImg').src = '';
-}
-document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('inspectorModal').classList.remove('open'); });
-
-// ─────────────────────────────────────────────
-// EXPORT / GROUP
-// ─────────────────────────────────────────────
-async function exportResults() {
-  const st = workspace[workspace.activeBlock];
-  const results = st.filtered.length ? st.filtered : st.results;
-  if (!results.length) { alert('No results'); return; }
-  const name = prompt('CSV name:', `export_${Date.now()}`);
-  if (!name) return;
-  const constVal = prompt('Const value (int) or blank:');
-  try {
-    const res = await fetch('/api/export_results', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ results, name, const_value:constVal })
-    });
-    const d = await res.json();
-    alert(d.status==='ok' ? `Exported: ${d.csv_path}` : 'Export error');
-  } catch(e) { alert('Error: '+e.message); }
-}
-
-async function groupByVideoUI() {
-  const st = workspace[workspace.activeBlock];
-  const results = st.filtered.length ? st.filtered : st.results;
-  if (!results.length) { alert('No results to group'); return; }
-  const sort_by = prompt('Sort by (frame or similarity):', 'frame') || 'frame';
-  const top_per_video = parseInt(prompt('Top per video:', '20')) || null;
-  try {
-    const res = await fetch('/api/group_by_video', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ results, sort_by, top_per_video })
-    });
-    const data = await res.json();
-    const block = workspace.activeBlock;
-    const grid = document.getElementById(`resultsGrid-${block}`);
-    let html = '';
-    for (const [vid, items] of Object.entries(data)) {
-      html += `<div class="col-span-full" style="background:#1a1d27;border:1px solid #252840;border-radius:10px;overflow:hidden;margin-bottom:8px;">
+    async function groupByVideoUI() {
+      const st = workspace[workspace.activeBlock];
+      const results = st.filtered.length ? st.filtered : st.results;
+      if (!results.length) { alert('No results to group'); return; }
+      const sort_by = prompt('Sort by (frame or similarity):', 'frame') || 'frame';
+      const top_per_video = parseInt(prompt('Top per video:', '20')) || null;
+      try {
+        const res = await fetch('/api/group_by_video', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ results, sort_by, top_per_video })
+        });
+        const data = await res.json();
+        const block = workspace.activeBlock;
+        const grid = document.getElementById(`resultsGrid-${block}`);
+        let html = '';
+        for (const [vid, items] of Object.entries(data)) {
+          html += `<div class="col-span-full" style="background:#1a1d27;border:1px solid #252840;border-radius:10px;overflow:hidden;margin-bottom:8px;">
         <div style="background:#1e2230;padding:10px 14px;font-weight:700;color:#c9d1e9;cursor:pointer;display:flex;justify-content:space-between;"
              onclick="this.nextElementSibling.classList.toggle('hidden')">
           <span><i class="fa fa-folder" style="color:#6366f1;"></i> ${vid}
@@ -1559,43 +2107,96 @@ async function groupByVideoUI() {
             return `<div style="flex-shrink:0;width:160px;background:#161926;border:1px solid #252840;border-radius:10px;overflow:hidden;cursor:pointer;" onclick="openModal('${encoded}')">
               <img src="${getImgUrl(r.image_path)}" class="w-full" style="height:100px;object-fit:cover;">
               <div style="padding:6px 8px;font-size:11px;color:#6272a4;">
-                Fr: ${r.frame_idx_video||r.frame_idx||'?'} | ${typeof r.similarity==='number'?r.similarity.toFixed(3):'—'}
+                Fr: ${r.frame_idx_video || r.frame_idx || '?'} | ${typeof r.similarity === 'number' ? r.similarity.toFixed(3) : '—'}
               </div>
             </div>`;
           }).join('')}
         </div>
       </div>`;
+        }
+        grid.innerHTML = html;
+        showInfo(`Grouped into ${Object.keys(data).length} videos`);
+      } catch (e) { alert('Error: ' + e.message); }
     }
-    grid.innerHTML = html;
-    showInfo(`Grouped into ${Object.keys(data).length} videos`);
-  } catch(e) { alert('Error: '+e.message); }
-}
 
-// ─────────────────────────────────────────────
-// SUBMISSION
-// ─────────────────────────────────────────────
-async function makeSubmission() {
-  const name      = document.getElementById('subExportName').value.trim() || `submission_${Date.now()}`;
-  const videoName = document.getElementById('subVideoName').value.trim();
-  const frameId   = parseInt(document.getElementById('subFrameId').value.trim());
-  const gap       = parseInt(document.getElementById('subGap').value.trim());
-  if (!videoName || isNaN(frameId) || isNaN(gap)) { alert('Fill in video name, frame ID and GAP'); return; }
-  try {
-    const res = await fetch('/api/export_submission', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ video_name:videoName, frame_id:frameId, gap, const_value:null, name })
-    });
-    const d = await res.json();
-    const msg = document.getElementById('subMsg');
-    msg.innerText = d.status==='ok' ? `✅ ${d.csv_path}` : `❌ ${d.msg}`;
-    msg.style.color = d.status==='ok' ? '#10b981' : '#ef4444';
-  } catch(e) { alert('Error: '+e.message); }
-}
+    // ─────────────────────────────────────────────
+    // SUBMISSION
+    // ─────────────────────────────────────────────
+    function switchSubMode(mode) {
+      const isKis = mode === 'kis';
+      const formKis = document.getElementById('subFormKis');
+      const formTrake = document.getElementById('subFormTrake');
+      if (formKis) formKis.classList.toggle('hidden', !isKis);
+      if (formTrake) formTrake.classList.toggle('hidden', isKis);
+      
+      const btnKis = document.getElementById('btnSubModeKis');
+      const btnTrake = document.getElementById('btnSubModeTrake');
+      if (btnKis && btnTrake) {
+        if (isKis) {
+          btnKis.style.background = '#6366f1';
+          btnKis.style.color = '#ffffff';
+          btnTrake.style.background = 'transparent';
+          btnTrake.style.color = '#94a3b8';
+        } else {
+          btnTrake.style.background = '#6366f1';
+          btnTrake.style.color = '#ffffff';
+          btnKis.style.background = 'transparent';
+          btnKis.style.color = '#94a3b8';
+        }
+      }
+    }
 
-// ─────────────────────────────────────────────
-// Init
-// ─────────────────────────────────────────────
-updateGridSize();
-</script>
+    async function makeSubmission() {
+      const name = document.getElementById('subExportName').value.trim() || `submission_${Date.now()}`;
+      const videoName = document.getElementById('subVideoName').value.trim();
+      const frameId = parseInt(document.getElementById('subFrameId').value.trim());
+      const gap = parseInt(document.getElementById('subGap').value.trim()) || 15;
+      const constValRaw = document.getElementById('subConst') ? document.getElementById('subConst').value.trim() : '';
+      const constValue = constValRaw !== '' ? (isNaN(parseInt(constValRaw)) ? constValRaw : parseInt(constValRaw)) : null;
+
+      if (!videoName || isNaN(frameId)) {
+        alert('Fill in video name and frame ID');
+        return;
+      }
+      try {
+        const res = await fetch('/api/export_submission', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ video_name: videoName, frame_id: frameId, gap, const_value: constValue, name })
+        });
+        const d = await res.json();
+        const msg = document.getElementById('subMsg');
+        msg.innerText = d.status === 'ok' ? `✅ ${d.csv_path}` : `❌ ${d.msg || d.error || 'Export failed'}`;
+        msg.style.color = d.status === 'ok' ? '#10b981' : '#ef4444';
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    async function makeTrakeSubmission() {
+      const name = document.getElementById('trakeSubExportName').value.trim() || `trake_${Date.now()}`;
+      const videoName = document.getElementById('trakeSubVideoName').value.trim();
+      const framesRaw = document.getElementById('trakeSubFrames').value.trim();
+      if (!videoName || !framesRaw) {
+        alert('Fill in video name and keyframe sequence (e.g. 10, 25, 40)');
+        return;
+      }
+      try {
+        const res = await fetch('/api/export_trake_submission', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ video_name: videoName, frames: framesRaw, name })
+        });
+        const d = await res.json();
+        const msg = document.getElementById('subMsg');
+        msg.innerText = d.status === 'ok' ? `✅ ${d.csv_path}` : `❌ ${d.msg || d.error || 'Export failed'}`;
+        msg.style.color = d.status === 'ok' ? '#10b981' : '#ef4444';
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    // ─────────────────────────────────────────────
+    // Init
+    // ─────────────────────────────────────────────
+    updateGridSize();
+  </script>
 </body>
+
 </html>
